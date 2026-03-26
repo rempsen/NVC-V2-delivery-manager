@@ -8,6 +8,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1004,7 +1005,7 @@ function EditFieldModal({
 
           {/* Save */}
           <Pressable
-            style={({ pressed }) => [styles.saveBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [styles.saveBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 }]}
             onPress={() => { if (local.label.trim()) onSave(local); else Alert.alert("Field label is required."); }}
           >
             <Text style={styles.saveBtnText}>Save Field</Text>

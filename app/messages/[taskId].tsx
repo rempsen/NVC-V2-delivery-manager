@@ -15,6 +15,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { MOCK_TASKS, MOCK_TECHNICIANS } from "@/lib/nvc-types";
 
 interface Message {
@@ -68,7 +69,7 @@ function MessageBubble({ message }: { message: Message }) {
           style={[
             styles.bubble,
             isMe
-              ? { backgroundColor: colors.primary }
+              ? { backgroundColor: NVC_BLUE }
               : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
           ]}
         >

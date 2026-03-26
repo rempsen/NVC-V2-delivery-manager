@@ -238,3 +238,15 @@
 - [ ] Conditional logic: show/hide fields based on prior answer values
 - [ ] Field preview mode: simulate filling out the form as a technician
 - [ ] Wire Settings → Workflow Templates navigation
+
+## Full App Restyle — NVC Blue Brand System
+- [x] Both NVC360 logo variants (white-on-dark, black-transparent) copied to assets
+- [x] Central brand constants file (NVC_BLUE #1E6FBF, NVC_ORANGE, NVC_LOGO_DARK, NVC_LOGO_LIGHT)
+- [x] NVCHeader component updated: blue background, NVC logo, consistent across all sub-screens
+- [x] Dashboard header: orange → blue, NVC logo added, NVC orange kept for CTA button
+- [x] Work Orders tab header: orange → blue, NVC logo added
+- [x] Settings tab header: orange → blue, NVC logo added, profile card blue
+- [x] Tab bar active tint: set to NVC orange (matching screenshots)
+- [x] All primary action buttons across app updated to NVC_BLUE
+- [x] Customer Tracking screen company color updated to NVC blue
+- [x] TypeScript: 0 errors | Tests: 56 passed

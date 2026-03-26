@@ -16,6 +16,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { MOCK_TASKS } from "@/lib/nvc-types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -290,7 +291,7 @@ function PaymentSection({
         <Pressable
           style={({ pressed }) => [
             styles.authorizeBtn,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+            { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 },
           ]}
           onPress={onAuthorize}
         >

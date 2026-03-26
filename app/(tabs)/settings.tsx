@@ -9,11 +9,14 @@ import {
   Linking,
   Alert,
   Platform,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK } from "@/constants/brand";
 
 function SettingRow({
   icon,
@@ -64,6 +67,7 @@ function SectionHeader({ title }: { title: string }) {
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [geoClockEnabled, setGeoClockEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(true);
@@ -77,14 +81,17 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Text style={styles.headerTitle}>Settings</Text>
+    <ScreenContainer edges={["left", "right"]}>
+      <View style={[styles.header, { backgroundColor: NVC_BLUE, paddingTop: insets.top + 6 }]}>
+        <View style={styles.headerLeft}>
+          <Image source={NVC_LOGO_DARK} style={styles.headerLogo} resizeMode="contain" />
+          <Text style={styles.headerTitle}>Settings</Text>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Profile */}
-        <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
+        <View style={[styles.profileCard, { backgroundColor: NVC_BLUE }]}>
           <View style={styles.profileAvatar}>
             <Text style={styles.profileInitial}>D</Text>
           </View>
@@ -278,7 +285,7 @@ export default function SettingsScreen() {
               <Switch
                 value={darkMode}
                 onValueChange={setDarkMode}
-                trackColor={{ false: colors.border, true: colors.primary }}
+                trackColor={{ false: colors.border, true: NVC_BLUE }}
                 thumbColor="#fff"
               />
             }
@@ -355,10 +362,14 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingBottom: 10,
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
+  headerLogo: { width: 30, height: 30, borderRadius: 6 },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
   scroll: { paddingBottom: 40 },
   profileCard: {
     flexDirection: "row",

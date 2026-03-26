@@ -8,6 +8,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import {
   MOCK_TASKS, MOCK_TECHNICIANS, STATUS_COLORS, STATUS_LABELS,
   PRIORITY_COLORS, formatDuration, getETA, type Task, type TaskStatus,
@@ -304,7 +305,7 @@ export default function TaskDetailScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.assignBtn,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 },
               ]}
               onPress={() => {}}
             >

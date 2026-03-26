@@ -1,9 +1,10 @@
-import { View, Text, Pressable, StyleSheet, Platform } from "react-native";
+import { View, Text, Pressable, Image, StyleSheet, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, NVC_LOGO_LIGHT } from "@/constants/brand";
 
 export interface NVCHeaderProps {
   /** Screen title shown in the centre */
@@ -16,18 +17,26 @@ export interface NVCHeaderProps {
   onBack?: () => void;
   /** Optional right-side element (icon button, text button, etc.) */
   rightElement?: React.ReactNode;
-  /** Use the NVC orange primary colour as background (for top-level screens) */
-  variant?: "primary" | "dark" | "surface";
+  /**
+   * Header variant:
+   * - "blue"    — NVC royal-sky blue (default for all screens)
+   * - "orange"  — NVC orange (legacy, avoid for new screens)
+   * - "surface" — uses theme surface color (light/dark aware)
+   */
+  variant?: "blue" | "orange" | "surface";
+  /** Show the NVC360 logo to the left of the title. Default: true */
+  showLogo?: boolean;
 }
 
 /**
- * NVCHeader — a consistent, fixed navigation header used across every screen.
+ * NVCHeader — universal navigation header used on every screen.
  *
  * Design principles:
- * - Always visible, never white-on-white
- * - Back button is always present on sub-screens
- * - Title is centred; right slot is optional
- * - Respects safe-area top inset so it never overlaps the status bar
+ * - Royal-sky blue (#1E6FBF) as the standard header background
+ * - NVC360 logo always visible on the left
+ * - Back button present on all sub-screens
+ * - Title centred; right slot is optional
+ * - Respects safe-area top inset
  */
 export function NVCHeader({
   title,
@@ -35,22 +44,25 @@ export function NVCHeader({
   showBack = true,
   onBack,
   rightElement,
-  variant = "dark",
+  variant = "blue",
+  showLogo = true,
 }: NVCHeaderProps) {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const bgColor =
-    variant === "primary"
-      ? colors.primary
+    variant === "orange"
+      ? NVC_ORANGE
       : variant === "surface"
       ? colors.surface
-      : "#0a0a0a";
+      : NVC_BLUE;
 
-  const textColor = variant === "surface" ? colors.foreground : "#ffffff";
-  const subColor = variant === "surface" ? colors.muted : "rgba(255,255,255,0.75)";
-  const iconColor = variant === "surface" ? colors.foreground : "#ffffff";
+  const isDark = variant !== "surface";
+  const textColor = isDark ? "#ffffff" : colors.foreground;
+  const subColor = isDark ? "rgba(255,255,255,0.72)" : colors.muted;
+  const iconColor = isDark ? "#ffffff" : colors.foreground;
+  const logoSource = isDark ? NVC_LOGO_DARK : NVC_LOGO_LIGHT;
 
   const handleBack = () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -65,22 +77,28 @@ export function NVCHeader({
         {
           backgroundColor: bgColor,
           paddingTop: insets.top + 4,
-          borderBottomColor:
-            variant === "surface" ? colors.border : "rgba(255,255,255,0.1)",
+          borderBottomColor: isDark ? "rgba(255,255,255,0.12)" : colors.border,
         },
       ]}
     >
-      {/* Left — back button or spacer */}
-      <View style={styles.side}>
-        {showBack ? (
+      {/* Left — logo + back button */}
+      <View style={styles.left}>
+        {showLogo && (
+          <Image
+            source={logoSource}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        )}
+        {showBack && (
           <Pressable
             onPress={handleBack}
             style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <IconSymbol name="chevron.left" size={20} color={iconColor} />
+            <IconSymbol name="chevron.left" size={18} color={iconColor} />
           </Pressable>
-        ) : null}
+        )}
       </View>
 
       {/* Centre — title + optional subtitle */}
@@ -96,7 +114,7 @@ export function NVCHeader({
       </View>
 
       {/* Right — optional action slot */}
-      <View style={styles.side}>
+      <View style={styles.right}>
         {rightElement ?? null}
       </View>
     </View>
@@ -112,10 +130,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     minHeight: 52,
   },
-  side: {
-    width: 44,
+  left: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
+    minWidth: 48,
+  },
+  logo: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+  },
+  backBtn: {
+    padding: 4,
   },
   centre: {
     flex: 1,
@@ -124,7 +151,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.1,
   },
@@ -133,7 +160,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 1,
   },
-  backBtn: {
-    padding: 4,
+  right: {
+    minWidth: 48,
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
 });

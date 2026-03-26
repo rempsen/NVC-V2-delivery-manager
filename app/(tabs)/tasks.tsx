@@ -6,11 +6,14 @@ import {
   Pressable,
   TextInput,
   StyleSheet,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK } from "@/constants/brand";
 import {
   MOCK_TASKS,
   STATUS_COLORS,
@@ -92,6 +95,7 @@ function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
 export default function TasksScreen() {
   const colors = useColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [search, setSearch] = useState("");
 
@@ -112,11 +116,14 @@ export default function TasksScreen() {
   }, [filter, search]);
 
   return (
-    <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Text style={styles.headerTitle}>Work Orders</Text>
+    <ScreenContainer edges={["left", "right"]}>
+      <View style={[styles.header, { backgroundColor: NVC_BLUE, paddingTop: insets.top + 6 }]}>
+        <View style={styles.headerLeft}>
+          <Image source={NVC_LOGO_DARK} style={styles.headerLogo} resizeMode="contain" />
+          <Text style={styles.headerTitle}>Work Orders</Text>
+        </View>
         <Pressable
-          style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }]}
+          style={({ pressed }) => [styles.addBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.8 : 1 }]}
           onPress={() => router.push("/create-task")}
         >
           <IconSymbol name="plus" size={20} color="#fff" />
@@ -157,8 +164,8 @@ export default function TasksScreen() {
               style={[
                 styles.filterTab,
                 {
-                  backgroundColor: isActive ? colors.primary : colors.surface,
-                  borderColor: isActive ? colors.primary : colors.border,
+                  backgroundColor: isActive ? NVC_BLUE : colors.surface,
+                  borderColor: isActive ? NVC_BLUE : colors.border,
                 },
               ]}
               onPress={() => setFilter(item.key)}
@@ -207,15 +214,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
+  headerLogo: { width: 30, height: 30, borderRadius: 6 },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#E85D04",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },

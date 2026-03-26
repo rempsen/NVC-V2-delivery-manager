@@ -18,6 +18,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { createTask, MOCK_AGENTS } from "@/lib/tookan";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
@@ -460,7 +461,7 @@ export default function CreateTaskScreen() {
             disabled={submitting}
             style={({ pressed }) => [
               styles.submitBtn,
-              { backgroundColor: colors.primary },
+              { backgroundColor: NVC_BLUE },
               pressed && { opacity: 0.85 },
               submitting && { opacity: 0.6 },
             ]}

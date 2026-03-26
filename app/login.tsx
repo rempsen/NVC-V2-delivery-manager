@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 
 // ─── Role Definitions ─────────────────────────────────────────────────────────
 
@@ -435,7 +436,7 @@ export default function LoginScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.loginBtn,
-                { backgroundColor: colors.primary, opacity: pressed || loading ? 0.85 : 1 },
+                { backgroundColor: NVC_BLUE, opacity: pressed || loading ? 0.85 : 1 },
               ]}
               onPress={handleEmailLogin}
               disabled={loading || loadingProvider !== null}

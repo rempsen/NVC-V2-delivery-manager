@@ -350,7 +350,7 @@ export default function DispatcherDashboard() {
         title="Dispatcher Dashboard"
         subtitle="NVC360 · Live Operations"
         showBack={false}
-        variant="primary"
+        variant="blue"
         rightElement={
           <Pressable
             onPress={() => router.push("/create-task" as any)}

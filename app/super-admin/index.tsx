@@ -389,7 +389,7 @@ export default function SuperAdminDashboard() {
         title="NVC360 Super Admin"
         subtitle="Platform Management"
         showBack={false}
-        variant="primary"
+        variant="blue"
         rightElement={
           <Pressable
             onPress={() => setShowCreate(true)}

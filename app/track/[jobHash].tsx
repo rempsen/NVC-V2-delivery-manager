@@ -40,7 +40,7 @@ const MOCK_TRACKING = {
   etaMinutes: 12,
   dispatchedAt: "2:30 PM",
   companyName: "Arctic HVAC Services",
-  companyColor: "#E85D04",
+  companyColor: "#1E6FBF",
   companyLogo: "A",
   serviceName: "HVAC Service Call",
 };

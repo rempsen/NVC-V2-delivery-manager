@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_COLORS as BRAND_STATUS_COLORS } from "@/constants/brand";
 import {
   MOCK_TASKS,
   MOCK_TECHNICIANS,
@@ -233,10 +235,13 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* ── Header — pushed below notch/Dynamic Island ── */}
-        <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: headerTopPadding }]}>
-          <View>
-            <Text style={styles.headerGreeting}>Good morning, Dan</Text>
-            <Text style={styles.headerTitle}>NVC360 Dispatch</Text>
+        <View style={[styles.header, { backgroundColor: NVC_BLUE, paddingTop: headerTopPadding }]}>
+          <View style={styles.headerLeft}>
+            <Image source={NVC_LOGO_DARK} style={styles.headerLogo} resizeMode="contain" />
+            <View>
+              <Text style={styles.headerGreeting}>Good morning, Dan</Text>
+              <Text style={styles.headerTitle}>NVC360 Dispatch</Text>
+            </View>
           </View>
           <View style={styles.headerRight}>
             <Pressable
@@ -246,7 +251,7 @@ export default function DashboardScreen() {
               <IconSymbol name="bell.fill" size={20} color="#fff" />
             </Pressable>
             <Pressable
-              style={({ pressed }) => [styles.createBtn, { opacity: pressed ? 0.8 : 1 }]}
+              style={({ pressed }) => [styles.createBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.8 : 1 }]}
               onPress={() => setCreateSheetVisible(true)}
             >
               <IconSymbol name="plus" size={15} color="#fff" />
@@ -298,13 +303,13 @@ export default function DashboardScreen() {
 
         {/* ── Online Team ── */}
         {onlineTeam.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Field Team</Text>
-              <Pressable onPress={() => router.push("/agents")}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text>
-              </Pressable>
-            </View>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Field Team</Text>
+            <Pressable onPress={() => router.push("/agents")}>
+              <Text style={[styles.seeAll, { color: NVC_BLUE }]}>See All</Text>
+            </Pressable>
+          </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {onlineTeam.map((tech) => (
                 <TechChip
@@ -322,7 +327,7 @@ export default function DashboardScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Work Orders</Text>
             <Pressable onPress={() => router.push("/tasks")}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text>
+              <Text style={[styles.seeAll, { color: NVC_BLUE }]}>See All</Text>
             </Pressable>
           </View>
           {recentTasks.map((task) => (
@@ -349,17 +354,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerLogo: { width: 32, height: 32, borderRadius: 6 },
   headerGreeting: { fontSize: 11, color: "rgba(255,255,255,0.72)", fontWeight: "500" },
-  headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff", marginTop: 1 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   notifBtn: { padding: 6 },
   createBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E85D04",
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 16,
@@ -415,33 +421,33 @@ const styles = StyleSheet.create({
   // Tech Chips
   techChip: {
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
-    marginRight: 8,
-    minWidth: 72,
-    gap: 3,
+    marginRight: 7,
+    minWidth: 66,
+    gap: 2,
   },
   techAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
-  techInitial: { fontSize: 15, fontWeight: "700" },
+  techInitial: { fontSize: 13, fontWeight: "700" },
   techStatusDot: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
+    top: 5,
+    right: 5,
+    width: 7,
+    height: 7,
     borderRadius: 4,
     borderWidth: 1.5,
     borderColor: "#fff",
   },
-  techChipName: { fontSize: 11, fontWeight: "600" },
+  techChipName: { fontSize: 10, fontWeight: "600" },
   techChipStatus: { fontSize: 9, fontWeight: "500" },
 
   // Compact Task Rows
