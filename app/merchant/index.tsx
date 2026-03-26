@@ -34,17 +34,18 @@ function TeamTab({ tenantId }: { tenantId: number }) {
     email: "",
     phone: "",
     role: "technician" as "technician" | "dispatcher" | "manager",
-    password: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<{ name: string; tempPassword?: string; emailSent: boolean } | null>(null);
 
   const { data: agents, isLoading, refetch } = trpc.technicians.list.useQuery({ tenantId });
 
-  const createMutation = trpc.technicians.create.useMutation({
-    onSuccess: () => {
+  const inviteMutation = trpc.auth.inviteEmployee.useMutation({
+    onSuccess: (result) => {
       refetch();
       setShowAddForm(false);
-      setNewAgent({ name: "", email: "", phone: "", role: "technician", password: "" });
+      setInviteSuccess({ name: newAgent.name, tempPassword: result.tempPassword ?? undefined, emailSent: result.emailSent });
+      setNewAgent({ name: "", email: "", phone: "", role: "technician" });
       setFormError(null);
     },
     onError: (err) => setFormError(err.message),
@@ -59,11 +60,11 @@ function TeamTab({ tenantId }: { tenantId: number }) {
   };
 
   const handleCreate = () => {
-    if (!newAgent.name || !newAgent.email || !newAgent.password) {
-      setFormError("Name, email, and password are required.");
+    if (!newAgent.name || !newAgent.email) {
+      setFormError("Name and email are required.");
       return;
     }
-    createMutation.mutate({ tenantId, ...newAgent } as any);
+    inviteMutation.mutate({ tenantId, ...newAgent });
   };
 
   return (
@@ -109,19 +110,50 @@ function TeamTab({ tenantId }: { tenantId: number }) {
             ))}
           </View>
 
-          <Text style={styles.fieldLabel}>Temporary Password *</Text>
-          <TextInput style={styles.input} value={newAgent.password} onChangeText={(t) => setNewAgent((f) => ({ ...f, password: t }))} placeholder="Min 8 characters" secureTextEntry />
+          <Text style={styles.fieldLabel}>Role</Text>
+          <View style={styles.roleRow}>
+            {roles.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[styles.roleChip, newAgent.role === r && { backgroundColor: roleColors[r], borderColor: roleColors[r] }]}
+                onPress={() => setNewAgent((f) => ({ ...f, role: r }))}
+              >
+                <Text style={[styles.roleChipText, newAgent.role === r && styles.roleChipTextActive]}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <TouchableOpacity
-            style={[styles.submitBtn, createMutation.isPending && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, inviteMutation.isPending && styles.submitBtnDisabled]}
             onPress={handleCreate}
-            disabled={createMutation.isPending}
+            disabled={inviteMutation.isPending}
           >
-            {createMutation.isPending ? (
+            {inviteMutation.isPending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.submitBtnText}>Add Team Member</Text>
+              <Text style={styles.submitBtnText}>Send Invite</Text>
             )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {inviteSuccess && (
+        <View style={styles.inviteSuccessBanner}>
+          <Text style={styles.inviteSuccessTitle}>
+            {inviteSuccess.emailSent
+              ? `Invite sent to ${inviteSuccess.name}!`
+              : `${inviteSuccess.name} added to your team`}
+          </Text>
+          {!inviteSuccess.emailSent && inviteSuccess.tempPassword && (
+            <Text style={styles.inviteSuccessBody}>
+              Temporary password: <Text style={{ fontWeight: "700", fontFamily: "monospace" }}>{inviteSuccess.tempPassword}</Text>{"\n"}Share this with them securely.
+            </Text>
+          )}
+          {inviteSuccess.emailSent && (
+            <Text style={styles.inviteSuccessBody}>A welcome email with login credentials has been sent.</Text>
+          )}
+          <TouchableOpacity onPress={() => setInviteSuccess(null)} style={{ marginTop: 6 }}>
+            <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "600" }}>Dismiss</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -589,6 +621,9 @@ const styles = StyleSheet.create({
     borderColor: "#FECACA",
   },
   errorText: { color: "#991B1B", fontSize: 13 },
+  inviteSuccessBanner: { backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#86EFAC", borderRadius: 12, padding: 14, marginBottom: 12 },
+  inviteSuccessTitle: { fontSize: 15, fontWeight: "700", color: "#166534", marginBottom: 4 },
+  inviteSuccessBody: { fontSize: 13, color: "#166534", lineHeight: 18 },
   successBanner: {
     backgroundColor: "#DCFCE7",
     borderRadius: 10,

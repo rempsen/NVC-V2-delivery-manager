@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Modal,
   ViewStyle,
   TextStyle,
 } from "react-native";
@@ -118,10 +119,26 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [showDemo, setShowDemo] = useState(false);
+  // Forgot Password modal state
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
 
   const haptic = () => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
 
   const emailLoginMutation = trpc.auth.emailLogin.useMutation();
+  const forgotPasswordMutation = trpc.auth.forgotPassword.useMutation();
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) { Alert.alert("Missing Email", "Please enter your work email address."); return; }
+    haptic();
+    try {
+      await forgotPasswordMutation.mutateAsync({ email: forgotEmail.toLowerCase().trim(), tenantId: 1 });
+      setForgotSent(true);
+    } catch (err: any) {
+      Alert.alert("Error", err?.message ?? "Could not send reset email. Please try again.");
+    }
+  };
 
   const saveAndNavigate = async (user: AuthUser, sessionToken?: string) => {
     if (Platform.OS !== "web") {
@@ -290,7 +307,7 @@ export default function LoginScreen() {
                 </Pressable>
               </View>
 
-              <Pressable style={styles.forgotBtn} onPress={() => Alert.alert("Reset Password", "A password reset link will be sent to your email.")}>
+              <Pressable style={styles.forgotBtn} onPress={() => { haptic(); setForgotEmail(email); setForgotSent(false); setShowForgot(true); }}>
                 <Text style={styles.forgotText}>Forgot password?</Text>
               </Pressable>
 
@@ -336,6 +353,62 @@ export default function LoginScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Forgot Password Modal ── */}
+      <Modal visible={showForgot} transparent animationType="fade" onRequestClose={() => setShowForgot(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowForgot(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            {forgotSent ? (
+              <View style={styles.modalSentWrap}>
+                <View style={styles.modalSentIcon}>
+                  <IconSymbol name="checkmark.circle.fill" size={40} color="#22C55E" />
+                </View>
+                <Text style={styles.modalTitle}>Check your inbox</Text>
+                <Text style={styles.modalBody}>
+                  If an account exists for <Text style={{ fontWeight: "700" }}>{forgotEmail}</Text>, a password reset link has been sent.
+                </Text>
+                <Pressable style={styles.modalDoneBtn} onPress={() => setShowForgot(false)}>
+                  <Text style={styles.modalDoneBtnText}>Done</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.modalTitle}>Reset Password</Text>
+                <Text style={styles.modalBody}>Enter your work email and we'll send you a reset link.</Text>
+                <View style={[styles.inputWrapper, { marginTop: 16, marginBottom: 12 }]}>
+                  <IconSymbol name="envelope.fill" size={16} color="#9CA3AF" />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Work email address"
+                    placeholderTextColor="#9CA3AF"
+                    value={forgotEmail}
+                    onChangeText={setForgotEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleForgotPassword}
+                  />
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.loginBtn, (pressed || forgotPasswordMutation.isPending) && { opacity: 0.85 }] as ViewStyle[]}
+                  onPress={handleForgotPassword}
+                  disabled={forgotPasswordMutation.isPending}
+                >
+                  {forgotPasswordMutation.isPending
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={styles.loginBtnText}>Send Reset Link</Text>
+                  }
+                </Pressable>
+                <Pressable style={[styles.forgotBtn, { alignSelf: "center", marginTop: 12 }]} onPress={() => setShowForgot(false)}>
+                  <Text style={[styles.forgotText, { color: "#9CA3AF" }]}>Cancel</Text>
+                </Pressable>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </ScreenContainer>
   );
 }
@@ -356,6 +429,9 @@ const styles = StyleSheet.create<{
   demoChip: ViewStyle; demoChipDot: ViewStyle; demoChipInfo: ViewStyle;
   demoChipRole: TextStyle; demoChipEmail: TextStyle; footer: ViewStyle;
   footerText: TextStyle; footerLink: TextStyle; footerVersion: TextStyle;
+  modalOverlay: ViewStyle; modalCard: ViewStyle; modalTitle: TextStyle;
+  modalBody: TextStyle; modalSentWrap: ViewStyle; modalSentIcon: ViewStyle;
+  modalDoneBtn: ViewStyle; modalDoneBtnText: TextStyle;
 }>({
   scroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 40 },
   brandSection: { alignItems: "center", marginBottom: 28 },
@@ -396,4 +472,12 @@ const styles = StyleSheet.create<{
   footerText: { fontSize: 12, color: "#9CA3AF", textAlign: "center", lineHeight: 18 },
   footerLink: { color: NVC_BLUE, fontWeight: "500" },
   footerVersion: { fontSize: 11, color: "#C4C9D4" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 20, padding: 24, width: "100%", maxWidth: 400, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 8 },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: "#111827", marginBottom: 6 },
+  modalBody: { fontSize: 14, color: "#6B7280", lineHeight: 20 },
+  modalSentWrap: { alignItems: "center", gap: 12 },
+  modalSentIcon: { marginBottom: 4 },
+  modalDoneBtn: { backgroundColor: "#22C55E", height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 16, width: "100%" },
+  modalDoneBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

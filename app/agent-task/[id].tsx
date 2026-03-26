@@ -501,6 +501,7 @@ export default function AgentTaskScreen() {
     if (isDemo || !task?.technicianId) return;
     updateLocationMutation.mutate({
       id: task.technicianId,
+      tenantId: tenantId ?? undefined,
       latitude: String(lat),
       longitude: String(lng),
     });

@@ -307,7 +307,7 @@ export default function AgentHomeScreen() {
     if (hasActiveJob) {
       isBackgroundLocationRunning().then((running) => {
         if (!running) {
-          startBackgroundLocationTracking(techId, apiBase).then((started) => {
+          startBackgroundLocationTracking(techId, apiBase, tenantId ?? undefined).then((started) => {
             if (started) console.log("[AgentHome] Background GPS started for tech", techId);
           });
         }

@@ -10,9 +10,21 @@ import { adminRouter } from "./adminRouter";
 import { mapsRouter } from "./mapsRouter";
 import { stripeRouter } from "./stripeRouter";
 import { exportRouter } from "./exportRouter";
-import crypto from "crypto";
+
 import * as gemini from "./gemini";
+import { broadcastLocationUpdate, broadcastStatusChange } from "./locationHub";
+import bcrypt from "bcrypt";
+import nodeCrypto from "node:crypto";
 import { Expo } from "expo-server-sdk";
+
+// ─── In-memory password reset token store (TTL 1 hour) ────────────────────────
+const resetTokens = new Map<string, { email: string; tenantId: number; expiresAt: number }>();
+function cleanExpiredTokens() {
+  const now = Date.now();
+  for (const [token, data] of resetTokens.entries()) {
+    if (data.expiresAt < now) resetTokens.delete(token);
+  }
+}
 
 // Expo push client (singleton)
 const expoPush = new Expo();
@@ -38,7 +50,7 @@ async function sendPushToTech(
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 function generateJobHash(): string {
-  return crypto.randomBytes(12).toString("hex");
+  return nodeCrypto.randomBytes(12).toString("hex");
 }
 
 // ─── App Router ───────────────────────────────────────────────────────────────
@@ -94,6 +106,134 @@ export const appRouter = router({
         // Express server domain (3000-xxx) to get a properly-scoped cookie that
         // the browser will send back with subsequent /api/auth/me requests.
         return { success: true, token: sessionToken } as const;
+      }),
+
+    /**
+     * Forgot Password — sends a reset link to the employee's email.
+     * Works for tenantUsers (dispatchers/technicians). Uses in-memory token store (1 hour TTL).
+     */
+    forgotPassword: publicProcedure
+      .input(z.object({ email: z.string().email(), tenantId: z.number().default(1) }))
+      .mutation(async ({ input }) => {
+        cleanExpiredTokens();
+        const user = await db.getTenantUserByEmail(input.email, input.tenantId);
+        // Always return success to prevent email enumeration
+        if (!user) return { success: true };
+        const token = nodeCrypto.randomBytes(32).toString("hex");
+        resetTokens.set(token, {
+          email: input.email,
+          tenantId: input.tenantId,
+          expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+        });
+        // Send email if SMTP is configured
+        try {
+          const { resolveSmtpCredentials, sendEmail } = await import("./email.js");
+          const creds = resolveSmtpCredentials();
+          if (creds) {
+            const resetUrl = `https://tookandeliv-ve29h94a.manus.space/reset-password?token=${token}`;
+            const html = `
+              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+                <h2 style="color: #0052CC;">Reset Your Password</h2>
+                <p>Hi ${user.name ?? input.email},</p>
+                <p>Click the button below to reset your NVC360 password. This link expires in 1 hour.</p>
+                <a href="${resetUrl}" style="display:inline-block;background:#0052CC;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0;">Reset Password</a>
+                <p style="color:#9ba1a6;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+                <p style="color:#9ba1a6;font-size:12px;">NVC360 2.0 · Field Service Management Platform</p>
+              </div>
+            `;
+            await sendEmail(input.email, "Reset your NVC360 password", html, creds);
+          } else {
+            console.log(`[Auth] Reset token for ${input.email}: ${token}`);
+          }
+        } catch (err) {
+          console.error("[Auth] Failed to send reset email:", err);
+        }
+        return { success: true };
+      }),
+
+    /**
+     * Reset Password — validates the token and sets the new hashed password.
+     */
+    resetPassword: publicProcedure
+      .input(z.object({ token: z.string(), newPassword: z.string().min(6) }))
+      .mutation(async ({ input }) => {
+        cleanExpiredTokens();
+        const entry = resetTokens.get(input.token);
+        if (!entry || entry.expiresAt < Date.now()) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Reset link is invalid or has expired." });
+        }
+        const user = await db.getTenantUserByEmail(entry.email, entry.tenantId);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
+        const passwordHash = await bcrypt.hash(input.newPassword, 10);
+        const { tenantUsers: tuTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new Error("Database not available");
+        await drizzleDb.update(tuTable).set({ passwordHash }).where(eq(tuTable.id, user.id));
+        resetTokens.delete(input.token);
+        return { success: true };
+      }),
+
+    /**
+     * Invite Employee — creates a tenantUser with a temp password and sends a welcome email.
+     */
+    inviteEmployee: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        name: z.string().min(1),
+        email: z.string().email(),
+        role: z.enum(["dispatcher", "technician", "manager", "admin"]).default("technician"),
+        phone: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Check for duplicate email in tenant
+        const existing = await db.getTenantUserByEmail(input.email, input.tenantId);
+        if (existing) {
+          throw new TRPCError({ code: "CONFLICT", message: "An employee with this email already exists." });
+        }
+        // Generate a random temp password
+        const tempPassword = nodeCrypto.randomBytes(6).toString("hex"); // 12-char hex
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
+        const userId = await db.createTenantUser({
+          tenantId: input.tenantId,
+          name: input.name,
+          email: input.email,
+          phone: input.phone ?? null,
+          role: input.role,
+          passwordHash,
+          isActive: true,
+        });
+        // Send welcome email if SMTP is configured
+        let emailSent = false;
+        try {
+          const { resolveSmtpCredentials, sendEmail } = await import("./email.js");
+          const creds = resolveSmtpCredentials();
+          if (creds) {
+            const loginUrl = "https://tookandeliv-ve29h94a.manus.space/login";
+            const html = `
+              <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+                <h2 style="color: #0052CC;">Welcome to NVC360!</h2>
+                <p>Hi ${input.name},</p>
+                <p>You've been added to your team's NVC360 account as a <strong>${input.role}</strong>.</p>
+                <p>Use the credentials below to log in:</p>
+                <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;">
+                  <p style="margin:4px 0;"><strong>Email:</strong> ${input.email}</p>
+                  <p style="margin:4px 0;"><strong>Temporary Password:</strong> <code>${tempPassword}</code></p>
+                </div>
+                <a href="${loginUrl}" style="display:inline-block;background:#0052CC;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0;">Log In Now</a>
+                <p style="color:#9ba1a6;font-size:12px;">Please change your password after your first login.</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+                <p style="color:#9ba1a6;font-size:12px;">NVC360 2.0 · Field Service Management Platform</p>
+              </div>
+            `;
+            await sendEmail(input.email, "You've been invited to NVC360", html, creds);
+            emailSent = true;
+          }
+        } catch (err) {
+          console.error("[Auth] Failed to send invite email:", err);
+        }
+        return { success: true, userId, tempPassword: emailSent ? undefined : tempPassword, emailSent };
       }),
   }),
 
@@ -634,24 +774,41 @@ export const appRouter = router({
       .input(
         z.object({
           id: z.number(),
+          tenantId: z.number().optional(),
           latitude: z.string(),
           longitude: z.string(),
           speed: z.number().optional(),
           heading: z.number().optional(),
         }),
       )
-      .mutation(({ input }) =>
-        db.updateTechnicianLocation(input.id, input.latitude, input.longitude),
-      ),
+      .mutation(async ({ input }) => {
+        await db.updateTechnicianLocation(input.id, input.latitude, input.longitude);
+        if (input.tenantId) {
+          broadcastLocationUpdate(
+            input.tenantId,
+            input.id,
+            parseFloat(input.latitude),
+            parseFloat(input.longitude),
+          );
+        }
+        return { success: true };
+      }),
 
     updateStatus: protectedProcedure
       .input(
         z.object({
           id: z.number(),
+          tenantId: z.number().optional(),
           status: z.enum(["online", "busy", "on_break", "offline"]),
         }),
       )
-      .mutation(({ input }) => db.updateTechnicianStatus(input.id, input.status)),
+      .mutation(async ({ input }) => {
+        await db.updateTechnicianStatus(input.id, input.status);
+        if (input.tenantId) {
+          broadcastStatusChange(input.tenantId, input.id, input.status);
+        }
+        return { success: true };
+      }),
 
     /** Geo-clock in: record shift start with GPS coordinates */
     clockIn: protectedProcedure

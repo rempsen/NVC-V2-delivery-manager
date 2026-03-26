@@ -39,6 +39,7 @@ if (Platform.OS !== "web") {
     // Read the technician ID that was stored when the task was started
     // We use a global variable set by startBackgroundLocationTracking()
     const techId = (global as any).__nvc360_tech_id as number | undefined;
+    const tenantId = (global as any).__nvc360_tenant_id as number | undefined;
     const apiBase = (global as any).__nvc360_api_base as string | undefined;
 
     if (!techId || !apiBase) {
@@ -47,11 +48,19 @@ if (Platform.OS !== "web") {
     }
 
     try {
-      await fetch(`${apiBase}/trpc/technicians.updateLocation`, {
+      // Use the correct tRPC v11 batch URL format with superjson encoding
+      await fetch(`${apiBase}/api/trpc/technicians.updateLocation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          json: { id: techId, lat: latitude, lng: longitude },
+          "0": {
+            json: {
+              id: techId,
+              tenantId: tenantId ?? undefined,
+              latitude: String(latitude),
+              longitude: String(longitude),
+            },
+          },
         }),
       });
       console.log(`[BGLocation] Updated location: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
@@ -65,7 +74,8 @@ if (Platform.OS !== "web") {
 
 export async function startBackgroundLocationTracking(
   technicianId: number,
-  apiBaseUrl: string
+  apiBaseUrl: string,
+  tenantId?: number,
 ): Promise<boolean> {
   if (Platform.OS === "web") return false;
 
@@ -73,6 +83,7 @@ export async function startBackgroundLocationTracking(
     // Store context for the background task
     (global as any).__nvc360_tech_id = technicianId;
     (global as any).__nvc360_api_base = apiBaseUrl;
+    (global as any).__nvc360_tenant_id = tenantId ?? null;
 
     // Check if already running
     const isRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);

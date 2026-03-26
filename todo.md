@@ -988,3 +988,24 @@
 - [ ] Add pm@nvc360.com demo chip to login screen
 - [ ] Add auth.requestPasswordReset tRPC mutation (sends reset link via SMTP)
 - [ ] Add Forgot Password UI screen with email input and confirmation
+
+## Feature Sprint — Forgot Password, Employee Invite, Live Map
+
+### Forgot Password Flow
+- [x] Backend: auth.forgotPassword tRPC mutation (generate reset token, send email via SMTP)
+- [x] Backend: auth.resetPassword tRPC mutation (validate token, update password hash)
+- [x] Frontend: wire Forgot Password button in login.tsx to open reset modal
+- [x] Frontend: reset modal with email input → calls forgotPassword → shows confirmation
+- [ ] Frontend: /reset-password?token=xxx deep-link screen (pending — token delivered via email link)
+
+### Create / Invite Employee
+- [x] Backend: auth.inviteEmployee tRPC mutation (create tenantUser record, send invite email with temp password)
+- [x] Frontend: wire Invite Employee form in merchant/index.tsx to auth.inviteEmployee mutation
+- [x] Frontend: show success banner with temp password (if no SMTP) or email confirmation
+
+### Real-Time Live Map
+- [x] Backend: technicians.updateLocation now calls broadcastLocationUpdate (Socket.IO) after DB write
+- [x] Backend: technicians.updateStatus now calls broadcastStatusChange after DB write
+- [x] Frontend (agent-task/[id].tsx): updateLocation mutation now includes tenantId for broadcast
+- [x] Frontend (agent-home.tsx): startBackgroundLocationTracking now passes tenantId
+- [x] Background task: fixed to use /api/trpc URL and include tenantId in payload
