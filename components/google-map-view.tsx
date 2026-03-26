@@ -63,6 +63,17 @@ interface GoogleMapViewProps {
   height?: number;
   /** ETA data keyed by technician ID: minutes remaining (negative = overdue) */
   etaData?: Record<number, number>;
+  /** Route polylines: array of routes to draw on the map */
+  routePolylines?: RoutePolyline[];
+}
+
+export interface RoutePolyline {
+  /** Technician ID this route belongs to */
+  techId: number;
+  /** Color for this route's polyline */
+  color: string;
+  /** Ordered list of lat/lng waypoints */
+  waypoints: Array<{ lat: number; lng: number }>;
 }
 
 export function GoogleMapView({
@@ -75,7 +86,9 @@ export function GoogleMapView({
   height = 500,
   style,
   etaData = {},
+  routePolylines = [],
 }: GoogleMapViewProps) {
+  const polylinesRef = React.useRef<Map<number, google.maps.Polyline>>(new Map());
   const { isLoaded, error } = useGoogleMaps();
   const colors = useColors();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -250,6 +263,45 @@ export function GoogleMapView({
       updateMarkers();
     }
   }, [isLoaded, updateMarkers]);
+
+  // Draw / update route polylines
+  useEffect(() => {
+    if (!isLoaded || !mapInstanceRef.current || Platform.OS !== "web") return;
+    const G = (window as any).google.maps;
+    const map = mapInstanceRef.current;
+
+    // Remove old polylines for techs no longer in routePolylines
+    const activeIds = new Set(routePolylines.map((r) => r.techId));
+    polylinesRef.current.forEach((poly, techId) => {
+      if (!activeIds.has(techId)) {
+        poly.setMap(null);
+        polylinesRef.current.delete(techId);
+      }
+    });
+
+    // Add/update polylines
+    routePolylines.forEach((route) => {
+      if (route.waypoints.length < 2) return;
+      const path = route.waypoints.map((wp) => ({ lat: wp.lat, lng: wp.lng }));
+      if (polylinesRef.current.has(route.techId)) {
+        polylinesRef.current.get(route.techId)!.setPath(path);
+      } else {
+        const poly = new G.Polyline({
+          path,
+          geodesic: true,
+          strokeColor: route.color,
+          strokeOpacity: 0.85,
+          strokeWeight: 4,
+          map,
+          icons: [{
+            icon: { path: G.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: route.color },
+            offset: "50%",
+          }],
+        });
+        polylinesRef.current.set(route.techId, poly);
+      }
+    });
+  }, [isLoaded, routePolylines]);
 
   if (Platform.OS !== "web") {
     return null; // handled by native fallback in parent

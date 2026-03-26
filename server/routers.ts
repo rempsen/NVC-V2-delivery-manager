@@ -262,6 +262,23 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.updateTaskRecord(input.id, { status: "cancelled" } as any)),
 
+    /** Drag-to-assign: atomically set technicianId + status=assigned */
+    assign: protectedProcedure
+      .input(
+        z.object({
+          taskId: z.number(),
+          technicianId: z.number(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        await db.updateTaskRecord(input.taskId, {
+          technicianId: input.technicianId,
+          status: "assigned",
+          dispatchedAt: new Date(),
+        } as any);
+        return { success: true, taskId: input.taskId, technicianId: input.technicianId };
+      }),
+
     geoClockIn: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(({ input }) => db.geoClockIn(input.taskId)),

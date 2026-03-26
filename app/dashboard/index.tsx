@@ -574,12 +574,13 @@ function AIInsightsPanel() {
 
 // ─── Dashboard Section (Mission Control) ─────────────────────────────────────
 
-function DashboardSection({ tasks, technicians, customers, onSelectTech, selectedTechId }: {
+function DashboardSection({ tasks, technicians, customers, onSelectTech, selectedTechId, onAssignTask }: {
   tasks: Task[];
   technicians: Technician[];
   customers: Customer[];
   onSelectTech: (id: number) => void;
   selectedTechId: number | null;
+  onAssignTask?: (taskId: number, techId: number) => void;
 }) {
   const colors = useColors();
   const router = useRouter();
@@ -587,9 +588,35 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
   const [woFilter, setWoFilter] = useState<TaskStatus | "all">("all");
   const [techFilter, setTechFilter] = useState<"all" | "online" | "busy" | "offline">("all");
 
-  // Panel collapse state
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
+  // Panel collapse state — persisted to localStorage
+  const [leftCollapsed, setLeftCollapsed] = useState<boolean>(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try { return window.localStorage.getItem("nvc360_panel_left") === "1"; } catch { return false; }
+    }
+    return false;
+  });
+  const [rightCollapsed, setRightCollapsed] = useState<boolean>(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try { return window.localStorage.getItem("nvc360_panel_right") === "1"; } catch { return false; }
+    }
+    return false;
+  });
+
+  // Persist panel state whenever it changes
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try { window.localStorage.setItem("nvc360_panel_left", leftCollapsed ? "1" : "0"); } catch { /* ignore */ }
+    }
+  }, [leftCollapsed]);
+
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try { window.localStorage.setItem("nvc360_panel_right", rightCollapsed ? "1" : "0"); } catch { /* ignore */ }
+    }
+  }, [rightCollapsed]);
+
+  // Route optimization overlay
+  const [showRoutes, setShowRoutes] = useState(false);
 
   // Drag-to-assign state (web only — uses HTML5 drag events)
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
@@ -614,8 +641,11 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
     const task = tasks.find((t) => t.id === draggingTaskId);
     const tech = technicians.find((t) => t.id === techId);
     if (!task || !tech) { setDraggingTaskId(null); setDragOverTechId(null); return; }
+    // Optimistic UI update
     setAssignedOverrides((prev) => ({ ...prev, [draggingTaskId]: techId }));
     showToast(`✓ ${task.customerName} assigned to ${tech.name}`);
+    // Persist to database via tRPC mutation
+    onAssignTask?.(draggingTaskId, techId);
     setDraggingTaskId(null);
     setDragOverTechId(null);
   };
@@ -649,6 +679,29 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
   const sortedTechs = [...technicians].sort(
     (a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5),
   );
+
+  // Distinct colors for up to 10 technicians' routes
+  const ROUTE_COLORS = ["#3B82F6","#8B5CF6","#EC4899","#F59E0B","#10B981","#EF4444","#06B6D4","#84CC16","#F97316","#6366F1"];
+
+  // Build route polylines: tech current location → each assigned job in order
+  const computedRoutePolylines = useMemo(() => {
+    if (!showRoutes) return [];
+    return sortedTechs
+      .filter((t) => t.status !== "offline")
+      .map((tech, idx) => {
+        const assignedJobs = tasks
+          .filter((t) => t.technicianId === tech.id && ["assigned","en_route","on_site"].includes(t.status))
+          .sort((a, b) => (a.scheduledAt && b.scheduledAt ? new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime() : 0));
+        if (assignedJobs.length === 0) return null;
+        const waypoints: Array<{lat:number;lng:number}> = [
+          { lat: tech.latitude, lng: tech.longitude },
+          ...assignedJobs.map((j) => ({ lat: j.jobLatitude, lng: j.jobLongitude })),
+        ];
+        return { techId: tech.id, color: ROUTE_COLORS[idx % ROUTE_COLORS.length], waypoints };
+      })
+      .filter(Boolean) as import("@/components/google-map-view").RoutePolyline[];
+  }, [showRoutes, sortedTechs, tasks]);
+
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
@@ -828,6 +881,7 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
                   .map((t) => [t.id, getEtaMinutes(t)] as [number, number | null])
                   .filter(([, v]) => v !== null) as [number, number][]
               )}
+              routePolylines={computedRoutePolylines}
             />
           ) : (
             <FleetMapPanel technicians={sortedTechs} selectedId={selectedTechId} onSelect={onSelectTech} />
@@ -837,6 +891,36 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
           <View style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 10, pointerEvents: "none" }}>
             <AIInsightsPanel />
           </View>
+
+          {/* Map toolbar: Optimize Routes button */}
+          {Platform.OS === "web" && (
+            <View style={{ position: "absolute", bottom: 16, left: "50%", transform: [{ translateX: -80 }], zIndex: 20 }}>
+              <Pressable
+                style={({ pressed }) => ([
+                  {
+                    backgroundColor: showRoutes ? "#22C55E" : NVC_BLUE,
+                    paddingHorizontal: 16,
+                    paddingVertical: 9,
+                    borderRadius: 20,
+                    flexDirection: "row" as const,
+                    alignItems: "center" as const,
+                    gap: 6,
+                    opacity: pressed ? 0.85 : 1,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.25,
+                    shadowRadius: 8,
+                    elevation: 6,
+                  },
+                ] as ViewStyle[])}
+                onPress={() => setShowRoutes((v) => !v)}
+              >
+                <IconSymbol name="map.fill" size={14} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+                  {showRoutes ? "Hide Routes" : "Optimize Routes"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
         {/* ── RIGHT PANEL: Technician Roster ── */}
@@ -2610,6 +2694,14 @@ export default function DesktopDashboard() {
     { refetchInterval: 30_000, staleTime: 15_000 },
   );
 
+  // Drag-to-assign mutation — persists to DB then refetches
+  const assignMutation = trpc.tasks.assign.useMutation({
+    onSuccess: () => {
+      tasksQuery.refetch();
+      techniciansQuery.refetch();
+    },
+  });
+
   const liveTasks: Task[] = useMemo(() => {
     if (tasksQuery.data && tasksQuery.data.length > 0) {
       return tasksQuery.data.map((t: any) => ({
@@ -2650,6 +2742,7 @@ export default function DesktopDashboard() {
             customers={MOCK_CUSTOMERS}
             onSelectTech={setSelectedTechId}
             selectedTechId={selectedTechId}
+            onAssignTask={(taskId, techId) => assignMutation.mutate({ taskId, technicianId: techId })}
           />
         );
       case "workorders":

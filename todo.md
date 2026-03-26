@@ -761,3 +761,14 @@
 - [x] Web Dashboard: live ETA countdown badges on technician map pins (minutes until scheduled job)
 - [x] Web Dashboard: live ETA countdown badges on technician roster cards
 - [x] Web Dashboard: ETA badge color-coded (green > 15min, yellow 5-15min, red < 5min)
+
+## Sprint: DB Assignments, Route Optimization, Panel Persistence (v5.6)
+- [x] Server: tRPC mutation `tasks.assign` — persist technicianId to DB
+- [x] Server: tRPC query `tasks.list` — return tasks with assigned technician
+- [x] Dashboard: wire drag-to-assign to tRPC mutation with optimistic UI + rollback on error
+- [x] Dashboard: query invalidation after assignment so mobile dispatcher sees update in real time
+- [x] Map: "Optimize Routes" button in map toolbar
+- [x] Map: draw color-coded polylines from each tech's location to their assigned job stops in order
+- [x] Map: toggle route overlay on/off
+- [x] Dashboard: save left/right panel collapsed state to localStorage
+- [x] Dashboard: restore panel state from localStorage on mount
