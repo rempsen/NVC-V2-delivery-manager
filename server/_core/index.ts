@@ -9,6 +9,9 @@ import { registerIntegrationCallbacks } from "../integrations/oauth-callbacks";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { initLocationHub } from "../locationHub";
+import { sdk } from "./sdk";
+import { getSessionCookieOptions } from "./cookies";
+import { COOKIE_NAME } from "../../shared/const.js";
 
 // ─── Allowed Origins ──────────────────────────────────────────────────────────
 const ALLOWED_ORIGIN_PATTERNS: RegExp[] = [
@@ -108,6 +111,49 @@ async function startServer() {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
+  });
+
+  /**
+   * GET /api/auth/me
+   * Returns the current authenticated user from the session cookie.
+   * Used by the web auth guard to verify the session is valid.
+   * Must be served directly on port 3000 so the cookie domain is correct.
+   */
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user) {
+        res.status(401).json({ error: "Not authenticated" });
+        return;
+      }
+      res.json({ id: user.id, name: user.name, email: user.email });
+    } catch {
+      res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+
+  /**
+   * POST /api/auth/session
+   * Accepts a JWT token in the request body and sets it as a session cookie
+   * scoped to the correct .manus.computer domain.
+   * Called directly from the client (not via Metro proxy) so req.hostname
+   * is the real 3000-xxx.manus.computer hostname.
+   */
+  app.post("/api/auth/session", async (req, res) => {
+    const { token } = req.body ?? {};
+    if (!token || typeof token !== "string") {
+      res.status(400).json({ error: "Missing token" });
+      return;
+    }
+    // Validate the JWT signature using verifySession (no DB lookup needed here)
+    const session = await sdk.verifySession(token);
+    if (!session) {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+    const cookieOptions = getSessionCookieOptions(req);
+    res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+    res.json({ success: true });
   });
 
   app.use(

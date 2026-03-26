@@ -22,6 +22,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,34 @@ function DemoChip({ email, role, onPress }: { email: string; role: UserRole; onP
   );
 }
 
+// ─── Cookie helper ────────────────────────────────────────────────────────────
+// After emailLogin returns a JWT, call POST /api/auth/session DIRECTLY on the
+// 3000-xxx.manus.computer domain (not through the Metro 8081 proxy).
+// This ensures Express sees the real hostname and sets the cookie with
+// domain=".manus.computer" so the browser sends it back on all subsequent
+// requests to both 8081-xxx and 3000-xxx subdomains.
+
+async function persistSessionCookie(token: string): Promise<void> {
+  if (Platform.OS !== "web") return;
+  try {
+    const apiBase = getApiBaseUrl();
+    if (!apiBase) return;
+    // The /api/auth/session endpoint expects the token as a Bearer header
+    // (not in the request body). This sets a properly-scoped cookie on the
+    // 3000-xxx.manus.computer domain so subsequent /api/auth/me checks pass.
+    await fetch(`${apiBase}/api/auth/session`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+  } catch (e) {
+    console.warn("[auth] persistSessionCookie failed:", e);
+  }
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
@@ -97,10 +126,8 @@ export default function LoginScreen() {
   const saveAndNavigate = async (user: AuthUser, sessionToken?: string) => {
     if (Platform.OS !== "web") {
       await SecureStore.setItemAsync("nvc360_user", JSON.stringify(user));
-      // Use real session token if provided, otherwise fall back to mock token for native
       await SecureStore.setItemAsync("nvc360_token", sessionToken ?? `mock_jwt_${user.id}_${Date.now()}`);
     }
-    // On web the session cookie was already set by the server in emailLogin mutation
     if (user.role === "nvc_super_admin" || user.role === "nvc_project_manager") {
       router.replace("/super-admin" as any);
     } else if (user.role === "field_technician") {
@@ -133,12 +160,19 @@ export default function LoginScreen() {
     if (!email.trim() || !password.trim()) { Alert.alert("Missing Fields", "Please enter your email and password."); return; }
     haptic(); setLoading(true);
     try {
-      // Call real server-side emailLogin — sets session cookie on web, returns success
-      await emailLoginMutation.mutateAsync({ email: email.toLowerCase().trim(), password });
-      // After server confirms login, look up local MOCK_USERS for role-based routing
+      // Step 1: Authenticate with server — returns a signed JWT token
+      const result = await emailLoginMutation.mutateAsync({ email: email.toLowerCase().trim(), password });
+
+      // Step 2 (web only): Call /api/auth/session DIRECTLY on the 3000-xxx domain
+      // so the cookie is scoped to .manus.computer (not 127.0.0.1 via Metro proxy)
+      if (Platform.OS === "web" && result.token) {
+        await persistSessionCookie(result.token);
+      }
+
+      // Step 3: Look up role for routing
       const user = MOCK_USERS[email.toLowerCase().trim()];
       if (!user) { Alert.alert("Login Failed", "Invalid credentials.\n\nHint: Use password 'demo123' with any demo account."); return; }
-      await saveAndNavigate(user);
+      await saveAndNavigate(user, result.token);
     } catch (err: any) {
       const msg = err?.message ?? "Login failed. Please try again.";
       Alert.alert("Login Failed", msg);
@@ -148,9 +182,12 @@ export default function LoginScreen() {
   const handleDemoLogin = async (demoEmail: string) => {
     haptic(); setLoading(true);
     try {
-      await emailLoginMutation.mutateAsync({ email: demoEmail, password: "demo123" });
+      const result = await emailLoginMutation.mutateAsync({ email: demoEmail, password: "demo123" });
+      if (Platform.OS === "web" && result.token) {
+        await persistSessionCookie(result.token);
+      }
       const user = MOCK_USERS[demoEmail];
-      if (user) await saveAndNavigate(user);
+      if (user) await saveAndNavigate(user, result.token);
     } catch (err: any) {
       Alert.alert("Login Failed", err?.message ?? "Could not log in with demo account.");
     } finally { setLoading(false); }
@@ -320,85 +357,43 @@ const styles = StyleSheet.create<{
   demoChipRole: TextStyle; demoChipEmail: TextStyle; footer: ViewStyle;
   footerText: TextStyle; footerLink: TextStyle; footerVersion: TextStyle;
 }>({
-  scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
-
-  // Brand
-  brandSection: { alignItems: "center", paddingTop: 40, paddingBottom: 28, gap: 8 },
-  logoWrap: {
-    width: 88, height: 88, borderRadius: 24,
-    backgroundColor: NVC_BLUE,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.38, shadowRadius: 20, elevation: 10, marginBottom: 6,
-  },
-  logoImg: { width: 62, height: 62 },
-  brandTitle: { fontSize: 32, fontWeight: "900", color: "#1A1E2A", letterSpacing: -1 },
-  brandSubtitle: { fontSize: 15, color: "#6B7280", textAlign: "center" },
-
-  // Card
-  card: {
-    backgroundColor: WIDGET_SURFACE_LIGHT, borderRadius: 20,
-    padding: 24, marginBottom: 16,
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 20, elevation: 5,
-  },
-
-  // Social
-  socialSection: { gap: 12, marginBottom: 4 },
-  socialBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    height: 56, borderRadius: 14, gap: 12,
-  },
-  googleBtn: { backgroundColor: "#F9FAFB", borderWidth: 1.5, borderColor: "#E5E7EB" },
-  googleIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
-  googleIconText: { fontSize: 14, fontWeight: "800", color: "#4285F4" },
-  googleBtnText: { fontSize: 16, fontWeight: "600", color: "#374151" },
-  appleBtn: { width: "100%", height: 56 },
-  appleWebBtn: { backgroundColor: "#000" },
-  appleBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
-
-  // Divider
-  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 20 },
+  scroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 40 },
+  brandSection: { alignItems: "center", marginBottom: 28 },
+  logoWrap: { width: 72, height: 72, borderRadius: 20, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
+  logoImg: { width: 52, height: 52 },
+  brandTitle: { fontSize: 26, fontWeight: "800", color: "#111827", letterSpacing: -0.5 },
+  brandSubtitle: { fontSize: 13, color: "#6B7280", marginTop: 3 },
+  card: { backgroundColor: "#fff", borderRadius: 20, padding: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4, marginBottom: 16 },
+  socialSection: { gap: 10, marginBottom: 20 },
+  socialBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: 12, gap: 10 },
+  googleBtn: { backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB" },
+  googleIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E5E7EB" },
+  googleIconText: { fontSize: 12, fontWeight: "700", color: "#4285F4" },
+  googleBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
+  appleBtn: { height: 48, borderRadius: 12 },
+  appleWebBtn: { backgroundColor: "#111827" },
+  appleBtnText: { fontSize: 15, fontWeight: "600", color: "#fff" },
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
   dividerLine: { flex: 1, height: 1, backgroundColor: "#E5E7EB" },
-  dividerText: { fontSize: 12, fontWeight: "500", color: "#9CA3AF" },
-
-  // Form
-  form: { gap: 14 },
-  inputWrapper: {
-    flexDirection: "row", alignItems: "center", height: 56,
-    borderRadius: 14, borderWidth: 1.5, borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB", paddingHorizontal: 16, gap: 12,
-  },
-  input: { flex: 1, fontSize: 16, color: "#1A1E2A" },
-  forgotBtn: { alignSelf: "flex-end" },
-  forgotText: { fontSize: 14, fontWeight: "600", color: NVC_BLUE },
-  loginBtn: {
-    height: 56, borderRadius: 14, backgroundColor: NVC_BLUE,
-    alignItems: "center", justifyContent: "center", marginTop: 6,
-  },
-  loginBtnText: { fontSize: 17, fontWeight: "700", color: "#fff" },
-
-  // Demo
-  demoToggle: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 12,
-  },
-  demoToggleText: { fontSize: 13, fontWeight: "500", color: "#9CA3AF" },
-  demoSection: { gap: 8, marginBottom: 8 },
-  demoSectionTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.8, textAlign: "center", color: "#9CA3AF", marginBottom: 4 },
-  demoChip: {
-    flexDirection: "row", alignItems: "center",
-    padding: 14, borderRadius: 14, borderWidth: 1.5, gap: 12,
-    minHeight: 56,
-  },
-  demoChipDot: { width: 10, height: 10, borderRadius: 5 },
+  dividerText: { fontSize: 12, color: "#9CA3AF", fontWeight: "500" },
+  form: { gap: 12 },
+  inputWrapper: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 14, height: 50, gap: 10 },
+  input: { flex: 1, fontSize: 15, color: "#111827" },
+  forgotBtn: { alignSelf: "flex-end", paddingVertical: 2 },
+  forgotText: { fontSize: 13, color: NVC_BLUE, fontWeight: "500" },
+  loginBtn: { backgroundColor: NVC_BLUE, height: 50, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  demoToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12 },
+  demoToggleText: { fontSize: 13, color: "#9CA3AF", fontWeight: "500" },
+  demoSection: { gap: 8, marginBottom: 16 },
+  demoSectionTitle: { fontSize: 11, color: "#9CA3AF", fontWeight: "600", letterSpacing: 0.5, textAlign: "center", marginBottom: 4 },
+  demoChip: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
+  demoChipDot: { width: 8, height: 8, borderRadius: 4 },
   demoChipInfo: { flex: 1 },
-  demoChipRole: { fontSize: 13, fontWeight: "700" },
-  demoChipEmail: { fontSize: 12, marginTop: 2, color: "#9CA3AF" },
-
-  // Footer
-  footer: { alignItems: "center", gap: 6, marginTop: 16 },
-  footerText: { fontSize: 11, textAlign: "center", lineHeight: 16, color: "#9CA3AF" },
-  footerLink: { color: NVC_BLUE, fontWeight: "600" },
-  footerVersion: { fontSize: 11, color: "#C0C8D8" },
+  demoChipRole: { fontSize: 12, fontWeight: "700" },
+  demoChipEmail: { fontSize: 12, color: "#6B7280", marginTop: 1 },
+  footer: { alignItems: "center", gap: 6, marginTop: 8 },
+  footerText: { fontSize: 12, color: "#9CA3AF", textAlign: "center", lineHeight: 18 },
+  footerLink: { color: NVC_BLUE, fontWeight: "500" },
+  footerVersion: { fontSize: 11, color: "#C4C9D4" },
 });

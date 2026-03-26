@@ -24,7 +24,7 @@
 - [x] messages.list (by task), messages.send
 - [x] templates.list, templates.create
 - [x] pricing.getRules, pricing.calculate
-- [ ] auth.login, auth.logout, auth.me (multi-tenant JWT) — pending
+- [x] auth.login, auth.logout, auth.me (multi-tenant JWT) — fixed cross-origin cookie flow
 - [ ] tenants.list, tenants.create, tenants.update — pending
 - [ ] location.update (from mobile), location.getHistory — pending
 
@@ -162,7 +162,8 @@
 - [x] Login screen with Apple Sign-In button (iOS)
 - [x] Email + password login fallback
 - [x] Multi-tenant detection from login credentials
-- [x] JWT stored in SecureStore after auth
+  - [x] JWT stored in SecureStore after auth
+  - [x] Cross-origin cookie fix: emailLogin sets cookie via /api/auth/session on 3000-xxx domain with Domain=.manus.computer so auth guard passes
 - [x] Auto-redirect to correct tenant dashboard after login
 - [x] Logout clears JWT and returns to login screen
 - [x] Role-aware redirect: NVC360 admin → super-admin, dispatcher → dispatcher dashboard, technician → mobile app
@@ -979,3 +980,11 @@
 - [x] All 4 demo accounts verified: admin@nvc360.com, dispatch@acmehvac.com, tech@acmehvac.com, admin@plumbpro.com
 - [x] Wrong password and unknown email correctly rejected
 - [x] TypeScript: 0 errors | Tests: 112 passed, 1 skipped (113 total)
+
+## Sprint: Login Fix + Auth Guard + Forgot Password (Mar 26)
+
+- [ ] Fix web login redirect loop (3 of 4 demo accounts bounce back to login)
+- [ ] Persist auth guard on web using trpc.auth.me instead of SecureStore
+- [ ] Add pm@nvc360.com demo chip to login screen
+- [ ] Add auth.requestPasswordReset tRPC mutation (sends reset link via SMTP)
+- [ ] Add Forgot Password UI screen with email input and confirmation

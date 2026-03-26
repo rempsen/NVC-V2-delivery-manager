@@ -7,9 +7,10 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_ORANGE, NVC_BLUE } from "@/constants/brand";
 import * as SecureStore from "expo-secure-store";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
-// On web: check for session cookie via the API
+// On web: check for session cookie via the API (called directly on 3000-xxx domain)
 // On native: check for stored token in SecureStore
 // If not authenticated → redirect to /login
 
@@ -21,8 +22,11 @@ function useAuthGuard() {
     async function check() {
       try {
         if (Platform.OS === "web") {
-          // Web: try to fetch /api/auth/me — if it fails (401/403) go to login
-          const res = await fetch("/api/auth/me", { credentials: "include" });
+          // Web: call /api/auth/me DIRECTLY on the 3000-xxx domain (not Metro proxy)
+          // so the .manus.computer-scoped cookie is sent and validated correctly.
+          const apiBase = getApiBaseUrl();
+          const url = apiBase ? `${apiBase}/api/auth/me` : "/api/auth/me";
+          const res = await fetch(url, { credentials: "include" });
           if (!res.ok) {
             router.replace("/login" as any);
             return;

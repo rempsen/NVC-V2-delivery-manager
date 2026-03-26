@@ -90,7 +90,10 @@ export const appRouter = router({
         // Set the session cookie so the web auth guard (/api/auth/me) passes
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
-        return { success: true } as const;
+        // Return the token so the web client can call /api/auth/session on the
+        // Express server domain (3000-xxx) to get a properly-scoped cookie that
+        // the browser will send back with subsequent /api/auth/me requests.
+        return { success: true, token: sessionToken } as const;
       }),
   }),
 
