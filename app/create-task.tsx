@@ -21,7 +21,7 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE } from "@/constants/brand";
-import { createTask, MOCK_AGENTS } from "@/lib/nvc360-api";
+import { useTenant } from "@/hooks/use-tenant";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { trpc } from "@/lib/trpc";
 import {
@@ -537,7 +537,17 @@ function DynamicField({
 export default function CreateTaskScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const { templates, loading: templatesLoading } = useWorkflowTemplates();
+
+  // Live technicians for assignment picker
+  const { data: liveTechs } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 30_000 },
+  );
+
+  // tRPC create mutation
+  const createTaskMutation = trpc.tasks.create.useMutation();
 
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -635,18 +645,19 @@ export default function CreateTaskScreen() {
         })
         .join("; ");
 
-      await createTask({
-        customer_username: customerName.trim(),
-        customer_phone: customerPhone.trim(),
-        customer_email: customerEmail.trim(),
-        job_address: address,
-        job_pickup_address: pickupAddress.trim() || undefined,
-        job_description: `[${templateName}] ${description.trim()}${dynamicSummary ? ` | ${dynamicSummary}` : ""}`,
-        order_id: orderId.trim() || undefined,
-        fleet_id: selectedAgent ?? undefined,
-        scheduled_time: scheduledDate ? scheduledDate.toISOString() : undefined,
-        has_pickup: pickupAddress.trim() ? 1 : 0,
-        has_delivery: 1,
+      await createTaskMutation.mutateAsync({
+        tenantId: tenantId ?? 1,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        customerEmail: customerEmail.trim() || undefined,
+        jobAddress: address,
+        pickupAddress: pickupAddress.trim() || undefined,
+        description: `[${templateName}] ${description.trim()}${dynamicSummary ? ` | ${dynamicSummary}` : ""}`,
+        orderRef: orderId.trim() || undefined,
+        technicianId: selectedAgent ?? undefined,
+        scheduledAt: scheduledDate ? scheduledDate.toISOString() : undefined,
+        priority: priority.toLowerCase() as "low" | "normal" | "high" | "urgent",
+        customFields: Object.keys(dynamicValues).length > 0 ? dynamicValues : undefined,
       });
 
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -891,13 +902,14 @@ export default function CreateTaskScreen() {
               </Text>
               {selectedAgent === null && <IconSymbol name="checkmark.circle.fill" size={18} color={colors.primary} />}
             </Pressable>
-            {MOCK_AGENTS.map((agent) => {
-              const isSelected = selectedAgent === agent.fleet_id;
-              const isOnline = agent.is_available === 1;
+            {(liveTechs ?? []).map((agent) => {
+              const isSelected = selectedAgent === agent.tech.id;
+              const isOnline = agent.tech.status === "online" || agent.tech.status === "busy";
+              const agentName = agent.user?.name ?? `Technician #${agent.tech.id}`;
               return (
                 <Pressable
-                  key={agent.fleet_id}
-                  onPress={() => setSelectedAgent(isSelected ? null : agent.fleet_id)}
+                  key={agent.tech.id}
+                  onPress={() => setSelectedAgent(isSelected ? null : agent.tech.id)}
                   style={[
                     styles.agentOption,
                     { backgroundColor: isSelected ? colors.primary + "15" : colors.background, borderColor: isSelected ? colors.primary : colors.border, opacity: isOnline ? 1 : 0.5 },
@@ -906,7 +918,7 @@ export default function CreateTaskScreen() {
                   <View style={styles.agentDot}>
                     <View style={[styles.agentDotInner, { backgroundColor: isOnline ? "#16A34A" : "#94A3B8" }]} />
                   </View>
-                  <Text style={[styles.agentOptionText, { color: isSelected ? colors.primary : colors.foreground }]}>{agent.fleet_name}</Text>
+                  <Text style={[styles.agentOptionText, { color: isSelected ? colors.primary : colors.foreground }]}>{agentName}</Text>
                   <Text style={[styles.agentStatus, { color: colors.muted }]}>{isOnline ? "Online" : "Offline"}</Text>
                   {isSelected && <IconSymbol name="checkmark.circle.fill" size={18} color={colors.primary} />}
                 </Pressable>

@@ -1,0 +1,9 @@
+{
+  "query": "\nINSERT IGNORE INTO tenants (id, slug, companyName, industry, plan, isActive)\nVALUES\n  (1, 'acme-hvac', 'Acme HVAC Services', 'hvac', 'professional', 1),\n  (2, 'plumb-pro', 'PlumbPro Solutions', 'plumbing', 'starter', 1),\n  (3, 'nvc360', 'NVC360 Platform', 'other', 'enterprise', 1);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nINSERT IGNORE INTO tenants (id, slug, companyName, industry, plan, isActive)\nVALUES\n  (1, 'acme-hvac', 'Acme HVAC Services', 'hvac', 'professional', 1),\n  (2, 'plumb-pro', 'PlumbPro Solutions', 'plumbing', 'starter', 1),\n  (3, 'nvc360', 'NVC360 Platform', 'other', 'enterprise', 1);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 377
+}

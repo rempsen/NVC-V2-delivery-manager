@@ -34,7 +34,7 @@ export type UserRole =
 
 export interface AuthUser {
   id: string; name: string; email: string; role: UserRole;
-  tenantId: string | null; tenantName: string | null;
+  tenantId: number | null; tenantName: string | null;
   tenantColor: string | null; tenantLogo: string | null;
   avatarUrl: string | null; provider: "email" | "google" | "apple";
 }
@@ -42,11 +42,12 @@ export interface AuthUser {
 // ─── Mock Users ───────────────────────────────────────────────────────────────
 
 const MOCK_USERS: Record<string, AuthUser> = {
-  "admin@nvc360.com": { id: "u-nvc-001", name: "Dan Rosenblat", email: "admin@nvc360.com", role: "nvc_super_admin", tenantId: null, tenantName: "NVC360", tenantColor: "#E85D04", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "pm@nvc360.com": { id: "u-nvc-002", name: "Sarah Mitchell", email: "pm@nvc360.com", role: "nvc_project_manager", tenantId: null, tenantName: "NVC360", tenantColor: "#8B5CF6", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "dispatch@acmehvac.com": { id: "u-t1-001", name: "James Chen", email: "dispatch@acmehvac.com", role: "dispatcher", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "tech@acmehvac.com": { id: "u-t1-002", name: "Mike Torres", email: "tech@acmehvac.com", role: "field_technician", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "admin@plumbpro.com": { id: "u-t2-001", name: "Lisa Park", email: "admin@plumbpro.com", role: "company_admin", tenantId: "t-002", tenantName: "PlumbPro Solutions", tenantColor: "#22C55E", tenantLogo: null, avatarUrl: null, provider: "email" },
+  // tenantId values match the seeded DB rows: 1=Acme HVAC, 2=PlumbPro, 3=NVC360
+  "admin@nvc360.com": { id: "u-nvc-001", name: "Dan Rosenblat", email: "admin@nvc360.com", role: "nvc_super_admin", tenantId: 3, tenantName: "NVC360", tenantColor: "#E85D04", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "pm@nvc360.com": { id: "u-nvc-002", name: "Sarah Mitchell", email: "pm@nvc360.com", role: "nvc_project_manager", tenantId: 3, tenantName: "NVC360", tenantColor: "#8B5CF6", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "dispatch@acmehvac.com": { id: "u-t1-001", name: "James Chen", email: "dispatch@acmehvac.com", role: "dispatcher", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "tech@acmehvac.com": { id: "u-t1-002", name: "Mike Torres", email: "tech@acmehvac.com", role: "field_technician", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "admin@plumbpro.com": { id: "u-t2-001", name: "Lisa Park", email: "admin@plumbpro.com", role: "company_admin", tenantId: 2, tenantName: "PlumbPro Solutions", tenantColor: "#22C55E", tenantLogo: null, avatarUrl: null, provider: "email" },
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -158,7 +159,7 @@ export default function LoginScreen() {
     haptic(); setLoadingProvider("google");
     try {
       await new Promise((r) => setTimeout(r, 900));
-      await saveAndNavigate({ id: "u-google-001", name: "Google Demo User", email: "demo@gmail.com", role: "dispatcher", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "google" });
+      await saveAndNavigate({ id: "u-google-001", name: "Google Demo User", email: "demo@gmail.com", role: "dispatcher", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "google" });
     } catch { Alert.alert("Error", "Google sign-in failed."); }
     finally { setLoadingProvider(null); }
   };
@@ -168,7 +169,7 @@ export default function LoginScreen() {
     setLoadingProvider("apple");
     try {
       const credential = await AppleAuthentication.signInAsync({ requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL] });
-      await saveAndNavigate({ id: credential.user, name: credential.fullName?.givenName ? `${credential.fullName.givenName} ${credential.fullName.familyName ?? ""}`.trim() : "Apple User", email: credential.email ?? "apple@privaterelay.appleid.com", role: "dispatcher", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "apple" });
+      await saveAndNavigate({ id: credential.user, name: credential.fullName?.givenName ? `${credential.fullName.givenName} ${credential.fullName.familyName ?? ""}`.trim() : "Apple User", email: credential.email ?? "apple@privaterelay.appleid.com", role: "dispatcher", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "apple" });
     } catch (e: any) { if (e.code !== "ERR_REQUEST_CANCELED") Alert.alert("Apple Sign-In Failed", "Please try again."); }
     finally { setLoadingProvider(null); }
   };

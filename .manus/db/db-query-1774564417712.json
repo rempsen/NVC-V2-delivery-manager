@@ -1,0 +1,28 @@
+{
+  "query": "\nSELECT id, slug, companyName, isActive FROM tenants ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, slug, companyName, isActive FROM tenants ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "slug": "acme-hvac",
+      "companyName": "Acme HVAC Services",
+      "isActive": "1"
+    },
+    {
+      "id": "2",
+      "slug": "plumb-pro",
+      "companyName": "PlumbPro Solutions",
+      "isActive": "1"
+    },
+    {
+      "id": "3",
+      "slug": "nvc360",
+      "companyName": "NVC360 Platform",
+      "isActive": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tcompanyName\tisActive\n1\tacme-hvac\tAcme HVAC Services\t1\n2\tplumb-pro\tPlumbPro Solutions\t1\n3\tnvc360\tNVC360 Platform\t1\n",
+  "stderr": "",
+  "execution_time_ms": 505
+}

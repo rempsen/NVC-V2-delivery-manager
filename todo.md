@@ -1027,3 +1027,24 @@
 - [x] Fix: adminRouter.ts updateMerchantSettings — added ownership check (merchant managers can only update own tenant)
 - [x] Verify: 19/19 tenant isolation unit tests pass
 - [x] Verify: TypeScript 0 errors in all modified files
+
+## Bug Fix Sprint — Live Data Persistence (Mar 26)
+
+- [x] Diagnose: root cause = isDemo always true because tenantId stored as string slug ("t-001") not integer
+- [x] Diagnose: create-task.tsx was calling mock nvc360-api library instead of real tRPC mutation
+- [x] Diagnose: super-admin/index.tsx and client/[id].tsx only updated local state, never wrote to DB
+- [x] Diagnose: dashboard/index.tsx fell back to MOCK_TASKS/MOCK_CUSTOMERS when DB returned 0 rows
+- [x] Fix: login.tsx MOCK_USERS now stores integer tenantId (1=Acme HVAC, 2=PlumbPro, 3=NVC360)
+- [x] Fix: create-task.tsx now calls trpc.tasks.create with real tenantId; agent picker uses live technicians.list
+- [x] Fix: super-admin/index.tsx now loads live tenants from DB and calls trpc.tenants.create on submit
+- [x] Fix: super-admin/client/[id].tsx now loads real employees (tenantUsers.list) and customers (customers.list) from DB
+- [x] Fix: super-admin/client/[id].tsx AddEmployeeModal calls trpc.auth.inviteEmployee; AddCustomerModal calls trpc.customers.create
+- [x] Fix: dashboard/index.tsx removed all MOCK_TASKS/MOCK_TECHNICIANS/MOCK_CUSTOMERS fallbacks
+- [x] Fix: dashboard CustomersSection fully wired to live customers.list/create/update/delete mutations
+- [x] Fix: tenantUsers.list route added to routers.ts
+- [x] Fix: db:push run to add isNvcPlatform + suspended columns to tenants table
+- [x] Fix: demo tenant rows seeded in DB: id=1 Acme HVAC, id=2 PlumbPro, id=3 NVC360
+- [x] Verify: TypeScript 0 errors after all fixes
+- [ ] Verify: create work order → appears in task list immediately (requires device test)
+- [ ] Verify: create customer → appears in customer list immediately (requires device test)
+- [ ] Verify: create client (super-admin) → appears in client list immediately (requires device test)

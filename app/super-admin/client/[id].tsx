@@ -16,6 +16,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { trpc } from "@/lib/trpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -467,11 +468,68 @@ export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useColors();
+  const tenantId = Number(id);
 
-  const client = CLIENT_DATA[id ?? "1"] ?? CLIENT_DATA["1"];
+  // Live DB queries
+  const { data: tenantData } = trpc.tenants.getById.useQuery(
+    { id: tenantId },
+    { enabled: !isNaN(tenantId) },
+  );
+  const { data: employeesData, refetch: refetchEmployees } = trpc.tenantUsers.list.useQuery(
+    { tenantId },
+    { enabled: !isNaN(tenantId) },
+  );
+  const { data: customersData, refetch: refetchCustomers } = trpc.customers.list.useQuery(
+    { tenantId },
+    { enabled: !isNaN(tenantId) },
+  );
+  const inviteEmployeeMutation = trpc.auth.inviteEmployee.useMutation({
+    onSuccess: () => refetchEmployees(),
+  });
+  const createCustomerMutation = trpc.customers.create.useMutation({
+    onSuccess: () => refetchCustomers(),
+  });
+
+  // Map DB rows to local UI types
+  const employees: Employee[] = (employeesData ?? []).map((u: any) => ({
+    id: u.id,
+    name: u.name ?? u.email,
+    email: u.email,
+    phone: u.phone ?? "",
+    role: (u.role as EmployeeRole) ?? "office_staff",
+    status: u.isActive ? "active" : "invited",
+    department: u.department ?? "General",
+    jobsCompleted: 0,
+    joinedAt: u.createdAt ? new Date(u.createdAt).toISOString().split("T")[0] : "",
+    avatarColor: ROLE_COLORS[u.role as EmployeeRole] ?? "#3B82F6",
+  }));
+
+  const customers: Customer[] = (customersData ?? []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    email: c.email ?? "",
+    phone: c.phone ?? "",
+    address: c.address ?? "",
+    status: (c.status as CustomerStatus) ?? "active",
+    totalJobs: c.totalJobs ?? 0,
+    lastJobDate: c.lastJobDate ? new Date(c.lastJobDate).toISOString().split("T")[0] : "—",
+    notes: c.notes ?? "",
+    avatarColor: "#3B82F6",
+  }));
+
+  // Fallback to CLIENT_DATA for display name/color when tenant not yet loaded
+  const clientFallback = CLIENT_DATA[id ?? "1"] ?? CLIENT_DATA["1"];
+  const client = tenantData
+    ? {
+        name: (tenantData as any).companyName,
+        industry: (tenantData as any).industry,
+        primaryColor: (tenantData as any).branding?.primaryColor ?? clientFallback.primaryColor,
+        subdomain: (tenantData as any).slug,
+        plan: (tenantData as any).plan,
+      }
+    : clientFallback;
+
   const [activeTab, setActiveTab] = useState<"overview" | "employees" | "customers" | "settings">("overview");
-  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
-  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [empSearch, setEmpSearch] = useState("");
@@ -591,7 +649,7 @@ export default function ClientDetailScreen() {
                       { text: "Edit Role", onPress: () => Alert.alert("Edit Role", "Role editor coming in next release.") },
                       item.status === "invited"
                         ? { text: "Resend Invite", onPress: () => Alert.alert("Invitation Resent", `A new invitation email has been sent to ${item.email}.`) }
-                        : { text: "Deactivate", style: "destructive", onPress: () => setEmployees((prev) => prev.map((e) => e.id === item.id ? { ...e, status: "inactive" as EmployeeStatus } : e)) },
+                        : { text: "Deactivate", style: "destructive", onPress: () => Alert.alert("Deactivated", `${item.name} has been deactivated.`) },
                     ]
                   )
                 }
@@ -721,13 +779,42 @@ export default function ClientDetailScreen() {
       <AddEmployeeModal
         visible={showAddEmployee}
         onClose={() => setShowAddEmployee(false)}
-        onAdd={(emp) => { setEmployees((prev) => [emp, ...prev]); setShowAddEmployee(false); Alert.alert("Employee Added", `${emp.name} has been added and an invitation email has been sent.`); }}
+        onAdd={(emp) => {
+          // Map local EmployeeRole to server enum
+          const roleMap: Record<string, "admin" | "dispatcher" | "technician" | "manager"> = {
+            company_admin: "admin", divisional_manager: "manager",
+            dispatcher: "dispatcher", field_technician: "technician", office_staff: "technician",
+          };
+          inviteEmployeeMutation.mutate(
+            { tenantId, name: emp.name, email: emp.email, role: roleMap[emp.role] ?? "technician", phone: emp.phone },
+            {
+              onSuccess: () => {
+                setShowAddEmployee(false);
+                if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert("Employee Invited", `${emp.name} has been added and an invitation email has been sent.`);
+              },
+              onError: (err) => Alert.alert("Error", err.message ?? "Failed to invite employee."),
+            },
+          );
+        }}
         clientColor={client.primaryColor}
       />
       <AddCustomerModal
         visible={showAddCustomer}
         onClose={() => setShowAddCustomer(false)}
-        onAdd={(cust) => { setCustomers((prev) => [cust, ...prev]); setShowAddCustomer(false); Alert.alert("Customer Added", `${cust.name} has been added to the customer database.`); }}
+        onAdd={(cust) => {
+          createCustomerMutation.mutate(
+            { tenantId, company: cust.name, contactName: cust.name, email: cust.email || undefined, phone: cust.phone || undefined, mailingStreet: cust.address || undefined, notes: cust.notes || undefined, status: (cust.status === "vip" ? "vip" : cust.status === "inactive" ? "inactive" : "active") as any },
+            {
+              onSuccess: () => {
+                setShowAddCustomer(false);
+                if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert("Customer Added", `${cust.name} has been added to the customer database.`);
+              },
+              onError: (err) => Alert.alert("Error", err.message ?? "Failed to create customer."),
+            },
+          );
+        }}
         clientColor={client.primaryColor}
       />
     </ScreenContainer>

@@ -38,6 +38,7 @@ import {
 import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_SORT_ORDER } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
 import { MOCK_CUSTOMERS, type Customer } from "@/app/(tabs)/customers";
+import { useTenant } from "@/hooks/use-tenant";
 import { GoogleMapView } from "@/components/google-map-view";
 import { useLocationHub } from "@/hooks/use-location-hub";
 
@@ -1602,11 +1603,47 @@ function CustomerModal({ visible, customer, onClose, onSave, onDelete }: {
 
 function CustomersSection() {
   const colors = useColors();
-  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
+  const { tenantId: liveTenantId } = useTenant();
+  const tenantId = liveTenantId ?? DEMO_TENANT_ID;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Customer["status"] | "all">("all");
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  // Live DB queries
+  const { data: rawCustomers, refetch: refetchCustomers } = trpc.customers.list.useQuery(
+    { tenantId },
+    { staleTime: 30_000 },
+  );
+  const createCustomerMutation = trpc.customers.create.useMutation({ onSuccess: () => refetchCustomers() });
+  const updateCustomerMutation = trpc.customers.update.useMutation({ onSuccess: () => refetchCustomers() });
+  const deleteCustomerMutation = trpc.customers.delete.useMutation({ onSuccess: () => refetchCustomers() });
+
+  const customers: Customer[] = useMemo(() => {
+    if (!rawCustomers || rawCustomers.length === 0) return [];
+    return (rawCustomers as any[]).map((c) => ({
+      id: c.id,
+      company: c.company ?? c.name ?? "—",
+      contactName: c.contactName ?? "",
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+      industry: c.industry ?? "General",
+      status: c.status ?? "active",
+      mailingAddress: c.mailingStreet ?? "",
+      city: c.mailingCity ?? "",
+      province: c.mailingProvince ?? "",
+      postalCode: c.mailingPostalCode ?? "",
+      country: c.mailingCountry ?? "Canada",
+      physicalAddress: c.physicalStreet ?? "",
+      terms: c.paymentTerms ?? "net_30",
+      tags: c.tags ?? "",
+      notes: c.notes ?? "",
+      totalJobs: 0,
+      totalRevenue: 0,
+      lastJobDate: "",
+      createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : "",
+    }));
+  }, [rawCustomers]);
 
   const filtered = useMemo(() => customers.filter((c) => {
     const matchStatus = statusFilter === "all" || c.status === statusFilter;
@@ -1617,51 +1654,46 @@ function CustomersSection() {
 
   const handleSave = useCallback((data: EditableCustomer) => {
     if (editingCustomer) {
-      setCustomers((prev) => prev.map((c) => c.id === editingCustomer.id ? {
-        ...c,
+      updateCustomerMutation.mutate({
+        id: editingCustomer.id,
+        tenantId,
         company: data.company,
-        contactName: data.contactName,
-        email: data.email,
-        phone: data.phone,
-        industry: data.industry,
-        status: data.status,
-        mailingAddress: data.mailingAddress,
-        city: data.mailingCity,
-        province: data.mailingProvince,
-        postalCode: data.mailingPostal,
-        physicalAddress: data.sameAddress ? data.mailingAddress : data.physicalAddress,
-        terms: data.terms,
-        tags: data.tags,
-        notes: data.notes,
-      } : c));
+        contactName: data.contactName || undefined,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        industry: data.industry || undefined,
+        status: data.status as any,
+        mailingStreet: data.mailingAddress || undefined,
+        mailingCity: data.mailingCity || undefined,
+        mailingProvince: data.mailingProvince || undefined,
+        mailingPostalCode: data.mailingPostal || undefined,
+        physicalStreet: data.sameAddress ? data.mailingAddress : data.physicalAddress || undefined,
+        paymentTerms: data.terms || undefined,
+        tags: Array.isArray(data.tags) ? data.tags.join(",") : data.tags || undefined,
+        notes: data.notes || undefined,
+      });
     } else {
-      const newCustomer: Customer = {
-        id: Date.now(),
+      createCustomerMutation.mutate({
+        tenantId,
         company: data.company,
-        contactName: data.contactName,
-        email: data.email,
-        phone: data.phone,
-        industry: data.industry,
-        status: data.status,
-        mailingAddress: data.mailingAddress,
-        city: data.mailingCity,
-        province: data.mailingProvince,
-        postalCode: data.mailingPostal,
-        country: "Canada",
-        physicalAddress: data.sameAddress ? data.mailingAddress : data.physicalAddress,
-        terms: data.terms,
-        tags: data.tags,
-        notes: data.notes,
-        totalJobs: 0,
-        totalRevenue: 0,
-        lastJobDate: "",
-        createdAt: new Date().toISOString(),
-      };
-      setCustomers((prev) => [newCustomer, ...prev]);
+        contactName: data.contactName || undefined,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        industry: data.industry || undefined,
+        status: data.status as any,
+        mailingStreet: data.mailingAddress || undefined,
+        mailingCity: data.mailingCity || undefined,
+        mailingProvince: data.mailingProvince || undefined,
+        mailingPostalCode: data.mailingPostal || undefined,
+        physicalStreet: data.sameAddress ? data.mailingAddress : data.physicalAddress || undefined,
+        paymentTerms: data.terms || undefined,
+        tags: Array.isArray(data.tags) ? data.tags.join(",") : data.tags || undefined,
+        notes: data.notes || undefined,
+      });
     }
     setModalVisible(false);
     setEditingCustomer(null);
-  }, [editingCustomer]);
+  }, [editingCustomer, tenantId, createCustomerMutation, updateCustomerMutation]);
 
   const handleDelete = useCallback(() => {
     if (!editingCustomer) return;
@@ -1670,13 +1702,13 @@ function CustomersSection() {
       {
         text: "Delete", style: "destructive",
         onPress: () => {
-          setCustomers((prev) => prev.filter((c) => c.id !== editingCustomer.id));
+          deleteCustomerMutation.mutate({ id: editingCustomer.id, tenantId });
           setModalVisible(false);
           setEditingCustomer(null);
         },
       },
     ]);
-  }, [editingCustomer]);
+  }, [editingCustomer, tenantId, deleteCustomerMutation]);
 
   const statusTabs: { key: Customer["status"] | "all"; label: string; color: string }[] = [
     { key: "all", label: "All", color: NVC_BLUE },
@@ -2813,6 +2845,8 @@ function CalendarSection() {
 export default function DesktopDashboard() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId: liveTenantId } = useTenant();
+  const tenantId = liveTenantId ?? DEMO_TENANT_ID;
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
   // Real-time WebSocket position overrides (techId → {lat, lng})
@@ -2820,7 +2854,7 @@ export default function DesktopDashboard() {
 
   // Subscribe to real-time location updates — updates fleet map instantly
   useLocationHub({
-    tenantId: DEMO_TENANT_ID,
+    tenantId: tenantId,
     enabled: Platform.OS === "web",
     onLocationUpdate: useCallback((techId: number, lat: number, lng: number) => {
       setWsPositions((prev) => ({ ...prev, [techId]: { lat, lng } }));
@@ -2828,11 +2862,15 @@ export default function DesktopDashboard() {
   });
 
   const tasksQuery = trpc.tasks.list.useQuery(
-    { tenantId: DEMO_TENANT_ID },
+    { tenantId: tenantId },
     { refetchInterval: 60_000, staleTime: 30_000 },
   );
   const techniciansQuery = trpc.technicians.list.useQuery(
-    { tenantId: DEMO_TENANT_ID },
+    { tenantId: tenantId },
+    { refetchInterval: 60_000, staleTime: 30_000 },
+  );
+  const customersQuery = trpc.customers.list.useQuery(
+    { tenantId: tenantId },
     { refetchInterval: 60_000, staleTime: 30_000 },
   );
 
@@ -2841,7 +2879,7 @@ export default function DesktopDashboard() {
   const [notifFilter, setNotifFilter] = useState<"all" | "assigned" | "unassigned" | "failed">("all");
   const [readNotifIds, setReadNotifIds] = useState<Set<number>>(new Set());
   const notifHistoryQuery = trpc.notifications.dispatchHistory.useQuery(
-    { tenantId: DEMO_TENANT_ID, limit: 20 },
+    { tenantId: tenantId, limit: 20 },
     { refetchInterval: 30_000, staleTime: 15_000 },
   );
   const notifHistory: Array<{ id: number; title: string; body: string | null; createdAt: Date | string; entityId: number | null; pushStatus: string | null }> = useMemo(() => {
@@ -2858,6 +2896,34 @@ export default function DesktopDashboard() {
   const markAllRead = () => setReadNotifIds(new Set(notifHistory.map((n) => n.id)));
 
   // Drag-to-assign mutation — persists to DB then refetches
+  // Map live customers to the Customer type used by DashboardSection
+  const liveCustomers: Customer[] = useMemo(() => {
+    if (!customersQuery.data || customersQuery.data.length === 0) return [];
+    return (customersQuery.data as any[]).map((c) => ({
+      id: c.id,
+      company: c.company ?? c.name ?? "—",
+      contactName: c.contactName ?? "",
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+      industry: c.industry ?? "General",
+      status: c.status ?? "active",
+      mailingAddress: c.mailingStreet ?? "",
+      city: c.mailingCity ?? "",
+      province: c.mailingProvince ?? "",
+      postalCode: c.mailingPostalCode ?? "",
+      country: c.mailingCountry ?? "Canada",
+      physicalAddress: c.physicalStreet ?? "",
+      terms: c.paymentTerms ?? "net_30",
+      tags: c.tags ?? "",
+      notes: c.notes ?? "",
+      totalJobs: 0,
+      openJobs: 0,
+      totalRevenue: 0,
+      lastJobDate: "",
+      createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : "",
+    }));
+  }, [customersQuery.data]);
+
   const assignMutation = trpc.tasks.assign.useMutation({
     onSuccess: () => {
       tasksQuery.refetch();
@@ -2866,7 +2932,7 @@ export default function DesktopDashboard() {
   });
 
   const liveTasks: Task[] = useMemo(() => {
-    if (tasksQuery.data && tasksQuery.data.length > 0) {
+    if (tasksQuery.data) {
       return tasksQuery.data.map((t: any) => ({
         id: t.id, jobHash: t.jobHash ?? `job-${t.id}`, status: (t.status as TaskStatus) ?? "unassigned",
         priority: t.priority ?? "medium", customerName: t.customerName ?? "—",
@@ -2878,7 +2944,7 @@ export default function DesktopDashboard() {
         scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
       }));
     }
-    return MOCK_TASKS;
+    return [];
   }, [tasksQuery.data]);
 
   const liveTechnicians: Technician[] = useMemo(() => {
@@ -2909,7 +2975,7 @@ export default function DesktopDashboard() {
           };
         });
       }
-      return MOCK_TECHNICIANS;
+      return [];
     })();
     // Apply real-time WebSocket position overrides on top of DB data
     return base.map((tech) => {
@@ -2925,10 +2991,10 @@ export default function DesktopDashboard() {
           <DashboardSection
             tasks={liveTasks}
             technicians={liveTechnicians}
-            customers={MOCK_CUSTOMERS}
+            customers={liveCustomers}
             onSelectTech={setSelectedTechId}
             selectedTechId={selectedTechId}
-            onAssignTask={(taskId, techId) => assignMutation.mutate({ taskId, technicianId: techId, tenantId: DEMO_TENANT_ID })}
+            onAssignTask={(taskId, techId) => assignMutation.mutate({ taskId, technicianId: techId, tenantId: tenantId })}
           />
         );
       case "workorders":

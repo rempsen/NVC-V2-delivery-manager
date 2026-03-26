@@ -9,6 +9,7 @@ import {
   FlatList,
   Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -16,6 +17,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { trpc } from "@/lib/trpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -340,14 +342,44 @@ function CreateClientModal({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+// Map DB tenant industry enum to display-friendly string
+const INDUSTRY_DISPLAY: Record<string, string> = {
+  hvac: "HVAC", construction: "Construction", delivery: "Delivery",
+  home_repair: "Home Repair", it_repair: "IT Repair", telecom: "Telecom",
+  home_fitness: "Fitness", elder_care: "Elder Care", electrical: "Electrical",
+  plumbing: "Plumbing", flooring: "Flooring", other: "Other",
+};
+
 export default function SuperAdminDashboard() {
   const colors = useColors();
   const router = useRouter();
-  const [clients, setClients] = useState<ClientCompany[]>(MOCK_CLIENTS);
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<ClientPlan | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
   const [clientViewMode, setClientViewMode] = useState<"list" | "card">("list");
+
+  // Live DB queries
+  const { data: tenantsData, isLoading, refetch } = trpc.tenants.list.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+  });
+  const createTenantMutation = trpc.tenants.create.useMutation({
+    onSuccess: () => { refetch(); },
+  });
+
+  // Map DB tenant rows to ClientCompany shape for the existing UI
+  const clients: ClientCompany[] = (tenantsData ?? []).map((t: any) => ({
+    id: t.id,
+    name: t.companyName,
+    industry: INDUSTRY_DISPLAY[t.industry] ?? t.industry,
+    plan: t.plan as ClientPlan,
+    status: t.isActive ? (t.suspended ? "suspended" : "active") : "onboarding",
+    technicianCount: 0,
+    activeJobs: 0,
+    monthlyRevenue: 0,
+    createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "",
+    primaryColor: (t.branding as any)?.primaryColor ?? "#3B82F6",
+    subdomain: t.slug,
+  }));
 
   const filteredClients = clients.filter((c) => {
     const matchesPlan = planFilter === "all" || c.plan === planFilter;
@@ -366,22 +398,24 @@ export default function SuperAdminDashboard() {
   const activeClients = clients.filter((c) => c.status === "active").length;
 
   const handleCreate = (data: Partial<ClientCompany>) => {
-    const newClient: ClientCompany = {
-      id: Date.now(),
-      name: data.name ?? "New Client",
-      industry: data.industry ?? "Other",
-      plan: data.plan ?? "starter",
-      status: "onboarding",
-      technicianCount: 0,
-      activeJobs: 0,
-      monthlyRevenue: 0,
-      createdAt: new Date().toISOString().split("T")[0],
-      primaryColor: "#3B82F6",
-      subdomain: data.subdomain ?? "new-client",
-    };
-    setClients((prev) => [newClient, ...prev]);
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Client Created!", `${newClient.name} has been provisioned at ${newClient.subdomain}.nvc360.com`);
+    const industryKey = Object.entries(INDUSTRY_DISPLAY).find(([, v]) => v === data.industry)?.[0] ?? "other";
+    createTenantMutation.mutate(
+      {
+        slug: data.subdomain ?? "new-client",
+        companyName: data.name ?? "New Client",
+        industry: industryKey as any,
+        plan: (data.plan ?? "starter") as any,
+      },
+      {
+        onSuccess: () => {
+          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert("Client Created!", `${data.name} has been added to the platform.`);
+        },
+        onError: (err) => {
+          Alert.alert("Error", err.message ?? "Failed to create client.");
+        },
+      },
+    );
   };
 
   return (
@@ -432,6 +466,13 @@ export default function SuperAdminDashboard() {
           </View>
         </ScrollView>
       </View>
+
+      {isLoading && (
+        <View style={{ padding: 24, alignItems: "center" }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ color: colors.muted, marginTop: 8 }}>Loading clients...</Text>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Platform Tools — at top */}

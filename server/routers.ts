@@ -237,6 +237,25 @@ export const appRouter = router({
       }),
   }),
 
+  // ─── Tenant Users (Employees) ────────────────────────────────────────────
+  tenantUsers: router({
+    list: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .query(({ input }) => db.getTenantUsersByTenant(input.tenantId)),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .mutation(async ({ input }) => {
+        const db2 = await import("../drizzle/schema");
+        const { tenantUsers: tuTable } = db2;
+        const drizzleDb = await (await import("./db")).getDb();
+        if (!drizzleDb) throw new Error("Database not available");
+        const { eq, and } = await import("drizzle-orm");
+        await drizzleDb.delete(tuTable).where(and(eq(tuTable.id, input.id), eq(tuTable.tenantId, input.tenantId)));
+        return { success: true };
+      }),
+  }),
+
   // ─── Tenants (NVC360 Super-Admin) ──────────────────────────────────────────
   tenants: router({
     // NVC staff only — tenants are platform-level records

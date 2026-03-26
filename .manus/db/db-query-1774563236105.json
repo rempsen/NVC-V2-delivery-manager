@@ -1,0 +1,38 @@
+{
+  "query": "\nINSERT IGNORE INTO tenantUsers (tenantId, role, name, email, passwordHash, isActive)\nVALUES\n  (1, 'dispatcher', 'James Chen', 'dispatch@acmehvac.com', '$2a$12$placeholder', 1),\n  (1, 'technician', 'Mike Torres', 'tech@acmehvac.com', '$2a$12$placeholder', 1),\n  (2, 'manager', 'Lisa Park', 'admin@plumbpro.com', '$2a$12$placeholder', 1),\n  (3, 'manager', 'Dan Rosenblat', 'admin@nvc360.com', '$2a$12$placeholder', 1);\n\nSELECT t.id, t.slug, t.companyName, tu.email, tu.role\nFROM tenants t\nLEFT JOIN tenantUsers tu ON tu.tenantId = t.id\nORDER BY t.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nINSERT IGNORE INTO tenantUsers (tenantId, role, name, email, passwordHash, isActive)\nVALUES\n  (1, 'dispatcher', 'James Chen', 'dispatch@acmehvac.com', '$2a$12$placeholder', 1),\n  (1, 'technician', 'Mike Torres', 'tech@acmehvac.com', '$2a$12$placeholder', 1),\n  (2, 'manager', 'Lisa Park', 'admin@plumbpro.com', '$2a$12$placeholder', 1),\n  (3, 'manager', 'Dan Rosenblat', 'admin@nvc360.com', '$2a$12$placeholder', 1);\n\nSELECT t.id, t.slug, t.companyName, tu.email, tu.role\nFROM tenants t\nLEFT JOIN tenantUsers tu ON tu.tenantId = t.id\nORDER BY t.id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "slug": "acme-hvac",
+      "companyName": "Acme HVAC Services",
+      "email": "dispatch@acmehvac.com",
+      "role": "dispatcher"
+    },
+    {
+      "id": "1",
+      "slug": "acme-hvac",
+      "companyName": "Acme HVAC Services",
+      "email": "tech@acmehvac.com",
+      "role": "technician"
+    },
+    {
+      "id": "2",
+      "slug": "plumb-pro",
+      "companyName": "PlumbPro Solutions",
+      "email": "admin@plumbpro.com",
+      "role": "manager"
+    },
+    {
+      "id": "3",
+      "slug": "nvc360",
+      "companyName": "NVC360 Platform",
+      "email": "admin@nvc360.com",
+      "role": "manager"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tcompanyName\temail\trole\n1\tacme-hvac\tAcme HVAC Services\tdispatch@acmehvac.com\tdispatcher\n1\tacme-hvac\tAcme HVAC Services\ttech@acmehvac.com\ttechnician\n2\tplumb-pro\tPlumbPro Solutions\tadmin@plumbpro.com\tmanager\n3\tnvc360\tNVC360 Platform\tadmin@nvc360.com\tmanager\n",
+  "stderr": "",
+  "execution_time_ms": 418
+}

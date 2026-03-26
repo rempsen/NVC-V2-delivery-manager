@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE tenants ADD COLUMN IF NOT EXISTS isNvcPlatform BOOLEAN NOT NULL DEFAULT FALSE;\nALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspended BOOLEAN NOT NULL DEFAULT FALSE;\nUPDATE tenants SET isNvcPlatform = TRUE WHERE slug = 'nvc360';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nALTER TABLE tenants ADD COLUMN IF NOT EXISTS isNvcPlatform BOOLEAN NOT NULL DEFAULT FALSE;\nALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspended BOOLEAN NOT NULL DEFAULT FALSE;\nUPDATE tenants SET isNvcPlatform = TRUE WHERE slug = 'nvc360';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 887
+}
