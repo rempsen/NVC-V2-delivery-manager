@@ -701,3 +701,25 @@
 - [ ] NVC Manager role: show all tabs + Super Admin link
 - [ ] Super Admin role: show all tabs + Super Admin link + impersonate banner
 - [ ] Role loaded from JWT on app start, persisted in SecureStore
+
+## Sprint: Multi-Column Card Grid UI Redesign
+- [ ] Technicians screen: replace full-width list rows with 3-4 column card grid
+- [ ] Technicians screen: search bar (name, address, tag, ability)
+- [ ] Technicians screen: filter tabs (All, On Job, En Route, Available, On Break, Offline)
+- [ ] Technicians screen: team filter dropdown
+- [ ] Customers screen: replace full-width list rows with 3-4 column card grid
+- [ ] Customers screen: search bar (name, phone, address)
+- [ ] Customers screen: filter by status/type dropdown
+
+## UI Redesign — Multi-Column Card Grid (v5)
+- [x] Technicians screen: replace full-width row list with responsive multi-column card grid (2 cols mobile, 3 cols tablet, 4 cols desktop)
+- [x] Technicians screen: compact grid cards with avatar, status pill, skills chips, address, stats, action buttons
+- [x] Technicians screen: advanced search bar (name, skill/tag, address, phone) with real-time filtering
+- [x] Technicians screen: "Clear filters" shortcut when search + status filter active
+- [x] Technicians screen: results count bar showing number of matching technicians
+- [x] Customers screen: replace full-width row list with responsive multi-column card grid (2 cols mobile, 3 cols tablet, 4 cols desktop)
+- [x] Customers screen: compact grid cards with avatar, status badge, company, contact, industry icon, address, phone, stats, tags, view button
+- [x] Customers screen: advanced search bar (company name, contact name, phone, address, industry, tags) with real-time filtering
+- [x] Customers screen: status filter bar (All, VIP, Active, Prospect, Inactive) with count badges
+- [x] Customers screen: "Clear filters" shortcut when search + status filter active
+- [x] TypeScript: 0 errors
