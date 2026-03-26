@@ -950,3 +950,14 @@
 - [x] API_BASE_URL secret set so OAuth redirect URIs point to correct deployed server
 - [x] nodemailer installed; server/email.ts module created with resolveSmtpCredentials + sendTestEmail
 - [x] TypeScript: 0 errors | Tests: 105 passed, 1 skipped (106 total)
+
+## Sprint: Super-Admin UI Fixes (Mar 26)
+
+- [x] Platform Tools: shrink cards to compact small square icon buttons (72px, 3-column grid)
+- [x] Subscription Plans in Billing screen: 3-column square card layout, tap to edit name/price/features
+- [x] Invoice Settings in Billing screen: all rows editable (tap → select from options or free-text input)
+- [x] Usage Analytics button: wired to new /super-admin/analytics screen with period selector + sparklines + top clients
+- [x] Support button: opens https://nvc360.com/support/ in browser via Linking.openURL
+- [x] Billing: dedicated /super-admin/billing screen (plans + invoice settings + payment methods)
+- [x] Pricing Logic: dedicated /super-admin/pricing-logic screen (billing rules + pricing models + travel/distance)
+- [x] TypeScript: 0 errors | Tests: 105 passed, 1 skipped (106 total)

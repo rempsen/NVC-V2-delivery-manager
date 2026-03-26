@@ -510,27 +510,34 @@ export default function SuperAdminDashboard() {
           ))}
         </View>
 
-        {/* Quick Actions */}
+        {/* Platform Tools */}
         <View style={[styles.quickActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.quickActionsTitle, { color: colors.foreground }]}>Platform Tools</Text>
           <View style={styles.quickActionsGrid}>
             {[
-              { label: "Template Library", icon: "doc.text.fill" as const, color: "#3B82F6", route: "/settings/workflow-templates" },
-              { label: "Pricing Engine", icon: "dollarsign.circle.fill" as const, color: "#22C55E", route: "/pricing" },
-              { label: "Usage Analytics", icon: "chart.bar.fill" as const, color: "#8B5CF6", route: null },
+              { label: "Templates", icon: "doc.text.fill" as const, color: "#3B82F6", route: "/settings/workflow-templates" },
+              { label: "Pricing", icon: "dollarsign.circle.fill" as const, color: "#22C55E", route: "/super-admin/pricing-logic" },
+              { label: "Analytics", icon: "chart.bar.fill" as const, color: "#8B5CF6", route: "/super-admin/analytics" },
               { label: "API Keys", icon: "key.fill" as const, color: "#F59E0B", route: "/integrations" },
-              { label: "Billing", icon: "creditcard.fill" as const, color: "#EF4444", route: "/pricing" },
-              { label: "Support", icon: "questionmark.circle.fill" as const, color: "#6B7280", route: null },
+              { label: "Billing", icon: "creditcard.fill" as const, color: "#EF4444", route: "/super-admin/billing" },
+              { label: "Support", icon: "questionmark.circle.fill" as const, color: "#6B7280", route: "https://nvc360.com/support/" },
             ].map((action) => (
               <Pressable
                 key={action.label}
                 style={({ pressed }) => [
                   styles.quickAction,
-                  { backgroundColor: action.color + "15", borderColor: action.color + "30", opacity: pressed ? 0.7 : 1 },
+                  { backgroundColor: action.color + "18", borderColor: action.color + "35", opacity: pressed ? 0.7 : 1 },
                 ]}
-                onPress={() => action.route ? router.push(action.route as any) : Alert.alert(action.label, `${action.label} will be available in the next platform release.`)}
+                onPress={() => {
+                  if (action.route?.startsWith("http")) {
+                    const { Linking } = require("react-native");
+                    Linking.openURL(action.route);
+                  } else if (action.route) {
+                    router.push(action.route as any);
+                  }
+                }}
               >
-                <IconSymbol name={action.icon} size={20} color={action.color} />
+                <IconSymbol name={action.icon} size={22} color={action.color} />
                 <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>
               </Pressable>
             ))}
@@ -658,18 +665,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickActionsTitle: { fontSize: 14, fontWeight: "700" },
-  quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   quickAction: {
-    width: "30%",
-    aspectRatio: 1,
-    borderRadius: 12,
+    width: 72,
+    height: 72,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    padding: 8,
+    gap: 5,
+    padding: 6,
   },
-  quickActionLabel: { fontSize: 10, fontWeight: "700", textAlign: "center" },
+  quickActionLabel: { fontSize: 9, fontWeight: "700", textAlign: "center", lineHeight: 11 },
   // Modal
   modalOverlay: {
     position: "absolute",

@@ -43,6 +43,9 @@ const MAPPING = {
   "person.fill": "person",
   "person.crop.circle.fill": "account-circle",
   "person.badge.plus": "person-add",
+  "person.badge.minus": "person-remove",
+  "internaldrive.fill": "storage",
+  "building.columns.fill": "account-balance",
   // Actions
   "plus": "add",
   "plus.circle.fill": "add-circle",
