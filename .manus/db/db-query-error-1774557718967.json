@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT \n  u.id,\n  u.email,\n  u.name,\n  u.role,\n  u.tenant_id,\n  t.company_name AS tenant_name,\n  t.slug AS tenant_slug,\n  CASE WHEN u.password_hash IS NULL OR u.password_hash = '' THEN 'MISSING' ELSE 'SET' END AS password_status,\n  LEFT(u.password_hash, 10) AS hash_prefix\nFROM users u\nLEFT JOIN tenants t ON u.tenant_id = t.id\nWHERE u.email IN (\n  'dispatch@acmehvac.com',\n  'tech@acmehvac.com',\n  'admin@plumbpro.com',\n  'admin@nvc360.com'\n)\nORDER BY u.email;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT \n  u.id,\n  u.email,\n  u.name,\n  u.role,\n  u.tenant_id,\n  t.company_name AS tenant_name,\n  t.slug AS tenant_slug,\n  CASE WHEN u.password_hash IS NULL OR u.password_hash = '' THEN 'MISSING' ELSE 'SET' END AS password_status,\n  LEFT(u.password_hash, 10) AS hash_prefix\nFROM users u\nLEFT JOIN tenants t ON u.tenant_id = t.id\nWHERE u.email IN (\n  'dispatch@acmehvac.com',\n  'tech@acmehvac.com',\n  'admin@plumbpro.com',\n  'admin@nvc360.com'\n)\nORDER BY u.email;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'u.tenant_id' in 'on clause'"
+  ]
+}

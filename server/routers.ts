@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import { adminRouter } from "./adminRouter";
 import { mapsRouter } from "./mapsRouter";
@@ -52,6 +54,44 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    /**
+     * Email + password login for demo accounts.
+     * Creates a real signed JWT session cookie so the web auth guard passes.
+     * Password is always "demo123" for all demo accounts.
+     */
+    emailLogin: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const DEMO_USERS: Record<string, { openId: string; name: string; email: string }> = {
+          "admin@nvc360.com":      { openId: "demo-nvc-001",  name: "Dan Rosenblat",  email: "admin@nvc360.com" },
+          "pm@nvc360.com":         { openId: "demo-nvc-002",  name: "Sarah Mitchell", email: "pm@nvc360.com" },
+          "dispatch@acmehvac.com": { openId: "demo-t1-001",   name: "James Chen",     email: "dispatch@acmehvac.com" },
+          "tech@acmehvac.com":     { openId: "demo-t1-002",   name: "Mike Torres",    email: "tech@acmehvac.com" },
+          "admin@plumbpro.com":    { openId: "demo-t2-001",   name: "Lisa Park",      email: "admin@plumbpro.com" },
+        };
+        const emailLower = input.email.toLowerCase().trim();
+        const demoUser = DEMO_USERS[emailLower];
+        if (!demoUser || input.password !== "demo123") {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials. Use password 'demo123' with a demo account." });
+        }
+        // Upsert the demo user so authenticateRequest can find them on subsequent requests
+        await db.upsertUser({
+          openId: demoUser.openId,
+          name: demoUser.name,
+          email: demoUser.email,
+          loginMethod: "email",
+          lastSignedIn: new Date(),
+        });
+        // Create a real signed JWT session token using the platform secret
+        const sessionToken = await sdk.createSessionToken(demoUser.openId, {
+          name: demoUser.name,
+          expiresInMs: 365 * 24 * 60 * 60 * 1000,
+        });
+        // Set the session cookie so the web auth guard (/api/auth/me) passes
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+        return { success: true } as const;
+      }),
   }),
 
   // ─── Tenants (NVC360 Super-Admin) ──────────────────────────────────────────

@@ -21,6 +21,7 @@ import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,18 +92,20 @@ export default function LoginScreen() {
 
   const haptic = () => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
 
-  const saveAndNavigate = async (user: AuthUser) => {
+  const emailLoginMutation = trpc.auth.emailLogin.useMutation();
+
+  const saveAndNavigate = async (user: AuthUser, sessionToken?: string) => {
     if (Platform.OS !== "web") {
       await SecureStore.setItemAsync("nvc360_user", JSON.stringify(user));
-      await SecureStore.setItemAsync("nvc360_token", `mock_jwt_${user.id}_${Date.now()}`);
+      // Use real session token if provided, otherwise fall back to mock token for native
+      await SecureStore.setItemAsync("nvc360_token", sessionToken ?? `mock_jwt_${user.id}_${Date.now()}`);
     }
+    // On web the session cookie was already set by the server in emailLogin mutation
     if (user.role === "nvc_super_admin" || user.role === "nvc_project_manager") {
       router.replace("/super-admin" as any);
     } else if (user.role === "field_technician") {
-      // Technicians go to the agent home (no fleet map, task-focused)
       router.replace("/agent-home" as any);
     } else {
-      // Dispatchers, company admins, managers → main dashboard
       router.replace("/(tabs)" as any);
     }
   };
@@ -130,19 +133,26 @@ export default function LoginScreen() {
     if (!email.trim() || !password.trim()) { Alert.alert("Missing Fields", "Please enter your email and password."); return; }
     haptic(); setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
+      // Call real server-side emailLogin — sets session cookie on web, returns success
+      await emailLoginMutation.mutateAsync({ email: email.toLowerCase().trim(), password });
+      // After server confirms login, look up local MOCK_USERS for role-based routing
       const user = MOCK_USERS[email.toLowerCase().trim()];
-      if (!user || password !== "demo123") { Alert.alert("Login Failed", "Invalid credentials.\n\nHint: Use password 'demo123' with any demo account."); return; }
+      if (!user) { Alert.alert("Login Failed", "Invalid credentials.\n\nHint: Use password 'demo123' with any demo account."); return; }
       await saveAndNavigate(user);
+    } catch (err: any) {
+      const msg = err?.message ?? "Login failed. Please try again.";
+      Alert.alert("Login Failed", msg);
     } finally { setLoading(false); }
   };
 
   const handleDemoLogin = async (demoEmail: string) => {
     haptic(); setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 500));
+      await emailLoginMutation.mutateAsync({ email: demoEmail, password: "demo123" });
       const user = MOCK_USERS[demoEmail];
       if (user) await saveAndNavigate(user);
+    } catch (err: any) {
+      Alert.alert("Login Failed", err?.message ?? "Could not log in with demo account.");
     } finally { setLoading(false); }
   };
 

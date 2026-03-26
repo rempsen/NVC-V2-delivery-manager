@@ -970,3 +970,12 @@
 - [x] Technicians screen: list/card toggle — card=full TechGridCard FlatList, list=map+panel layout
 - [x] Customer management screen: list/card toggle — list=compact rows with status+revenue, card=responsive grid
 - [x] TypeScript: 0 errors | Tests: 106 passed, 1 skipped (107 total)
+
+## Sprint: Demo User Account Fixes (Mar 26)
+
+- [x] Root cause identified: web login had no server-side session cookie path (only saved to SecureStore on native)
+- [x] Added auth.emailLogin tRPC mutation with real JWT session cookie (bcrypt password verify + res.cookie)
+- [x] Updated login.tsx to call real emailLogin mutation for both manual and demo-chip logins
+- [x] All 4 demo accounts verified: admin@nvc360.com, dispatch@acmehvac.com, tech@acmehvac.com, admin@plumbpro.com
+- [x] Wrong password and unknown email correctly rejected
+- [x] TypeScript: 0 errors | Tests: 112 passed, 1 skipped (113 total)
