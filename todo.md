@@ -568,3 +568,17 @@
 - [ ] Background location justification written
 - [ ] Privacy policy URL in app listings
 - [ ] Support URL in app listings
+
+## API Key Integration — Google Maps & Gemini AI
+- [x] Validate Gemini API key (lightweight models.list call)
+- [x] Validate Google Maps API key (Geocoding API ping)
+- [x] Replace simulated fleet map with real Google Maps (web dashboard)
+- [x] Replace simulated map on customer tracking page with real Google Maps
+- [ ] Replace simulated map on mobile task detail screen with real Google Maps
+- [x] Wire Gemini AI to operational insights panel (real AI analysis of live task/tech data)
+- [x] Gemini AI: smart dispatch suggestions (which tech to assign based on proximity/skills)
+- [x] Gemini AI: delay risk detection from task data
+
+## API Key Update — New Google Maps Key
+- [x] Store new Google Maps API key (AIzaSyBmW8a43bZiApE5ejzjBb92CbhHSQOAqjo) replacing old key
+- [x] Validate new key reaches Google Maps API

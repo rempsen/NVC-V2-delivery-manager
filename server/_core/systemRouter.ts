@@ -26,4 +26,13 @@ export const systemRouter = router({
         success: delivered,
       } as const;
     }),
+
+  /**
+   * Returns public client configuration (safe to expose to browser).
+   * Includes API keys that are browser-restricted (HTTP referrer / origin).
+   */
+  getPublicConfig: publicProcedure.query(() => ({
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
+    googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? "",
+  })),
 });

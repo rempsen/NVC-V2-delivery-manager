@@ -5,6 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import crypto from "crypto";
+import * as gemini from "./gemini";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -579,6 +580,62 @@ export const appRouter = router({
     markRead: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(({ input }) => db.markMessagesRead(input.taskId)),
+  }),
+
+  // ─── AI / Gemini Insights ────────────────────────────────────────────────
+  ai: router({
+    operationalBriefing: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .mutation(async ({ input }) => {
+        const [tasks, technicians] = await Promise.all([
+          db.getTasksByTenant(input.tenantId),
+          db.getTechniciansByTenant(input.tenantId),
+        ]);
+        const taskSummaries: gemini.TaskSummary[] = (tasks as any[]).map((t) => ({
+          id: t.id,
+          status: t.status,
+          priority: t.priority ?? "normal",
+          customerName: t.customerName ?? undefined,
+          jobAddress: t.jobAddress ?? undefined,
+          scheduledTime: t.scheduledTime ?? undefined,
+          assignedTechnicianId: t.assignedTechnicianId ?? undefined,
+          estimatedDuration: t.estimatedDuration ?? undefined,
+          createdAt: t.createdAt?.toISOString() ?? undefined,
+        }));
+        const techSummaries: gemini.TechSummary[] = (technicians as any[]).map((t) => ({
+          id: t.id,
+          name: t.name,
+          status: t.status,
+          todayJobs: t.todayJobs ?? 0,
+          skills: t.skills ?? [],
+          latitude: t.latitude ? parseFloat(t.latitude) : undefined,
+          longitude: t.longitude ? parseFloat(t.longitude) : undefined,
+        }));
+        return gemini.generateOperationalBriefing(taskSummaries, techSummaries);
+      }),
+
+    assessDelayRisk: protectedProcedure
+      .input(z.object({ taskId: z.number() }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        if (!task) throw new Error("Task not found");
+        const tech = (task as any).assignedTechnicianId
+          ? await db.getTechnicianById((task as any).assignedTechnicianId)
+          : undefined;
+        const taskSummary: gemini.TaskSummary = {
+          id: (task as any).id,
+          status: (task as any).status,
+          priority: (task as any).priority ?? "normal",
+          customerName: (task as any).customerName ?? undefined,
+          jobAddress: (task as any).jobAddress ?? undefined,
+          scheduledTime: (task as any).scheduledTime ?? undefined,
+          assignedTechnicianId: (task as any).assignedTechnicianId ?? undefined,
+        };
+        const techSummary: gemini.TechSummary | undefined = tech
+          ? { id: (tech as any).id, name: (tech as any).name, status: (tech as any).status, skills: (tech as any).skills ?? [] }
+          : undefined;
+        return gemini.assessDelayRisk(taskSummary, techSummary);
+      }),
   }),
 
   // ─── Location ──────────────────────────────────────────────────────────────

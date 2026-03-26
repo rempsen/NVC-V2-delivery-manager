@@ -38,6 +38,7 @@ import {
 import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_SORT_ORDER } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
 import { MOCK_CUSTOMERS, type Customer } from "@/app/(tabs)/customers";
+import { GoogleMapView } from "@/components/google-map-view";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -549,51 +550,136 @@ function WorkOrderRow({ task, onPress }: { task: Task; onPress: () => void }) {
 
 // ─── AI Insights Panel ───────────────────────────────────────────────────────
 
-const AI_INSIGHTS = [
-  { id: 1, type: "risk" as const, icon: "exclamationmark.triangle.fill", color: "#DC2626", text: "1 job at risk of SLA breach (traffic impact on Route 90)", action: "View Job" },
-  { id: 2, type: "warn" as const, icon: "person.2.fill", color: "#F59E0B", text: "2 technicians underutilized — available for reassignment", action: "Assign" },
-  { id: 3, type: "info" as const, icon: "map.fill", color: "#3B8FDF", text: "Route optimization could save ~18 min across 3 active jobs", action: "Optimize" },
-  { id: 4, type: "success" as const, icon: "checkmark.circle.fill", color: "#22C55E", text: "Completion rate 94% today — above 90% target", action: null },
-];
+// ─── Gemini AI Insights Panel ────────────────────────────────────────────────
+
+const INSIGHT_TYPE_CONFIG: Record<string, { icon: any; color: string }> = {
+  risk:           { icon: "exclamationmark.triangle.fill", color: "#DC2626" },
+  alert:          { icon: "bell.fill",                     color: "#F59E0B" },
+  recommendation: { icon: "lightbulb.fill",                color: "#3B8FDF" },
+  summary:        { icon: "checkmark.circle.fill",         color: "#22C55E" },
+};
 
 function AIInsightsPanel() {
   const colors = useColors();
   const [dismissed, setDismissed] = React.useState<number[]>([]);
-  const visible = AI_INSIGHTS.filter((i) => !dismissed.includes(i.id));
+  const [isExpanded, setIsExpanded] = React.useState(true);
 
-  if (visible.length === 0) return null;
+  const briefingMutation = trpc.ai.operationalBriefing.useMutation();
+
+  const handleRefresh = React.useCallback(() => {
+    setDismissed([]);
+    briefingMutation.mutate({ tenantId: DEMO_TENANT_ID });
+  }, []);
+
+  // Auto-fetch on mount
+  React.useEffect(() => {
+    briefingMutation.mutate({ tenantId: DEMO_TENANT_ID });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const briefing = briefingMutation.data;
+  const isLoading = briefingMutation.isPending;
+  const insights = briefing?.insights?.filter((_, i) => !dismissed.includes(i)) ?? [];
 
   return (
     <View style={[styles.aiPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={styles.aiPanelHeader}>
+      <Pressable
+        style={styles.aiPanelHeader}
+        onPress={() => setIsExpanded((v) => !v)}
+      >
         <View style={styles.aiPanelTitleRow}>
-          <View style={[styles.aiPanelDot, { backgroundColor: "#3B8FDF" }]} />
-          <Text style={[styles.aiPanelTitle, { color: colors.foreground }] as TextStyle[]}>AI Operational Insights</Text>
-          <View style={[styles.aiBadge, { backgroundColor: NVC_BLUE + "15" }]}>
-            <Text style={[styles.aiBadgeText, { color: NVC_BLUE }] as TextStyle[]}>{visible.length} active</Text>
-          </View>
+          <View style={[styles.aiPanelDot, { backgroundColor: isLoading ? "#F59E0B" : "#3B8FDF" }]} />
+          <Text style={[styles.aiPanelTitle, { color: colors.foreground }] as TextStyle[]}>
+            Gemini AI Insights
+          </Text>
+          {briefing && (
+            <View style={[styles.aiBadge, { backgroundColor: NVC_BLUE + "15" }]}>
+              <Text style={[styles.aiBadgeText, { color: NVC_BLUE }] as TextStyle[]}>
+                {insights.length} active
+              </Text>
+            </View>
+          )}
+          {isLoading && (
+            <View style={[styles.aiBadge, { backgroundColor: "#F59E0B15" }]}>
+              <Text style={[styles.aiBadgeText, { color: "#F59E0B" }] as TextStyle[]}>Analyzing…</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+          <Pressable
+            style={({ pressed }) => [styles.aiActionBtn, { backgroundColor: NVC_BLUE + "15", borderColor: NVC_BLUE + "30", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+            onPress={handleRefresh}
+          >
+            <Text style={[styles.aiActionText, { color: NVC_BLUE }] as TextStyle[]}>↻ Refresh</Text>
+          </Pressable>
         </View>
-      </View>
-      <View style={styles.aiInsightsList}>
-        {visible.map((insight) => (
-          <View key={insight.id} style={[styles.aiInsightRow, { borderLeftColor: insight.color, backgroundColor: insight.color + "06" }]}>
-            <IconSymbol name={insight.icon as any} size={14} color={insight.color} />
-            <Text style={[styles.aiInsightText, { color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{insight.text}</Text>
-            <View style={{ flex: 1 }} />
-            {insight.action && (
-              <Pressable style={[styles.aiActionBtn, { backgroundColor: insight.color + "18", borderColor: insight.color + "40" }] as ViewStyle[]}>
-                <Text style={[styles.aiActionText, { color: insight.color }] as TextStyle[]}>{insight.action}</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={({ pressed }) => [styles.aiDismissBtn, { opacity: pressed ? 0.5 : 0.7 }] as ViewStyle[]}
-              onPress={() => setDismissed((d) => [...d, insight.id])}
-            >
-              <IconSymbol name="xmark" size={10} color={colors.muted} />
-            </Pressable>
-          </View>
-        ))}
-      </View>
+        {briefing?.headline && (
+          <Text style={[styles.aiInsightText, { color: colors.muted, marginTop: 4, marginLeft: 18 }] as TextStyle[]} numberOfLines={2}>
+            {briefing.headline}
+          </Text>
+        )}
+      </Pressable>
+
+      {isExpanded && (
+        <View style={styles.aiInsightsList}>
+          {isLoading && !briefing && (
+            <View style={[styles.aiInsightRow, { borderLeftColor: "#F59E0B", backgroundColor: "#F59E0B06" }]}>
+              <Text style={[styles.aiInsightText, { color: colors.muted }] as TextStyle[]}>
+                Gemini is analyzing your live operations data…
+              </Text>
+            </View>
+          )}
+          {insights.map((insight, i) => {
+            const cfg = INSIGHT_TYPE_CONFIG[insight.type] ?? INSIGHT_TYPE_CONFIG.summary;
+            return (
+              <View key={i} style={[styles.aiInsightRow, { borderLeftColor: cfg.color, backgroundColor: cfg.color + "06" }]}>
+                <IconSymbol name={cfg.icon} size={14} color={cfg.color} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.aiInsightText, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]} numberOfLines={1}>
+                    {insight.title}
+                  </Text>
+                  <Text style={[styles.aiInsightText, { color: colors.muted, fontSize: 11 }] as TextStyle[]} numberOfLines={2}>
+                    {insight.description}
+                  </Text>
+                </View>
+                {insight.actionable && insight.action && (
+                  <Pressable style={[styles.aiActionBtn, { backgroundColor: cfg.color + "18", borderColor: cfg.color + "40" }] as ViewStyle[]}>
+                    <Text style={[styles.aiActionText, { color: cfg.color }] as TextStyle[]}>{insight.action}</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  style={({ pressed }) => [styles.aiDismissBtn, { opacity: pressed ? 0.5 : 0.7 }] as ViewStyle[]}
+                  onPress={() => setDismissed((d) => [...d, i])}
+                >
+                  <IconSymbol name="xmark" size={10} color={colors.muted} />
+                </Pressable>
+              </View>
+            );
+          })}
+          {briefing?.dispatchSuggestions && briefing.dispatchSuggestions.length > 0 && (
+            <View style={[styles.aiInsightRow, { borderLeftColor: "#8B5CF6", backgroundColor: "#8B5CF606" }]}>
+              <IconSymbol name="paperplane.fill" size={14} color="#8B5CF6" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.aiInsightText, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]}>
+                  {briefing.dispatchSuggestions.length} Smart Dispatch Suggestion{briefing.dispatchSuggestions.length > 1 ? "s" : ""}
+                </Text>
+                {briefing.dispatchSuggestions.slice(0, 2).map((s, i) => (
+                  <Text key={i} style={[styles.aiInsightText, { color: colors.muted, fontSize: 11 }] as TextStyle[]} numberOfLines={1}>
+                    Job #{s.taskId} → Tech #{s.suggestedTechId}: {s.reason}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          )}
+          {briefingMutation.isError && (
+            <View style={[styles.aiInsightRow, { borderLeftColor: "#EF4444", backgroundColor: "#EF444406" }]}>
+              <IconSymbol name="exclamationmark.triangle.fill" size={14} color="#EF4444" />
+              <Text style={[styles.aiInsightText, { color: colors.muted }] as TextStyle[]}>
+                AI analysis unavailable — check server connection
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -643,7 +729,7 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
           { label: "SLA Risk", value: slaAtRisk, icon: "exclamationmark.triangle.fill", color: slaAtRisk > 0 ? "#F87171" : "#4ADE80" },
           { label: "Revenue Today", value: "$4,280", icon: "dollarsign.circle.fill", color: "#34D399" },
           { label: "Active Techs", value: onlineCount, icon: "person.2.fill", color: "#A78BFA" },
-          { label: "Alerts", value: AI_INSIGHTS.filter((i) => i.type === "risk" || i.type === "warn").length, icon: "bell.fill", color: "#FBBF24" },
+          { label: "Alerts", value: slaAtRisk, icon: "bell.fill", color: "#FBBF24" },
         ].map((item) => (
           <View key={item.label} style={styles.commandStripItem}>
             <IconSymbol name={item.icon as any} size={12} color={item.color} />
@@ -703,7 +789,17 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
                 </Pressable>
               </View>
             </View>
-            <FleetMapPanel technicians={sortedTechs} selectedId={selectedTechId} onSelect={onSelectTech} />
+            {Platform.OS === "web" ? (
+              <GoogleMapView
+                technicians={sortedTechs.map((t) => ({ id: t.id, name: t.name, latitude: t.latitude, longitude: t.longitude, status: t.status, transportType: t.transportType }))}
+                tasks={tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").map((t) => ({ id: t.id, jobLatitude: t.jobLatitude, jobLongitude: t.jobLongitude, status: t.status, customerName: t.customerName, jobAddress: t.jobAddress }))}
+                selectedId={selectedTechId}
+                onSelectTech={onSelectTech}
+                height={320}
+              />
+            ) : (
+              <FleetMapPanel technicians={sortedTechs} selectedId={selectedTechId} onSelect={onSelectTech} />
+            )}
           </View>
 
           {/* Recent Work Orders */}
@@ -2493,9 +2589,26 @@ export default function DesktopDashboard() {
       case "map":
         return (
           <View style={{ flex: 1, padding: 24 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 16 }] as TextStyle[]}>Live Fleet Map</Text>
-            <View style={{ flex: 1, borderRadius: 16, overflow: "hidden", minHeight: 500 }}>
-              <FleetMapPanel technicians={liveTechnicians} selectedId={selectedTechId} onSelect={setSelectedTechId} />
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Live Fleet Map</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
+                  {liveTechnicians.filter((t) => t.status !== "offline").length} active technicians · {liveTasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length} open jobs
+                </Text>
+              </View>
+            </View>
+            <View style={{ flex: 1, borderRadius: 16, overflow: "hidden", minHeight: 560, marginTop: 16 }}>
+              {Platform.OS === "web" ? (
+                <GoogleMapView
+                  technicians={liveTechnicians.map((t) => ({ id: t.id, name: t.name, latitude: t.latitude, longitude: t.longitude, status: t.status, transportType: t.transportType }))}
+                  tasks={liveTasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").map((t) => ({ id: t.id, jobLatitude: t.jobLatitude, jobLongitude: t.jobLongitude, status: t.status, customerName: t.customerName, jobAddress: t.jobAddress }))}
+                  selectedId={selectedTechId}
+                  onSelectTech={setSelectedTechId}
+                  height={560}
+                />
+              ) : (
+                <FleetMapPanel technicians={liveTechnicians} selectedId={selectedTechId} onSelect={setSelectedTechId} />
+              )}
             </View>
           </View>
         );
