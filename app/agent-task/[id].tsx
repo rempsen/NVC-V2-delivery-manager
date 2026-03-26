@@ -421,8 +421,8 @@ export default function AgentTaskScreen() {
 
   // ── Task data ────────────────────────────────────────────────────────────────
   const { data: apiTask, isLoading } = trpc.tasks.getById.useQuery(
-    { id: taskId },
-    { enabled: !isDemo && taskId > 0 },
+    { id: taskId, tenantId: tenantId ?? 0 },
+    { enabled: !isDemo && taskId > 0 && tenantId != null },
   );
 
   const task = useMemo<Task | null>(() => {
@@ -575,14 +575,14 @@ export default function AgentTaskScreen() {
   // ── Action handlers ──────────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     try {
-      if (!isDemo) await startTaskMutation.mutateAsync({ taskId });
+      if (!isDemo) await startTaskMutation.mutateAsync({ taskId, tenantId: tenantId ?? 0 });
       setPhase("en_route");
     } catch { Alert.alert("Error", "Could not start task. Please try again."); }
   }, [taskId, isDemo]);
 
   const handleArrive = useCallback(async (lat?: number, lng?: number) => {
     try {
-      if (!isDemo) await arriveTaskMutation.mutateAsync({ taskId, latitude: lat, longitude: lng });
+      if (!isDemo) await arriveTaskMutation.mutateAsync({ taskId, tenantId: tenantId ?? 0, latitude: lat, longitude: lng });
       setPhase("on_site");
     } catch { Alert.alert("Error", "Could not mark as arrived."); }
   }, [taskId, isDemo]);
@@ -592,6 +592,7 @@ export default function AgentTaskScreen() {
       if (!isDemo) {
         await completeTaskMutation.mutateAsync({
           taskId,
+          tenantId: tenantId ?? 0,
           notes: notes || undefined,
           signatureUri: signatureUri || undefined,
           paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
@@ -614,6 +615,7 @@ export default function AgentTaskScreen() {
       if (!isDemo) {
         await saveNotesMutation.mutateAsync({
           taskId,
+          tenantId: tenantId ?? 0,
           notes: `FAILED: ${selectedFailReason}${notes ? `\n${notes}` : ""}`,
         });
       }
@@ -626,6 +628,7 @@ export default function AgentTaskScreen() {
     if (!isDemo) {
       await saveNotesMutation.mutateAsync({
         taskId,
+        tenantId: tenantId ?? 0,
         notes: notes || undefined,
         photoUris: photos.length > 0 ? photos : undefined,
         signatureUri: signatureUri || undefined,

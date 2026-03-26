@@ -20,6 +20,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["super_admin", "nvc_manager", "merchant_manager", "agent", "user", "admin"]).default("agent").notNull(),
+  /** Tenant this user belongs to. NULL = NVC platform staff (super_admin / nvc_manager). */
+  tenantId: int("tenantId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

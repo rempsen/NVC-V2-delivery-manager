@@ -264,11 +264,20 @@ export const adminRouter = router({
   // Accessible to NVC admins AND merchant managers (scoped to their own tenant)
   updateMerchantSettings: merchantManagerProcedure
     .input(MerchantSettingsInput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const ddb = await getDb();
       if (!ddb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
       const { tenantId, ...settingsData } = input;
+
+      // Ownership check: merchant managers can only update their own tenant's settings
+      // NVC admins (role = super_admin | nvc_manager) bypass this check
+      const callerRole = ctx.user.role;
+      const callerTenantId = (ctx.user as any).tenantId;
+      const isNvcAdmin = callerRole === "super_admin" || callerRole === "nvc_manager";
+      if (!isNvcAdmin && callerTenantId != null && callerTenantId !== tenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied: you can only update your own company settings" });
+      }
 
       const [existing] = await ddb
         .select({ id: merchantSettings.id })

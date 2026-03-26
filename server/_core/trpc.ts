@@ -139,3 +139,61 @@ export const superAdminProcedure = t.procedure.use(
  * Kept for backward compatibility with existing routes.
  */
 export const adminProcedure = merchantManagerProcedure;
+
+// ─── Tenant-Scoped Procedure ──────────────────────────────────────────────────
+
+/**
+ * Enforces that the authenticated user can only access their own tenant's data.
+ *
+ * Rules:
+ *  - NVC platform staff (super_admin / nvc_manager) bypass the check entirely.
+ *  - All other roles must have ctx.user.tenantId set and it must match the
+ *    `tenantId` field in the input (if present). Routes that don't take a
+ *    tenantId input are still protected by authentication only.
+ *
+ * Usage:
+ * ```ts
+ * tenantScopedProcedure
+ *   .input(z.object({ tenantId: z.number(), ... }))
+ *   .query(({ ctx, input }) => {
+ *     // ctx.tenantId is guaranteed to equal input.tenantId here
+ *   })
+ * ```
+ */
+export const tenantScopedProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next, getRawInput } = opts;
+
+    if (!ctx.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    }
+
+    const role = ctx.user.role as UserRole;
+    const isNvcStaff = hasRole(role, "nvc_manager");
+
+    // NVC platform staff can access any tenant
+    if (!isNvcStaff) {
+      const userTenantId = ctx.user.tenantId;
+      if (userTenantId == null) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Your account is not associated with a tenant. Please contact support. (10010)",
+        });
+      }
+
+      // Check if the input contains a tenantId and enforce it matches
+      const rawInput = await getRawInput();
+      if (rawInput && typeof rawInput === "object" && "tenantId" in rawInput) {
+        const inputTenantId = Number((rawInput as Record<string, unknown>).tenantId);
+        if (!isNaN(inputTenantId) && inputTenantId !== userTenantId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Access denied: you can only access your own company's data. (10011)",
+          });
+        }
+      }
+    }
+
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }),
+);

@@ -1,0 +1,34 @@
+{
+  "query": "\nSELECT id, slug, companyName FROM tenants ORDER BY id;\nSELECT id, email, role, tenantId FROM users ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, slug, companyName FROM tenants ORDER BY id;\nSELECT id, email, role, tenantId FROM users ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "email": "admin@nvc360.com",
+      "role": "super_admin",
+      "tenantId": "NULL"
+    },
+    {
+      "id": "6",
+      "email": "dispatch@acmehvac.com",
+      "role": "merchant_manager",
+      "tenantId": "NULL"
+    },
+    {
+      "id": "7",
+      "email": "tech@acmehvac.com",
+      "role": "agent",
+      "tenantId": "NULL"
+    },
+    {
+      "id": "8",
+      "email": "admin@plumbpro.com",
+      "role": "merchant_manager",
+      "tenantId": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\trole\ttenantId\n1\tadmin@nvc360.com\tsuper_admin\tNULL\n6\tdispatch@acmehvac.com\tmerchant_manager\tNULL\n7\ttech@acmehvac.com\tagent\tNULL\n8\tadmin@plumbpro.com\tmerchant_manager\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 401
+}

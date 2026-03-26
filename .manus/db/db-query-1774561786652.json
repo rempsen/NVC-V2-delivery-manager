@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Set tenantId for NVC360 admin users (tenantId = NULL = platform-level)\nUPDATE users SET tenantId = NULL, role = 'super_admin' WHERE email IN ('admin@nvc360.com', 'pm@nvc360.com');\n\n-- Set tenantId for Acme HVAC users (tenant 1 based on seed data)\nUPDATE users SET tenantId = (SELECT id FROM tenants WHERE slug = 'acme-hvac' LIMIT 1), role = 'merchant_manager'\n  WHERE email = 'dispatch@acmehvac.com';\n\nUPDATE users SET tenantId = (SELECT id FROM tenants WHERE slug = 'acme-hvac' LIMIT 1), role = 'agent'\n  WHERE email = 'tech@acmehvac.com';\n\n-- Set tenantId for PlumbPro users\nUPDATE users SET tenantId = (SELECT id FROM tenants WHERE slug = 'plumb-pro' LIMIT 1), role = 'merchant_manager'\n  WHERE email = 'admin@plumbpro.com';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \n-- Set tenantId for NVC360 admin users (tenantId = NULL = platform-level)\nUPDATE users SET tenantId = NULL, role = 'super_admin' WHERE email IN ('admin@nvc360.com', 'pm@nvc360.com');\n\n-- Set tenantId for Acme HVAC users (tenant 1 based on seed data)\nUPDATE users SET tenantId = (SELECT id FROM tenants WHERE slug = 'acme-hvac' LIMIT 1), role = 'merchant_manager'\n  WHERE email = 'dispatch@acmehvac.com';\n\nUPDATE users SET tenantId = (SELECT id FROM tenants WHERE slug = 'acme-hvac' LIMIT 1), role = 'agent'\n  WHERE email = 'tech@acmehvac.com';\n\n-- Set tenantId for PlumbPro users\nUPDATE users SET tenantId = (SELECT id FROM tenants WHERE slug = 'plumb-pro' LIMIT 1), role = 'merchant_manager'\n  WHERE email = 'admin@plumbpro.com';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 634
+}

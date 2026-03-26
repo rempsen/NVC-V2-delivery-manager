@@ -1,0 +1,9 @@
+{
+  "query": "SELECT tu.id, tu.tenantId, tu.email, tu.role, t.slug, t.companyName FROM tenantUsers tu LEFT JOIN tenants t ON t.id = tu.tenantId ORDER BY tu.tenantId, tu.id LIMIT 30;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT tu.id, tu.tenantId, tu.email, tu.role, t.slug, t.companyName FROM tenantUsers tu LEFT JOIN tenants t ON t.id = tu.tenantId ORDER BY tu.tenantId, tu.id LIMIT 30;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 448
+}

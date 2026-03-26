@@ -1009,3 +1009,21 @@
 - [x] Frontend (agent-task/[id].tsx): updateLocation mutation now includes tenantId for broadcast
 - [x] Frontend (agent-home.tsx): startBackgroundLocationTracking now passes tenantId
 - [x] Background task: fixed to use /api/trpc URL and include tenantId in payload
+
+## Security Audit — Tenant Data Isolation (Mar 26)
+
+- [x] Audit all DB query functions in server/db.ts for missing tenantId filters — all DB queries already use tenantId WHERE clauses
+- [x] Audit all tRPC routes in server/routers.ts for missing tenant ownership checks — 8 gaps found
+- [x] Audit /api/auth/* Express endpoints for cross-tenant data leaks — clean
+- [x] Fix: add tenantScopedProcedure middleware to _core/trpc.ts (NVC admins bypass, others must match)
+- [x] Fix: add tenantId column to users table in DB + Drizzle schema
+- [x] Fix: tasks.getById, startTask, arriveTask, saveTaskNotes, completeTask — switched to tenantScopedProcedure + tenantId in input
+- [x] Fix: tasks.assign — switched to tenantScopedProcedure + tenantId in input
+- [x] Fix: technicians.getById, clockIn, clockOut, updateLocation — switched to tenantScopedProcedure + tenantId in input
+- [x] Fix: tenants.list/getById/create/update — restricted to nvcAdminProcedure (NVC staff only)
+- [x] Fix: templates.update/delete, pricing.update — switched to tenantScopedProcedure
+- [x] Fix: messages.list/send, calendar.update/delete, notifications.list — switched to tenantScopedProcedure
+- [x] Fix: exportRouter.ts all routes — switched to tenantScopedProcedure; invoicePdf adds task-level ownership check
+- [x] Fix: adminRouter.ts updateMerchantSettings — added ownership check (merchant managers can only update own tenant)
+- [x] Verify: 19/19 tenant isolation unit tests pass
+- [x] Verify: TypeScript 0 errors in all modified files

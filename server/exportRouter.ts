@@ -4,7 +4,7 @@
  * Uses jsPDF (lightweight, no native deps) for PDF generation.
  */
 import { z } from "zod";
-import { protectedProcedure, router } from "./_core/trpc";
+import { protectedProcedure, tenantScopedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ function buildPdfBase64(title: string, lines: string[]): string {
 
 export const exportRouter = router({
   /** Export work orders as CSV */
-  workOrdersCsv: protectedProcedure
+  workOrdersCsv: tenantScopedProcedure
     .input(z.object({ tenantId: z.number(), status: z.string().optional() }))
     .query(async ({ input }) => {
       const tasks = await db.getTasksByTenant(input.tenantId, input.status);
@@ -88,7 +88,7 @@ export const exportRouter = router({
     }),
 
   /** Export work orders as PDF (base64 encoded) */
-  workOrdersPdf: protectedProcedure
+  workOrdersPdf: tenantScopedProcedure
     .input(z.object({ tenantId: z.number(), status: z.string().optional() }))
     .query(async ({ input }) => {
       const tasks = await db.getTasksByTenant(input.tenantId, input.status);
@@ -109,11 +109,16 @@ export const exportRouter = router({
     }),
 
   /** Export a single work order as PDF invoice */
-  invoicePdf: protectedProcedure
-    .input(z.object({ taskId: z.number() }))
-    .query(async ({ input }) => {
+  invoicePdf: tenantScopedProcedure
+    .input(z.object({ taskId: z.number(), tenantId: z.number() }))
+    .query(async ({ input, ctx }) => {
       const task = await db.getTaskById_NVC(input.taskId) as any;
       if (!task) throw new Error("Task not found");
+      // Ownership check: task must belong to the caller's tenant (NVC admins bypass via tenantScopedProcedure)
+      const callerTenantId = (ctx.user as any).tenantId;
+      if (callerTenantId != null && task.tenantId !== callerTenantId) {
+        throw new Error("Access denied: task belongs to a different tenant");
+      }
       const lines = [
         `INVOICE`,
         ``,
@@ -150,7 +155,7 @@ export const exportRouter = router({
     }),
 
   /** Export technician activity report as CSV */
-  technicianReportCsv: protectedProcedure
+  technicianReportCsv: tenantScopedProcedure
     .input(z.object({ tenantId: z.number() }))
     .query(async ({ input }) => {
       const techs = await db.getTechniciansByTenant(input.tenantId) as any[];
@@ -181,7 +186,7 @@ export const exportRouter = router({
     }),
 
   /** Export customer list as CSV */
-  customersCsv: protectedProcedure
+  customersCsv: tenantScopedProcedure
     .input(z.object({ tenantId: z.number() }))
     .query(async ({ input }) => {
       const customers = await db.getCustomersByTenant(input.tenantId) as any[];

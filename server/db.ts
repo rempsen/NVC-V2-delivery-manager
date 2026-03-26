@@ -54,6 +54,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
     const updateSet: Record<string, unknown> = {};
 
+    // Handle tenantId (nullable integer)
+    if (user.tenantId !== undefined) {
+      values.tenantId = user.tenantId;
+      updateSet.tenantId = user.tenantId;
+    }
+
     const textFields = ["name", "email", "loginMethod"] as const;
     type TextField = (typeof textFields)[number];
 

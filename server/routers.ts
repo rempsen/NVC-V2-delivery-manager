@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, merchantManagerProcedure, nvcAdminProcedure, tenantScopedProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import { adminRouter } from "./adminRouter";
@@ -239,9 +239,10 @@ export const appRouter = router({
 
   // ─── Tenants (NVC360 Super-Admin) ──────────────────────────────────────────
   tenants: router({
-    list: protectedProcedure.query(() => db.getAllTenants()),
+    // NVC staff only — tenants are platform-level records
+    list: nvcAdminProcedure.query(() => db.getAllTenants()),
 
-    getById: protectedProcedure
+    getById: nvcAdminProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getTenantById(input.id)),
 
@@ -250,7 +251,7 @@ export const appRouter = router({
       .input(z.object({ slug: z.string() }))
       .query(({ input }) => db.getTenantBySlug(input.slug)),
 
-    create: protectedProcedure
+    create: nvcAdminProcedure
       .input(
         z.object({
           slug: z.string().min(2).max(64),
@@ -268,7 +269,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.createTenant(input as any) as any),
 
-    update: protectedProcedure
+    update: nvcAdminProcedure
       .input(
         z.object({
           id: z.number(),
@@ -313,22 +314,23 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.createTemplate(input as any) as any),
 
-    update: protectedProcedure
+    update: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
+          tenantId: z.number(),
           name: z.string().optional(),
           fields: z.array(z.unknown()).optional(),
           isDefault: z.boolean().optional(),
         }),
       )
       .mutation(({ input }) => {
-        const { id, ...data } = input;
+        const { id, tenantId: _tid, ...data } = input;
         return db.updateTemplate(id, data as any);
       }),
 
-    delete: protectedProcedure
-      .input(z.object({ id: z.number() }))
+    delete: tenantScopedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
       .mutation(({ input }) => db.deleteTemplate(input.id)),
   }),
 
@@ -355,10 +357,11 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.createPricingRule(input as any) as any),
 
-    update: protectedProcedure
+    update: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
+          tenantId: z.number(),
           name: z.string().optional(),
           flatRateCents: z.number().optional(),
           hourlyBaseRateCents: z.number().optional(),
@@ -369,7 +372,7 @@ export const appRouter = router({
         }),
       )
       .mutation(({ input }) => {
-        const { id, ...data } = input;
+        const { id, tenantId: _tid, ...data } = input;
         return db.updatePricingRule(id, data as any);
       }),
 
@@ -400,8 +403,8 @@ export const appRouter = router({
       .input(z.object({ tenantId: z.number(), status: z.string().optional() }))
       .query(({ input }) => db.getTasksByTenant(input.tenantId, input.status)),
 
-    getById: protectedProcedure
-      .input(z.object({ id: z.number() }))
+    getById: tenantScopedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
       .query(({ input }) => db.getTaskById_NVC(input.id)),
 
     /** Public endpoint — customer SMS tracking link, no auth required */
@@ -482,11 +485,12 @@ export const appRouter = router({
       }),
 
     /** Drag-to-assign: atomically set technicianId + status=assigned + push notification */
-    assign: protectedProcedure
+    assign: tenantScopedProcedure
       .input(
         z.object({
           taskId: z.number(),
           technicianId: z.number(),
+          tenantId: z.number(),
         }),
       )
       .mutation(async ({ input }) => {
@@ -548,9 +552,10 @@ export const appRouter = router({
 
     /** Agent swipes to start — set status=en_route, record startedAt, optionally send SMS */
     // ── Twilio SMS helpers are imported lazily to avoid import errors when not configured
-    startTask: protectedProcedure
+    startTask: tenantScopedProcedure
       .input(z.object({
         taskId: z.number(),
+        tenantId: z.number(),
         latitude: z.number().optional(),
         longitude: z.number().optional(),
       }))
@@ -594,9 +599,10 @@ export const appRouter = router({
       }),
 
     /** Agent arrives at job site — set status=on_site, record geoClockIn, optionally send SMS */
-    arriveTask: protectedProcedure
+    arriveTask: tenantScopedProcedure
       .input(z.object({
         taskId: z.number(),
+        tenantId: z.number(),
         latitude: z.number().optional(),
         longitude: z.number().optional(),
       }))
@@ -637,9 +643,10 @@ export const appRouter = router({
       }),
 
     /** Agent saves notes/photos metadata to customFields */
-    saveTaskNotes: protectedProcedure
+    saveTaskNotes: tenantScopedProcedure
       .input(z.object({
         taskId: z.number(),
+        tenantId: z.number(),
         notes: z.string().optional(),
         photoUris: z.array(z.string()).optional(),
         signatureUri: z.string().optional(),
@@ -665,9 +672,10 @@ export const appRouter = router({
       }),
 
     /** Agent swipes to complete — set status=completed, record completedAt, geoClockOut */
-    completeTask: protectedProcedure
+    completeTask: tenantScopedProcedure
       .input(z.object({
         taskId: z.number(),
+        tenantId: z.number(),
         notes: z.string().optional(),
         signatureUri: z.string().optional(),
         paymentAmount: z.number().optional(),
@@ -716,8 +724,8 @@ export const appRouter = router({
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getTechniciansByTenant(input.tenantId)),
 
-    getById: protectedProcedure
-      .input(z.object({ id: z.number() }))
+    getById: tenantScopedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
       .query(({ input }) => db.getTechnicianById(input.id)),
 
     create: protectedProcedure
@@ -811,8 +819,8 @@ export const appRouter = router({
       }),
 
     /** Geo-clock in: record shift start with GPS coordinates */
-    clockIn: protectedProcedure
-      .input(z.object({ id: z.number(), lat: z.number(), lng: z.number() }))
+    clockIn: tenantScopedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number(), lat: z.number(), lng: z.number() }))
       .mutation(async ({ input }) => {
         const { technicians: techTable } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
@@ -832,8 +840,8 @@ export const appRouter = router({
       }),
 
     /** Geo-clock out: record shift end and compute minutes worked */
-    clockOut: protectedProcedure
-      .input(z.object({ id: z.number(), lat: z.number(), lng: z.number() }))
+    clockOut: tenantScopedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number(), lat: z.number(), lng: z.number() }))
       .mutation(async ({ input }) => {
         const { technicians: techTable } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
@@ -1253,11 +1261,11 @@ export const appRouter = router({
 
   // ─── Messages ──────────────────────────────────────────────────────────────
   messages: router({
-    list: protectedProcedure
-      .input(z.object({ taskId: z.number() }))
+    list: tenantScopedProcedure
+      .input(z.object({ taskId: z.number(), tenantId: z.number() }))
       .query(({ input }) => db.getMessagesByTask(input.taskId)),
 
-    send: protectedProcedure
+    send: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),

@@ -224,13 +224,13 @@ export default function AgentHomeScreen() {
       }
       const techId = technicianId.current ?? 1; // fallback for demo
       if (!isClockedIn) {
-        await clockInMutation.mutateAsync({ id: techId, lat, lng });
+        await clockInMutation.mutateAsync({ id: techId, tenantId: tenantId ?? 0, lat, lng });
         setIsClockedIn(true);
         setClockInTime(new Date());
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("Clocked In", `Shift started at ${new Date().toLocaleTimeString()}`);
       } else {
-        const result = await clockOutMutation.mutateAsync({ id: techId, lat, lng });
+        const result = await clockOutMutation.mutateAsync({ id: techId, tenantId: tenantId ?? 0, lat, lng });
         setIsClockedIn(false);
         setClockInTime(null);
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -2928,7 +2928,7 @@ export default function DesktopDashboard() {
             customers={MOCK_CUSTOMERS}
             onSelectTech={setSelectedTechId}
             selectedTechId={selectedTechId}
-            onAssignTask={(taskId, techId) => assignMutation.mutate({ taskId, technicianId: techId })}
+            onAssignTask={(taskId, techId) => assignMutation.mutate({ taskId, technicianId: techId, tenantId: DEMO_TENANT_ID })}
           />
         );
       case "workorders":
