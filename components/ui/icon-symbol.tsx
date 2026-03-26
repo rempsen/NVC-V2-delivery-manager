@@ -28,6 +28,8 @@ const MAPPING = {
   "flag.fill": "flag",
   "map.fill": "map",
   "location.fill": "location-on",
+  "location.circle.fill": "my-location",
+  "battery.25": "battery-2-bar",
   "location.north.fill": "navigation",
   "car.fill": "directions-car",
   "truck.box.fill": "local-shipping",

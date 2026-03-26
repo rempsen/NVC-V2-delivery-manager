@@ -515,12 +515,12 @@ export default function SuperAdminDashboard() {
           <Text style={[styles.quickActionsTitle, { color: colors.foreground }]}>Platform Tools</Text>
           <View style={styles.quickActionsGrid}>
             {[
-              { label: "Template Library", icon: "doc.text.fill" as const, color: "#3B82F6" },
-              { label: "Pricing Engine", icon: "dollarsign.circle.fill" as const, color: "#22C55E" },
-              { label: "Usage Analytics", icon: "chart.bar.fill" as const, color: "#8B5CF6" },
-              { label: "API Keys", icon: "key.fill" as const, color: "#F59E0B" },
-              { label: "Billing", icon: "creditcard.fill" as const, color: "#EF4444" },
-              { label: "Support", icon: "questionmark.circle.fill" as const, color: "#6B7280" },
+              { label: "Template Library", icon: "doc.text.fill" as const, color: "#3B82F6", route: "/settings/workflow-templates" },
+              { label: "Pricing Engine", icon: "dollarsign.circle.fill" as const, color: "#22C55E", route: "/pricing" },
+              { label: "Usage Analytics", icon: "chart.bar.fill" as const, color: "#8B5CF6", route: null },
+              { label: "API Keys", icon: "key.fill" as const, color: "#F59E0B", route: "/integrations" },
+              { label: "Billing", icon: "creditcard.fill" as const, color: "#EF4444", route: "/pricing" },
+              { label: "Support", icon: "questionmark.circle.fill" as const, color: "#6B7280", route: null },
             ].map((action) => (
               <Pressable
                 key={action.label}
@@ -528,7 +528,7 @@ export default function SuperAdminDashboard() {
                   styles.quickAction,
                   { backgroundColor: action.color + "15", borderColor: action.color + "30", opacity: pressed ? 0.7 : 1 },
                 ]}
-                onPress={() => {}}
+                onPress={() => action.route ? router.push(action.route as any) : Alert.alert(action.label, `${action.label} will be available in the next platform release.`)}
               >
                 <IconSymbol name={action.icon} size={20} color={action.color} />
                 <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>

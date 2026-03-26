@@ -8,6 +8,9 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -433,6 +436,35 @@ export default function PermissionsScreen() {
     setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   };
 
+  // ── Create Role Modal ──
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDesc, setNewRoleDesc] = useState("");
+  const [newRoleTier, setNewRoleTier] = useState<RoleTier>("client_company");
+  const ROLE_COLORS = ["#1E6FBF", "#16A34A", "#DC2626", "#7C3AED", "#F59E0B", "#EC4899"];
+  const [newRoleColor, setNewRoleColor] = useState(ROLE_COLORS[0]);
+  const handleCreateRole = () => {
+    if (!newRoleName.trim()) {
+      Alert.alert("Required", "Please enter a role name.");
+      return;
+    }
+    const newRole: Role = {
+      id: `custom_${Date.now()}`,
+      name: newRoleName.trim(),
+      tier: newRoleTier,
+      color: newRoleColor,
+      icon: "person.fill",
+      description: newRoleDesc.trim() || `Custom role: ${newRoleName.trim()}`,
+      permissions: buildPermissions([]),
+      isSystem: false,
+    };
+    setRoles((prev) => [...prev, newRole]);
+    setNewRoleName("");
+    setNewRoleDesc("");
+    setCreateModalVisible(false);
+    setEditingRole(newRole);
+  };
+
   if (editingRole) {
     return (
       <PermissionEditor
@@ -450,7 +482,7 @@ export default function PermissionsScreen() {
         subtitle={`${roles.length} roles · ${ALL_PERMISSIONS.length} permissions`}
         rightElement={
           <Pressable
-            onPress={() => Alert.alert("Custom Role", "Custom role creation coming soon.")}
+            onPress={() => setCreateModalVisible(true)}
             style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
           >
             <IconSymbol name="plus" size={20} color="#fff" />
@@ -574,11 +606,83 @@ export default function PermissionsScreen() {
 
       </ScrollView>
       <BottomNavBar />
+
+      {/* ── Create Role Modal ── */}
+      <Modal visible={createModalVisible} transparent animationType="slide" onRequestClose={() => setCreateModalVisible(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setCreateModalVisible(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={[styles.createModal, { backgroundColor: colors.surface }]}>
+            <View style={[styles.createModalHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.createModalTitle, { color: colors.foreground }]}>Create Custom Role</Text>
+            <Text style={[styles.createModalSub, { color: colors.muted }]}>Define a new role and then set its permissions in the editor.</Text>
+
+            <Text style={[styles.createLabel, { color: colors.muted }]}>ROLE NAME</Text>
+            <TextInput
+              value={newRoleName}
+              onChangeText={setNewRoleName}
+              placeholder="e.g. Senior Technician"
+              placeholderTextColor={colors.muted + "80"}
+              style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+              returnKeyType="next"
+              autoFocus
+            />
+
+            <Text style={[styles.createLabel, { color: colors.muted }]}>DESCRIPTION (OPTIONAL)</Text>
+            <TextInput
+              value={newRoleDesc}
+              onChangeText={setNewRoleDesc}
+              placeholder="What does this role do?"
+              placeholderTextColor={colors.muted + "80"}
+              style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+              returnKeyType="done"
+            />
+
+            <Text style={[styles.createLabel, { color: colors.muted }]}>TIER</Text>
+            <View style={styles.createTierRow}>
+              {(["client_company", "nvc360_platform"] as RoleTier[]).map((t) => (
+                <Pressable
+                  key={t}
+                  onPress={() => setNewRoleTier(t)}
+                  style={[styles.createTierChip, { backgroundColor: newRoleTier === t ? NVC_BLUE : colors.background, borderColor: newRoleTier === t ? NVC_BLUE : colors.border }]}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: newRoleTier === t ? "#fff" : colors.foreground }}>
+                    {t === "client_company" ? "Client Company" : "NVC360 Platform"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={[styles.createLabel, { color: colors.muted }]}>COLOUR</Text>
+            <View style={styles.createColorRow}>
+              {ROLE_COLORS.map((c) => (
+                <Pressable
+                  key={c}
+                  onPress={() => setNewRoleColor(c)}
+                  style={[styles.createColorSwatch, { backgroundColor: c, borderWidth: newRoleColor === c ? 3 : 0, borderColor: "#fff" }]}
+                />
+              ))}
+            </View>
+
+            <Pressable
+              onPress={handleCreateRole}
+              style={({ pressed }) => [styles.createBtn, { backgroundColor: newRoleColor, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <IconSymbol name="plus.circle.fill" size={18} color="#fff" />
+              <Text style={styles.createBtnText}>Create Role &amp; Set Permissions</Text>
+            </Pressable>
+            <Pressable onPress={() => setCreateModalVisible(false)} style={styles.createCancelBtn}>
+              <Text style={[styles.createCancelText, { color: colors.muted }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </ScreenContainer>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+const NVC_BLUE = "#1E6FBF";
 
 const styles = StyleSheet.create({
   header: {
@@ -733,4 +837,28 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   permCategoryText: { fontSize: 9, fontWeight: "700" },
+  // Create Role Modal
+  createModal: {
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40, gap: 6,
+  },
+  createModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 12 },
+  createModalTitle: { fontSize: 18, fontWeight: "800" },
+  createModalSub: { fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  createLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3, marginTop: 8 },
+  createInput: {
+    borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12,
+    fontSize: 15, marginTop: 4,
+  },
+  createTierRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+  createTierChip: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  createColorRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  createColorSwatch: { width: 32, height: 32, borderRadius: 16 },
+  createBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 12,
+  },
+  createBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  createCancelBtn: { alignItems: "center", paddingVertical: 12 },
+  createCancelText: { fontSize: 14, fontWeight: "600" },
 });

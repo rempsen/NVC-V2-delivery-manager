@@ -683,16 +683,29 @@ export default function ClientDetailScreen() {
             ))}
           </View>
           {[
-            { label: "Notification Settings", icon: "bell.fill" as const, color: "#3B82F6" },
-            { label: "Workflow Templates", icon: "doc.text.fill" as const, color: "#22C55E" },
-            { label: "Pricing Rules", icon: "dollarsign.circle.fill" as const, color: "#F59E0B" },
-            { label: "Integrations", icon: "link" as const, color: "#8B5CF6" },
-            { label: "Suspend Client", icon: "pause.circle.fill" as const, color: "#EF4444" },
+            { label: "Notification Settings", icon: "bell.fill" as const, color: "#3B82F6", route: "/notification-settings" },
+            { label: "Workflow Templates", icon: "doc.text.fill" as const, color: "#22C55E", route: "/settings/workflow-templates" },
+            { label: "Pricing Rules", icon: "dollarsign.circle.fill" as const, color: "#F59E0B", route: "/pricing" },
+            { label: "Integrations", icon: "link" as const, color: "#8B5CF6", route: "/integrations" },
+            { label: "Suspend Client", icon: "pause.circle.fill" as const, color: "#EF4444", route: null },
           ].map((action) => (
             <Pressable
               key={action.label}
               style={({ pressed }) => [styles.settingsRow, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
-              onPress={() => Alert.alert(action.label, `${action.label} configuration for ${client.name}.`)}
+              onPress={() => {
+                if (action.route) {
+                  router.push(action.route as any);
+                } else {
+                  Alert.alert(
+                    "Suspend Client",
+                    `Are you sure you want to suspend ${client.name}? They will immediately lose access to the platform.`,
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Suspend", style: "destructive", onPress: () => Alert.alert("Client Suspended", `${client.name} has been suspended. Contact NVC360 support to reinstate.`) },
+                    ]
+                  );
+                }
+              }}
             >
               <View style={[styles.settingsIcon, { backgroundColor: action.color + "15" }]}>
                 <IconSymbol name={action.icon} size={16} color={action.color} />

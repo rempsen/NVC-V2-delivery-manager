@@ -845,3 +845,40 @@
 - [ ] Work Orders: each workflow template loads dynamic fields — e.g. Installation adds Equipment Type, Serial Number, Warranty; Service Call adds Issue Description, Priority; Delivery adds Package Count, Vehicle Type
 - [ ] Work Orders: workflow templates stored in Settings and admin-configurable
 - [ ] Work Orders: technician sees template-specific checklist fields inside the agent task screen
+
+## Settings Full Audit — Fix All Broken Buttons
+
+- [ ] Fix profile card edit button → open edit profile modal
+- [ ] Create Company Profile sub-screen (name, logo, address, timezone, phone, website)
+- [ ] Create White-Label Branding sub-screen (primary color, logo URL, domain, sender name)
+- [ ] Create Email SMTP sub-screen (host, port, username, password, from name, test send)
+- [ ] Create Mapbox API sub-screen (API key input, test connection, map preview)
+- [ ] Create Distance Tracking sub-screen (GPS mode, accuracy threshold, auto-detect toggle)
+- [ ] Create Time-on-Site sub-screen (enable toggle, minimum threshold, alert threshold)
+- [ ] Fix Google Calendar OAuth: show proper setup instructions when CLIENT_ID not configured
+- [ ] Fix Microsoft 365 OAuth: same treatment
+- [ ] Fix QuickBooks / Xero / CompanyCam OAuth: same treatment
+- [ ] Verify all Settings → sub-screen navigation works (Notification Settings, Permissions, Pricing, Dispatcher, Super Admin, Track)
+- [ ] Wire workflow templates store to create-task form (completed in previous session)
+
+## Settings Full Audit — Phase 2 (Mar 26 2026)
+
+- [x] Company Profile sub-screen created (edit company name, logo, address, timezone, industry)
+- [x] White-Label Branding sub-screen created (primary color, logo, domain, font, powered-by toggle)
+- [x] Email SMTP sub-screen created (host, port, username, password, TLS, test send)
+- [x] Mapbox API sub-screen created (API key input, test connection, usage stats)
+- [x] Distance Tracking sub-screen created (GPS accuracy, mode, idle threshold, route recording)
+- [x] Time-on-Site sub-screen created (enable/disable, minimum threshold, auto clock-out)
+- [x] Edit Profile sub-screen created (name, phone, email, role, photo upload)
+- [x] Settings profile card tap → Edit Profile screen
+- [x] All Settings tiles wired to correct sub-screens (no more empty onPress)
+- [x] Pricing & Billing: Add Rule button → full rule editor modal (name, base rate, per-hour, colour)
+- [x] Pricing & Billing: Edit/Delete buttons on each billing rule card
+- [x] Roles & Permissions: Create Custom Role modal (name, description, base role, toggle all permissions)
+- [x] Super-Admin Platform Tools: Template Library → workflow-templates, Pricing Engine → pricing, API Keys → integrations, Billing → pricing, Usage Analytics/Support → informative alert
+- [x] Super-Admin Client detail: Notification Settings/Workflow Templates/Pricing Rules/Integrations → real screens; Suspend Client → confirmation dialog
+- [x] Dispatcher Integration Shortcuts: all 5 chips → integrations screen
+- [x] Task Detail: Assign Technician button → agents screen (was empty)
+- [x] Agent Task: billing pencil icon → haptic feedback (TextInput already editable)
+- [x] Zero empty onPress(() => {}) handlers remaining in entire app
+- [x] TypeScript: 0 errors

@@ -305,7 +305,7 @@ export default function TaskDetailScreen() {
                 styles.assignBtn,
                 { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 },
               ]}
-              onPress={() => {}}
+              onPress={() => router.push("/agents" as any)}
             >
               <IconSymbol name="person.badge.plus" size={16} color="#fff" />
               <Text style={styles.assignBtnText}>Assign Technician</Text>

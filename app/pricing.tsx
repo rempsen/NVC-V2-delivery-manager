@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Switch, Alert,
-  ViewStyle, TextStyle,
+  ViewStyle, TextStyle, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BottomNavBar } from "@/components/bottom-nav-bar";
@@ -130,6 +130,8 @@ function PlanCard({ plan }: { plan: typeof PLAN_TIERS[0] }) {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+const RULE_COLORS = ["#1E6FBF", "#DC2626", "#16A34A", "#7C3AED", "#F59E0B", "#EC4899", "#06B6D4"];
+
 export default function PricingScreen() {
   const router = useRouter();
   const colors = useColors();
@@ -137,6 +139,51 @@ export default function PricingScreen() {
 
   const handleToggle = (id: number, val: boolean) => {
     setRules((prev) => prev.map((r) => r.id === id ? { ...r, active: val } : r));
+  };
+
+  // ── Rule Editor Modal ──
+  const [ruleModalVisible, setRuleModalVisible] = useState(false);
+  const [editingRule, setEditingRule] = useState<typeof BILLING_RULES[0] | null>(null);
+  const [ruleName, setRuleName] = useState("");
+  const [ruleBase, setRuleBase] = useState("");
+  const [rulePerHour, setRulePerHour] = useState("");
+  const [ruleColor, setRuleColor] = useState(RULE_COLORS[0]);
+
+  const openCreateRule = () => {
+    setEditingRule(null);
+    setRuleName("");
+    setRuleBase("");
+    setRulePerHour("");
+    setRuleColor(RULE_COLORS[0]);
+    setRuleModalVisible(true);
+  };
+
+  const openEditRule = (rule: typeof BILLING_RULES[0]) => {
+    setEditingRule(rule);
+    setRuleName(rule.name);
+    setRuleBase(rule.base.toString());
+    setRulePerHour(rule.perHour.toString());
+    setRuleColor(rule.color);
+    setRuleModalVisible(true);
+  };
+
+  const handleSaveRule = () => {
+    if (!ruleName.trim()) { Alert.alert("Required", "Please enter a rule name."); return; }
+    const base = parseFloat(ruleBase) || 0;
+    const perHour = parseFloat(rulePerHour) || 0;
+    if (editingRule) {
+      setRules((prev) => prev.map((r) => r.id === editingRule.id ? { ...r, name: ruleName.trim(), base, perHour, color: ruleColor } : r));
+    } else {
+      setRules((prev) => [...prev, { id: Date.now(), name: ruleName.trim(), base, perHour, active: true, color: ruleColor }]);
+    }
+    setRuleModalVisible(false);
+  };
+
+  const handleDeleteRule = (id: number) => {
+    Alert.alert("Delete Rule", "Are you sure you want to delete this billing rule?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => setRules((prev) => prev.filter((r) => r.id !== id)) },
+    ]);
   };
 
   return (
@@ -148,7 +195,7 @@ export default function PricingScreen() {
         rightElement={
           <Pressable
             style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
-            onPress={() => Alert.alert("Add Rule", "Billing rule editor coming soon.")}
+            onPress={openCreateRule}
           >
             <IconSymbol name="plus" size={16} color="#fff" />
           </Pressable>
@@ -174,7 +221,23 @@ export default function PricingScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Billing Rules</Text>
           {rules.map((rule) => (
-            <BillingRuleCard key={rule.id} rule={rule} onToggle={handleToggle} />
+            <View key={rule.id} style={{ position: "relative" }}>
+              <BillingRuleCard rule={rule} onToggle={handleToggle} />
+              <View style={[styles.ruleActions]}>
+                <Pressable
+                  onPress={() => openEditRule(rule)}
+                  style={({ pressed }) => [styles.ruleActionBtn, { backgroundColor: NVC_BLUE + "15", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                >
+                  <IconSymbol name="pencil" size={13} color={NVC_BLUE} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeleteRule(rule.id)}
+                  style={({ pressed }) => [styles.ruleActionBtn, { backgroundColor: "#EF444415", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                >
+                  <IconSymbol name="trash.fill" size={13} color="#EF4444" />
+                </Pressable>
+              </View>
+            </View>
           ))}
         </View>
 
@@ -215,6 +278,74 @@ export default function PricingScreen() {
 
       </ScrollView>
       <BottomNavBar />
+
+      {/* ── Rule Editor Modal ── */}
+      <Modal visible={ruleModalVisible} transparent animationType="slide" onRequestClose={() => setRuleModalVisible(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setRuleModalVisible(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={[styles.ruleModal, { backgroundColor: colors.surface }] as ViewStyle[]}>
+            <View style={[styles.ruleModalHandle, { backgroundColor: colors.border }] as ViewStyle[]} />
+            <Text style={[styles.ruleModalTitle, { color: colors.foreground }] as TextStyle[]}>
+              {editingRule ? "Edit Billing Rule" : "New Billing Rule"}
+            </Text>
+            <Text style={[styles.ruleModalLabel, { color: colors.muted }] as TextStyle[]}>RULE NAME</Text>
+            <TextInput
+              value={ruleName}
+              onChangeText={setRuleName}
+              placeholder="e.g. Weekend Premium"
+              placeholderTextColor={colors.muted + "80"}
+              style={[styles.ruleModalInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }] as TextStyle[]}
+              returnKeyType="next"
+              autoFocus
+            />
+            <View style={styles.ruleModalRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.ruleModalLabel, { color: colors.muted }] as TextStyle[]}>BASE RATE ($)</Text>
+                <TextInput
+                  value={ruleBase}
+                  onChangeText={setRuleBase}
+                  placeholder="125"
+                  placeholderTextColor={colors.muted + "80"}
+                  keyboardType="decimal-pad"
+                  style={[styles.ruleModalInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }] as TextStyle[]}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.ruleModalLabel, { color: colors.muted }] as TextStyle[]}>PER HOUR ($)</Text>
+                <TextInput
+                  value={rulePerHour}
+                  onChangeText={setRulePerHour}
+                  placeholder="85"
+                  placeholderTextColor={colors.muted + "80"}
+                  keyboardType="decimal-pad"
+                  style={[styles.ruleModalInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }] as TextStyle[]}
+                />
+              </View>
+            </View>
+            <Text style={[styles.ruleModalLabel, { color: colors.muted }] as TextStyle[]}>COLOUR</Text>
+            <View style={styles.ruleColorRow}>
+              {RULE_COLORS.map((c) => (
+                <Pressable
+                  key={c}
+                  onPress={() => setRuleColor(c)}
+                  style={[styles.ruleColorSwatch, { backgroundColor: c, borderWidth: ruleColor === c ? 3 : 0, borderColor: "#fff" }] as ViewStyle[]}
+                />
+              ))}
+            </View>
+            <Pressable
+              onPress={handleSaveRule}
+              style={({ pressed }) => [styles.ruleModalSaveBtn, { backgroundColor: ruleColor, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+            >
+              <IconSymbol name="checkmark.circle.fill" size={18} color="#fff" />
+              <Text style={styles.ruleModalSaveBtnText}>{editingRule ? "Save Changes" : "Create Rule"}</Text>
+            </Pressable>
+            <Pressable onPress={() => setRuleModalVisible(false)} style={styles.ruleModalCancelBtn}>
+              <Text style={[styles.ruleModalCancelText, { color: colors.muted }] as TextStyle[]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </ScreenContainer>
   );
 }
@@ -235,6 +366,10 @@ const styles = StyleSheet.create<{
   planUpgradeBtn: ViewStyle; planUpgradeText: TextStyle;
   plansRow: ViewStyle;
   invoiceCard: ViewStyle; invoiceRow: ViewStyle; invoiceLabel: TextStyle; invoiceValue: TextStyle;
+  ruleActions: ViewStyle; ruleActionBtn: ViewStyle;
+  ruleModal: ViewStyle; ruleModalHandle: ViewStyle; ruleModalTitle: TextStyle; ruleModalLabel: TextStyle;
+  ruleModalInput: TextStyle; ruleModalRow: ViewStyle; ruleColorRow: ViewStyle; ruleColorSwatch: ViewStyle;
+  ruleModalSaveBtn: ViewStyle; ruleModalSaveBtnText: TextStyle; ruleModalCancelBtn: ViewStyle; ruleModalCancelText: TextStyle;
 }>({
   scroll: { paddingBottom: 40 },
   addBtn: {
@@ -304,4 +439,22 @@ const styles = StyleSheet.create<{
   invoiceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 13 },
   invoiceLabel: { fontSize: 14, fontWeight: "500" },
   invoiceValue: { fontSize: 13, fontWeight: "600" },
+
+  // Rule action buttons (edit/delete)
+  ruleActions: { flexDirection: "row", gap: 6, justifyContent: "flex-end", paddingHorizontal: 14, paddingBottom: 4, marginTop: -6 },
+  ruleActionBtn: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+
+  // Rule Editor Modal
+  ruleModal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, gap: 6 },
+  ruleModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 12 },
+  ruleModalTitle: { fontSize: 18, fontWeight: "800", marginBottom: 4 },
+  ruleModalLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3, marginTop: 8 },
+  ruleModalInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, marginTop: 4 },
+  ruleModalRow: { flexDirection: "row", gap: 12, marginTop: 0 },
+  ruleColorRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  ruleColorSwatch: { width: 32, height: 32, borderRadius: 16 },
+  ruleModalSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 12 },
+  ruleModalSaveBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  ruleModalCancelBtn: { alignItems: "center", paddingVertical: 12 },
+  ruleModalCancelText: { fontSize: 14, fontWeight: "600" },
 });

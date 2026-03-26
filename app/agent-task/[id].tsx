@@ -898,7 +898,9 @@ export default function AgentTaskScreen() {
               {!isFinished && (
                 <Pressable
                   style={styles.billEditIcon}
-                  onPress={() => {}}
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <IconSymbol name="pencil" size={14} color={NVC_BLUE} />

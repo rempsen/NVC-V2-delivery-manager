@@ -556,7 +556,7 @@ export default function DispatcherDashboard() {
                   styles.integrationChip,
                   { backgroundColor: intg.color + "15", borderColor: intg.color + "30", opacity: pressed ? 0.7 : 1 },
                 ]}
-                onPress={() => {}}
+                onPress={() => router.push("/integrations" as any)}
               >
                 <IconSymbol name={intg.icon} size={15} color={intg.color} />
                 <Text style={[styles.integrationName, { color: intg.color }]}>{intg.name}</Text>

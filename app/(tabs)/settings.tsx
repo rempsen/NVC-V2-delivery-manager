@@ -134,7 +134,7 @@ export default function SettingsScreen() {
             styles.profileCard,
             { backgroundColor: NVC_BLUE, opacity: pressed ? 0.92 : 1 },
           ] as ViewStyle[]}
-          onPress={() => {}}
+          onPress={() => router.push("/settings/edit-profile" as any)}
         >
           <View style={styles.profileAvatar}>
             <Text style={styles.profileInitial}>D</Text>
@@ -154,11 +154,11 @@ export default function SettingsScreen() {
         {/* ── Company ── */}
         <SectionLabel title="Company" />
         <TileGrid>
-          <GridTile tileWidth={tileWidth} icon="building.2.fill" iconColor="#3B82F6" label="Company Profile" value="NVC360" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="building.2.fill" iconColor="#3B82F6" label="Company Profile" value="NVC360" onPress={() => router.push("/settings/company-profile" as any)} />
           <GridTile tileWidth={tileWidth} icon="person.badge.plus" iconColor="#8B5CF6" label="Manage Technicians" value="10 active" onPress={() => router.push("/agents")} />
           <GridTile tileWidth={tileWidth} icon="doc.text.fill" iconColor="#22C55E" label="Workflow Templates" value="8 templates" onPress={() => router.push("/settings/workflow-templates" as any)} />
           <GridTile tileWidth={tileWidth} icon="dollarsign.circle.fill" iconColor="#F59E0B" label="Pricing & Billing" value="4 rules active" onPress={() => router.push("/pricing" as any)} />
-          <GridTile tileWidth={tileWidth} icon="tag.fill" iconColor={NVC_ORANGE} label="White-Label Branding" value="NVC360 theme" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="tag.fill" iconColor={NVC_ORANGE} label="White-Label Branding" value="NVC360 theme" onPress={() => router.push("/settings/white-label" as any)} />
         </TileGrid>
 
         {/* ── Integrations ── */}
@@ -167,8 +167,8 @@ export default function SettingsScreen() {
           <GridTile tileWidth={tileWidth} icon="arrow.triangle.2.circlepath" iconColor="#3B82F6" label="All Integrations" value="2 connected" onPress={() => router.push("/integrations" as any)} />
           <GridTile tileWidth={tileWidth} icon="location.fill" iconColor={NVC_ORANGE} label="Dispatch API" value="Connected" onPress={() => router.push("/integrations" as any)} />
           <GridTile tileWidth={tileWidth} icon="message.fill" iconColor="#22C55E" label="SMS (Twilio)" value="Configured" onPress={() => router.push("/integrations" as any)} />
-          <GridTile tileWidth={tileWidth} icon="envelope.fill" iconColor="#8B5CF6" label="Email (SMTP)" value="nvc360.com" onPress={() => {}} />
-          <GridTile tileWidth={tileWidth} icon="map.fill" iconColor="#F59E0B" label="Mapbox API" value="Configured" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="envelope.fill" iconColor="#8B5CF6" label="Email (SMTP)" value="nvc360.com" onPress={() => router.push("/settings/email-smtp" as any)} />
+          <GridTile tileWidth={tileWidth} icon="map.fill" iconColor="#F59E0B" label="Mapbox API" value="Configured" onPress={() => router.push("/settings/mapbox-api" as any)} />
         </TileGrid>
 
         {/* ── Notifications ── */}
@@ -223,8 +223,8 @@ export default function SettingsScreen() {
               />
             }
           />
-          <GridTile tileWidth={tileWidth} icon="gauge.medium" iconColor="#8B5CF6" label="Distance Tracking" value="Auto (GPS)" onPress={() => {}} />
-          <GridTile tileWidth={tileWidth} icon="timer" iconColor="#F59E0B" label="Time-on-Site" value="Enabled" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="gauge.medium" iconColor="#8B5CF6" label="Distance Tracking" value="Auto (GPS)" onPress={() => router.push("/settings/tracking-settings" as any)} />
+          <GridTile tileWidth={tileWidth} icon="timer" iconColor="#F59E0B" label="Time-on-Site" value="Enabled" onPress={() => router.push("/settings/tracking-settings" as any)} />
         </TileGrid>
 
         {/* ── Appearance ── */}
