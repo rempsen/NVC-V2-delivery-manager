@@ -137,9 +137,8 @@ const styles = StyleSheet.create({
     minWidth: 48,
   },
   logo: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
+    width: 26,
+    height: 26,
   },
   backBtn: {
     padding: 4,

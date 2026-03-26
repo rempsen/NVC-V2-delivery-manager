@@ -1,15 +1,19 @@
 /** @type {const} */
 const themeColors = {
-  primary:    { light: '#E85D04', dark: '#F97316' },   // NVC orange
-  background: { light: '#FFFFFF', dark: '#0D0D0D' },
-  surface:    { light: '#F5F5F5', dark: '#1A1A1A' },
-  foreground: { light: '#111111', dark: '#F5F5F5' },
-  muted:      { light: '#6B7280', dark: '#9CA3AF' },
-  border:     { light: '#E5E7EB', dark: '#2A2A2A' },
-  success:    { light: '#22C55E', dark: '#4ADE80' },
-  warning:    { light: '#F59E0B', dark: '#FBBF24' },
-  error:      { light: '#EF4444', dark: '#F87171' },
-  accent:     { light: '#111111', dark: '#FFFFFF' },   // NVC black/white
+  // NVC360 Apple-First Widget Design System
+  // Light: soft lavender-white bg, pure white cards, NVC blue accents
+  // Dark: deep navy bg, elevated dark cards, same blue accents
+  primary:    { light: '#1E6FBF', dark: '#3B8FDF' },   // NVC royal-sky blue
+  background: { light: '#F0F4FF', dark: '#0C0F1A' },   // Soft lavender-white / deep navy
+  surface:    { light: '#FFFFFF', dark: '#161B2E' },   // Pure white cards / elevated dark
+  foreground: { light: '#0A0F1E', dark: '#EEF2FF' },   // Near-black / near-white
+  muted:      { light: '#64748B', dark: '#8899BB' },   // Slate muted
+  border:     { light: '#E8EEFF', dark: '#1E2540' },   // Very subtle border
+  success:    { light: '#16A34A', dark: '#4ADE80' },
+  warning:    { light: '#D97706', dark: '#FBBF24' },
+  error:      { light: '#DC2626', dark: '#F87171' },
+  accent:     { light: '#E85D04', dark: '#F97316' },   // NVC orange for CTAs
+  tint:       { light: '#E85D04', dark: '#F97316' },   // Active tab = NVC orange
 };
 
 module.exports = { themeColors };

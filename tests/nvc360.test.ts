@@ -352,7 +352,7 @@ describe("NVC360 Notification Milestones", () => {
 
 describe("NVC360 Third-Party Integrations", () => {
   const INTEGRATIONS = [
-    { id: "tookan", category: "Dispatch", status: "connected" },
+    { id: "nvc360", category: "Dispatch", status: "connected" },
     { id: "twilio", category: "SMS", status: "connected" },
     { id: "quickbooks", category: "Accounting", status: "available" },
     { id: "xero", category: "Accounting", status: "available" },
@@ -366,9 +366,9 @@ describe("NVC360 Third-Party Integrations", () => {
     expect(INTEGRATIONS).toHaveLength(8);
   });
 
-  it("should have Tookan, Twilio, and Mapbox connected by default", () => {
+  it("should have NVC360, Twilio, and Mapbox connected by default", () => {
     const connected = INTEGRATIONS.filter((i) => i.status === "connected").map((i) => i.id);
-    expect(connected).toContain("tookan");
+    expect(connected).toContain("nvc360");
     expect(connected).toContain("twilio");
     expect(connected).toContain("mapbox");
   });

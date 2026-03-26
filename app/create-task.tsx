@@ -19,7 +19,7 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
-import { createTask, MOCK_AGENTS } from "@/lib/tookan";
+import { createTask, MOCK_AGENTS } from "@/lib/nvc360-api";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 // ─── Workflow Templates ───────────────────────────────────────────────────────

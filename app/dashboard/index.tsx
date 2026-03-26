@@ -30,6 +30,10 @@ import {
   type Technician,
 } from "@/lib/nvc-types";
 import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_SORT_ORDER } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
+
+// Default demo tenant ID — in production this comes from auth context
+const DEMO_TENANT_ID = 1;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -209,26 +213,38 @@ function FleetMapPanel({
 function StatCard({
   label,
   value,
-  color,
+  gradient,
   icon,
   sub,
 }: {
   label: string;
   value: string | number;
-  color: string;
+  gradient: [string, string];
   icon: any;
   sub?: string;
 }) {
-  const colors = useColors();
+  const [hovered, setHovered] = React.useState(false);
   return (
-    <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + "20" }]}>
-        <IconSymbol name={icon} size={16} color={color} />
+    <Pressable
+      // @ts-ignore — web-only hover events
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[styles.statCard, {
+        backgroundColor: gradient[0],
+        transform: hovered && Platform.OS === "web" ? [{ translateY: -4 }] : [],
+        shadowOpacity: hovered && Platform.OS === "web" ? 0.25 : 0.12,
+        shadowRadius: hovered && Platform.OS === "web" ? 20 : 10,
+      }]}
+    >
+      {/* Subtle gradient overlay using a second View */}
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: gradient[1], opacity: 0.45, borderRadius: 16 }]} />
+      <View style={styles.statIcon}>
+        <IconSymbol name={icon} size={18} color="rgba(255,255,255,0.9)" />
       </View>
-      <Text style={[styles.statValue, { color: colors.foreground }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.muted }]}>{label}</Text>
-      {sub ? <Text style={[styles.statSub, { color: color }]}>{sub}</Text> : null}
-    </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
+    </Pressable>
   );
 }
 
@@ -363,12 +379,12 @@ function DashboardSection({ tasks, technicians, onSelectTech, selectedTechId }: 
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 24 }}>
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <StatCard label="Active Jobs" value={active} color="#F59E0B" icon="bolt.fill" sub="↑ 2 from yesterday" />
-        <StatCard label="Completed Today" value={completed} color="#22C55E" icon="checkmark.circle.fill" sub="On track" />
-        <StatCard label="Unassigned" value={unassigned} color="#EF4444" icon="exclamationmark.triangle.fill" sub="Needs attention" />
-        <StatCard label="Online Techs" value={onlineCount} color={NVC_BLUE} icon="person.2.fill" sub={`${onJob} on job`} />
-        <StatCard label="En Route" value={enRoute} color="#8B5CF6" icon="car.fill" />
-        <StatCard label="Avg Response" value="14m" color="#06B6D4" icon="clock.fill" sub="Target: 20m" />
+        <StatCard label="Active Jobs" value={active} gradient={["#E85D04", "#F97316"]} icon="bolt.fill" sub="↑ 2 from yesterday" />
+        <StatCard label="Completed Today" value={completed} gradient={["#16A34A", "#22C55E"]} icon="checkmark.circle.fill" sub="On track" />
+        <StatCard label="Unassigned" value={unassigned} gradient={["#DC2626", "#EF4444"]} icon="exclamationmark.triangle.fill" sub="Needs attention" />
+        <StatCard label="Online Techs" value={onlineCount} gradient={["#1E6FBF", "#3B8FDF"]} icon="person.2.fill" sub={`${onJob} on job`} />
+        <StatCard label="En Route" value={enRoute} gradient={["#7C3AED", "#9B5CF6"]} icon="car.fill" />
+        <StatCard label="Avg Response" value="14m" gradient={["#0891B2", "#06B6D4"]} icon="clock.fill" sub="Target: 20m" />
       </View>
 
       {/* Two-column layout */}
@@ -698,28 +714,86 @@ export default function DesktopDashboard() {
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
 
+  // ── Live tRPC data with 30s auto-refresh ──────────────────────────────────────
+  const tasksQuery = trpc.tasks.list.useQuery(
+    { tenantId: DEMO_TENANT_ID },
+    { refetchInterval: 30_000, staleTime: 15_000 },
+  );
+  const techniciansQuery = trpc.technicians.list.useQuery(
+    { tenantId: DEMO_TENANT_ID },
+    { refetchInterval: 30_000, staleTime: 15_000 },
+  );
+
+  // Map API data to local types, fall back to mock data while loading
+  const liveTasks: Task[] = useMemo(() => {
+    if (tasksQuery.data && tasksQuery.data.length > 0) {
+      return tasksQuery.data.map((t: any) => ({
+        id: t.id,
+        jobHash: t.jobHash ?? `job-${t.id}`,
+        status: (t.status as TaskStatus) ?? "unassigned",
+        priority: t.priority ?? "medium",
+        customerName: t.customerName ?? "—",
+        customerPhone: t.customerPhone ?? "",
+        customerEmail: t.customerEmail ?? "",
+        jobAddress: t.address ?? t.jobAddress ?? "",
+        jobLatitude: t.lat ?? t.jobLatitude ?? 49.8951,
+        jobLongitude: t.lng ?? t.jobLongitude ?? -97.1384,
+        technicianId: t.technicianId ?? undefined,
+        technicianName: t.technicianName ?? undefined,
+        orderRef: t.orderRef ?? `WO-${t.id}`,
+        createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+        scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
+      }));
+    }
+    return MOCK_TASKS;
+  }, [tasksQuery.data]);
+
+  const liveTechnicians: Technician[] = useMemo(() => {
+    if (techniciansQuery.data && techniciansQuery.data.length > 0) {
+      return techniciansQuery.data.map((t: any) => ({
+        id: t.id,
+        name: t.name ?? "Technician",
+        phone: t.phone ?? "",
+        email: t.email ?? "",
+        status: (t.status as any) ?? "offline",
+        latitude: t.lat ?? t.latitude ?? 49.8951,
+        longitude: t.lng ?? t.longitude ?? -97.1384,
+        transportType: (t.transportType ?? "car") as any,
+        skills: t.skills ?? [],
+        photoUrl: t.photoUrl ?? undefined,
+        activeTaskId: t.activeTaskId ?? undefined,
+        activeTaskAddress: t.activeTaskAddress ?? undefined,
+        todayJobs: t.todayJobs ?? t.jobsToday ?? 0,
+        todayDistanceKm: t.todayDistanceKm ?? t.distanceKm ?? 0,
+      }));
+    }
+    return MOCK_TECHNICIANS;
+  }, [techniciansQuery.data]);
+
+  const isLoading = tasksQuery.isLoading || techniciansQuery.isLoading;
+
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
         return (
           <DashboardSection
-            tasks={MOCK_TASKS}
-            technicians={MOCK_TECHNICIANS}
+            tasks={liveTasks}
+            technicians={liveTechnicians}
             onSelectTech={setSelectedTechId}
             selectedTechId={selectedTechId}
           />
         );
       case "workorders":
-        return <WorkOrdersSection tasks={MOCK_TASKS} />;
+        return <WorkOrdersSection tasks={liveTasks} />;
       case "technicians":
-        return <TechniciansSection technicians={MOCK_TECHNICIANS} />;
+        return <TechniciansSection technicians={liveTechnicians} />;
       case "map":
         return (
           <View style={{ flex: 1, padding: 24 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 16 }]}>Live Fleet Map</Text>
             <View style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
               <FleetMapPanel
-                technicians={MOCK_TECHNICIANS}
+                technicians={liveTechnicians}
                 selectedId={selectedTechId}
                 onSelect={setSelectedTechId}
               />
@@ -757,8 +831,16 @@ export default function DesktopDashboard() {
 
       {/* Main content */}
       <View style={styles.mainContent}>
-        {/* Top bar */}
-        <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {/* Top bar — white floating bar */}
+        <View style={[styles.topBar, {
+          backgroundColor: colors.surface,
+          borderBottomColor: "transparent",
+          shadowColor: "#1E3A5F",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 2,
+        }]}>
           <View>
             <Text style={[styles.topBarTitle, { color: colors.foreground }]}>
               {NAV_ITEMS.find((n) => n.id === activeSection)?.label ?? "Dashboard"}
@@ -937,36 +1019,49 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 14,
     flexWrap: "wrap",
   },
   statCard: {
     flex: 1,
-    minWidth: 120,
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    gap: 4,
-  },
+    minWidth: 130,
+    borderRadius: 16,
+    padding: 18,
+    gap: 6,
+    // Shadow for floating effect
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+    // Smooth hover transition on web
+    transitionDuration: Platform.OS === "web" ? "200ms" : undefined,
+    transitionProperty: Platform.OS === "web" ? "transform, box-shadow" : undefined,
+  } as any,
   statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 6,
+    backgroundColor: "rgba(255,255,255,0.25)",
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.5,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
+    color: "rgba(255,255,255,0.85)",
   },
   statSub: {
     fontSize: 10,
     fontWeight: "600",
+    color: "rgba(255,255,255,0.7)",
     marginTop: 2,
   },
 
@@ -986,25 +1081,31 @@ const styles = StyleSheet.create({
     minWidth: 260,
   },
 
-  // Cards
+  // Cards — white floating panels
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 18,
     overflow: "hidden",
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
+    // No border — shadow provides depth
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 14,
-    paddingBottom: 10,
+    padding: 18,
+    paddingBottom: 12,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
+    letterSpacing: -0.2,
   },
   cardSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
   },
   liveBadge: {
     flexDirection: "row",

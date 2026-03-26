@@ -1,17 +1,17 @@
 /**
- * Tookan API Service Layer
+ * NVC360 API Service Layer
  * Based on open-source community libraries:
- * - douglasmakey/tookan_api (Python SDK)
- * - tookan-hub/tookan-tracker-sdk-android
- * - jilabaji/tookan (Node.js module)
- * API Docs: https://tookanapi.docs.apiary.io/
+ * - NVC360 dispatch API integration
+
+
+ * API Docs: https://nvc360.com/api-docs
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const TOOKAN_BASE_URL = "https://api.tookanapp.com/v2";
-const API_KEY_STORAGE = "nvc360_tookan_api_key";
-const USER_ID_STORAGE = "nvc360_tookan_user_id";
+const NVC360_BASE_URL = "https://api.nvc360.com/v2";
+const API_KEY_STORAGE = "nvc360_api_key";
+const USER_ID_STORAGE = "nvc360_user_id";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export type TaskStatus =
 
 export type JobType = 0 | 1 | 2; // 0=Pickup, 1=Delivery, 2=Appointment
 
-export interface TookanTask {
+export interface NVC360Task {
   job_id: number;
   job_hash: string;
   job_token: string;
@@ -60,7 +60,7 @@ export interface TookanTask {
   total_time_spent?: number;
 }
 
-export interface TookanAgent {
+export interface NVC360Agent {
   fleet_id: number;
   fleet_name: string;
   username: string;
@@ -77,7 +77,7 @@ export interface TookanAgent {
   transport_type?: number; // 1=Car, 2=Bike, 3=Truck
 }
 
-export interface TookanLocation {
+export interface NVC360Location {
   latitude: number;
   longitude: number;
   timestamp: string;
@@ -160,7 +160,7 @@ export async function clearApiKey(): Promise<void> {
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
-export const MOCK_AGENTS: TookanAgent[] = [
+export const MOCK_AGENTS: NVC360Agent[] = [
   {
     fleet_id: 1001,
     fleet_name: "Marcus Johnson",
@@ -211,7 +211,7 @@ export const MOCK_AGENTS: TookanAgent[] = [
   },
 ];
 
-export const MOCK_TASKS: TookanTask[] = [
+export const MOCK_TASKS: NVC360Task[] = [
   {
     job_id: 5001,
     job_hash: "abc123def456",
@@ -324,11 +324,11 @@ export const MOCK_TASKS: TookanTask[] = [
 
 // ─── API Client ───────────────────────────────────────────────────────────────
 
-async function tookanPost<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
+async function nvc360Post<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
   const apiKey = await getApiKey();
   if (!apiKey) throw new Error("NO_API_KEY");
 
-  const response = await fetch(`${TOOKAN_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${NVC360_BASE_URL}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ api_key: apiKey, ...body }),
@@ -336,7 +336,7 @@ async function tookanPost<T>(endpoint: string, body: Record<string, unknown>): P
 
   const data = await response.json();
   if (data.status !== 200) {
-    throw new Error(data.message || "Tookan API error");
+    throw new Error(data.message || "NVC360 API error");
   }
   return data.data as T;
 }
@@ -346,12 +346,12 @@ async function tookanPost<T>(endpoint: string, body: Record<string, unknown>): P
 export async function getAllTasks(
   jobStatus?: TaskStatus,
   jobType?: JobType,
-): Promise<TookanTask[]> {
+): Promise<NVC360Task[]> {
   const apiKey = await getApiKey();
   if (!apiKey) return MOCK_TASKS;
 
   try {
-    return await tookanPost<TookanTask[]>("/get_all_tasks", {
+    return await nvc360Post<NVC360Task[]>("/get_all_tasks", {
       job_status: jobStatus,
       job_type: jobType,
       is_pagination: 0,
@@ -361,12 +361,12 @@ export async function getAllTasks(
   }
 }
 
-export async function getTaskById(jobId: number): Promise<TookanTask | null> {
+export async function getTaskById(jobId: number): Promise<NVC360Task | null> {
   const apiKey = await getApiKey();
   if (!apiKey) return MOCK_TASKS.find((t) => t.job_id === jobId) ?? null;
 
   try {
-    const result = await tookanPost<TookanTask[]>("/get_task_details", {
+    const result = await nvc360Post<NVC360Task[]>("/get_task_details", {
       job_ids: [jobId],
       include_task_history: 1,
     });
@@ -376,10 +376,10 @@ export async function getTaskById(jobId: number): Promise<TookanTask | null> {
   }
 }
 
-export async function createTask(payload: CreateTaskPayload): Promise<TookanTask> {
+export async function createTask(payload: CreateTaskPayload): Promise<NVC360Task> {
   const apiKey = await getApiKey();
   if (!apiKey) {
-    const newTask: TookanTask = {
+    const newTask: NVC360Task = {
       job_id: Date.now(),
       job_hash: Math.random().toString(36).substring(2),
       job_token: `tok_${Date.now()}`,
@@ -401,7 +401,7 @@ export async function createTask(payload: CreateTaskPayload): Promise<TookanTask
     return newTask;
   }
 
-  return tookanPost<TookanTask>("/create_task", {
+  return nvc360Post<NVC360Task>("/create_task", {
     ...payload,
     has_pickup: payload.has_pickup ?? 0,
     has_delivery: 1,
@@ -417,7 +417,7 @@ export async function updateTaskStatus(jobId: number, status: TaskStatus): Promi
     if (task) task.job_status = status;
     return;
   }
-  await tookanPost("/update_task_status", { job_id: jobId, job_status: status });
+  await nvc360Post("/update_task_status", { job_id: jobId, job_status: status });
 }
 
 export async function deleteTask(jobId: number): Promise<void> {
@@ -427,17 +427,17 @@ export async function deleteTask(jobId: number): Promise<void> {
     if (idx !== -1) MOCK_TASKS.splice(idx, 1);
     return;
   }
-  await tookanPost("/delete_task", { job_id: jobId });
+  await nvc360Post("/delete_task", { job_id: jobId });
 }
 
 // ─── Agent API ────────────────────────────────────────────────────────────────
 
-export async function getAllAgents(): Promise<TookanAgent[]> {
+export async function getAllAgents(): Promise<NVC360Agent[]> {
   const apiKey = await getApiKey();
   if (!apiKey) return MOCK_AGENTS;
 
   try {
-    return await tookanPost<TookanAgent[]>("/get_all_fleets", {
+    return await nvc360Post<NVC360Agent[]>("/get_all_fleets", {
       is_pagination: 0,
     });
   } catch {
@@ -445,7 +445,7 @@ export async function getAllAgents(): Promise<TookanAgent[]> {
   }
 }
 
-export async function getAgentLocation(fleetId: number): Promise<TookanLocation | null> {
+export async function getAgentLocation(fleetId: number): Promise<NVC360Location | null> {
   const apiKey = await getApiKey();
   if (!apiKey) {
     const agent = MOCK_AGENTS.find((a) => a.fleet_id === fleetId);
@@ -462,7 +462,7 @@ export async function getAgentLocation(fleetId: number): Promise<TookanLocation 
   }
 
   try {
-    const result = await tookanPost<{ latitude: string; longitude: string }>("/get_fleet_location", {
+    const result = await nvc360Post<{ latitude: string; longitude: string }>("/get_fleet_location", {
       fleet_id: fleetId,
     });
     return {

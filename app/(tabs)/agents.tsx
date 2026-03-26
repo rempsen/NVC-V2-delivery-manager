@@ -7,150 +7,117 @@ import {
   Linking,
   StyleSheet,
   Platform,
-  Image,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useColors } from "@/hooks/use-colors";
+import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 import {
   MOCK_TECHNICIANS,
-  TECH_STATUS_COLORS,
   TECH_STATUS_LABELS,
   type Technician,
 } from "@/lib/nvc-types";
+import { Image } from "react-native";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Design Tokens ────────────────────────────────────────────────────────────
 
-// Royal-to-sky blue: sits between #1D4ED8 (royal) and #38BDF8 (sky)
-const HEADER_BG = "#1E6FBF";
-const HEADER_BG_DARK = "#1A5FA8";
+const STATUS_SORT: Record<string, number> = { busy: 0, en_route: 1, online: 2, on_break: 3, offline: 4 };
 
-// Status sort order: On Job first, En Route, Available, On Break, Offline last
-const STATUS_SORT_ORDER: Record<string, number> = {
-  busy: 0,
-  en_route: 1,
-  online: 2,
-  on_break: 3,
-  offline: 4,
-};
-
-// Muted background tints for each status (for the card left-border accent + subtle bg)
-const STATUS_BG_TINTS: Record<string, string> = {
-  busy:     "#F59E0B",   // amber
-  en_route: "#8B5CF6",   // purple
-  online:   "#22C55E",   // green
-  on_break: "#3B82F6",   // blue
-  offline:  "#6B7280",   // gray
+const STATUS_COLOR: Record<string, string> = {
+  busy:     "#F59E0B",
+  en_route: "#8B5CF6",
+  online:   "#22C55E",
+  on_break: "#3B82F6",
+  offline:  "#9CA3AF",
 };
 
 const STATUS_FILTERS = ["all", "busy", "en_route", "online", "on_break", "offline"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 const FILTER_LABELS: Record<string, string> = {
-  all: "All",
-  busy: "On Job",
-  en_route: "En Route",
-  online: "Available",
-  on_break: "On Break",
-  offline: "Offline",
+  all: "All", busy: "On Job", en_route: "En Route",
+  online: "Available", on_break: "On Break", offline: "Offline",
 };
 
-// ─── Compact Tech Row ─────────────────────────────────────────────────────────
+// ─── Tech Card (Widget Style) ─────────────────────────────────────────────────
 
-function TechRow({
-  tech,
-  onPress,
-  onCall,
-  onMessage,
+function TechCard({
+  tech, onPress, onCall, onMessage,
 }: {
   tech: Technician;
   onPress: () => void;
   onCall: () => void;
   onMessage: () => void;
 }) {
-  const colors = useColors();
   const status = tech.status as string;
-  const statusColor = STATUS_BG_TINTS[status] ?? "#6B7280";
-  const statusLabel = TECH_STATUS_LABELS[status] ?? status;
+  const color = STATUS_COLOR[status] ?? "#9CA3AF";
+  const label = TECH_STATUS_LABELS[status] ?? status;
   const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.row,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          borderLeftColor: statusColor,
-          opacity: pressed ? 0.88 : 1,
-        },
-      ]}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }] as ViewStyle[]}
       onPress={onPress}
     >
+      {/* Colored left accent */}
+      <View style={[styles.cardAccent, { backgroundColor: color } as ViewStyle]} />
+
       {/* Avatar */}
-      <View style={[styles.avatar, { backgroundColor: statusColor + "22" }]}>
-        <Text style={[styles.avatarText, { color: statusColor }]}>{initials}</Text>
-        <View style={[styles.statusDot, { backgroundColor: statusColor, borderColor: colors.surface }]} />
+      <View style={[styles.avatar, { backgroundColor: color + "20" } as ViewStyle]}>
+        <Text style={[styles.avatarText, { color } as TextStyle]}>{initials}</Text>
+        <View style={[styles.statusDot, { backgroundColor: color, borderColor: WIDGET_SURFACE_LIGHT } as ViewStyle]} />
       </View>
 
-      {/* Name + location */}
+      {/* Info */}
       <View style={styles.info}>
         <View style={styles.nameRow}>
-          <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>{tech.name}</Text>
-          {/* Status pill */}
-          <View style={[styles.statusPill, { backgroundColor: statusColor + "22", borderColor: statusColor + "55" }]}>
-            <Text style={[styles.statusPillText, { color: statusColor }]}>{statusLabel}</Text>
+          <Text style={styles.name} numberOfLines={1}>{tech.name}</Text>
+          <View style={[styles.statusPill, { backgroundColor: color + "18", borderColor: color + "40" } as ViewStyle]}>
+            <View style={[styles.pillDot, { backgroundColor: color } as ViewStyle]} />
+            <Text style={[styles.statusPillText, { color } as TextStyle]}>{label}</Text>
           </View>
         </View>
-        <View style={styles.metaRow}>
-          {tech.activeTaskAddress ? (
-            <Text style={[styles.metaText, { color: colors.muted }]} numberOfLines={1}>
-              <Text style={{ color: statusColor }}>● </Text>
-              {tech.activeTaskAddress}
-            </Text>
-          ) : (
-            <Text style={[styles.metaText, { color: colors.muted }]}>No active job</Text>
-          )}
-        </View>
+        {tech.activeTaskAddress ? (
+          <Text style={styles.metaText} numberOfLines={1}>
+            {tech.activeTaskAddress}
+          </Text>
+        ) : (
+          <Text style={styles.metaTextMuted}>No active job</Text>
+        )}
         <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <IconSymbol name="checkmark.circle.fill" size={10} color="#22C55E" />
-            <Text style={[styles.statText, { color: colors.muted }]}>{tech.todayJobs}j</Text>
+            <IconSymbol name="checkmark.circle.fill" size={11} color="#22C55E" />
+            <Text style={styles.statText}>{tech.todayJobs} jobs</Text>
           </View>
-          <Text style={[styles.statDivider, { color: colors.border }]}>·</Text>
+          <View style={styles.statDot} />
           <View style={styles.stat}>
-            <IconSymbol name="car.fill" size={10} color={colors.muted} />
-            <Text style={[styles.statText, { color: colors.muted }]}>{tech.todayDistanceKm.toFixed(0)}km</Text>
+            <IconSymbol name="car.fill" size={11} color="#9CA3AF" />
+            <Text style={styles.statText}>{tech.todayDistanceKm.toFixed(0)} km</Text>
           </View>
-          <Text style={[styles.statDivider, { color: colors.border }]}>·</Text>
-          <Text style={[styles.statText, { color: colors.muted }]} numberOfLines={1}>{tech.skills[0]}</Text>
+          <View style={styles.statDot} />
+          <Text style={styles.statText} numberOfLines={1}>{tech.skills[0]}</Text>
         </View>
       </View>
 
-      {/* Action buttons */}
+      {/* Actions */}
       <View style={styles.actions}>
         <Pressable
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: "#22C55E18", borderColor: "#22C55E33", opacity: pressed ? 0.65 : 1 },
-          ]}
+          style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#22C55E15", borderColor: "#22C55E30", opacity: pressed ? 0.6 : 1 }] as ViewStyle[]}
           onPress={(e) => { e.stopPropagation(); onCall(); }}
-          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         >
-          <IconSymbol name="phone.fill" size={13} color="#22C55E" />
+          <IconSymbol name="phone.fill" size={14} color="#22C55E" />
         </Pressable>
         <Pressable
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: statusColor + "18", borderColor: statusColor + "33", opacity: pressed ? 0.65 : 1 },
-          ]}
+          style={({ pressed }) => [styles.actionBtn, { backgroundColor: color + "15", borderColor: color + "30", opacity: pressed ? 0.6 : 1 }] as ViewStyle[]}
           onPress={(e) => { e.stopPropagation(); onMessage(); }}
-          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         >
-          <IconSymbol name="message.fill" size={13} color={statusColor} />
+          <IconSymbol name="message.fill" size={14} color={color} />
         </Pressable>
       </View>
     </Pressable>
@@ -160,31 +127,24 @@ function TechRow({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AgentsScreen() {
-  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  // Sort by status priority, then by name within each group
-  const sorted = useMemo(() => {
-    return [...MOCK_TECHNICIANS].sort((a, b) => {
-      const orderA = STATUS_SORT_ORDER[a.status as string] ?? 99;
-      const orderB = STATUS_SORT_ORDER[b.status as string] ?? 99;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.name.localeCompare(b.name);
-    });
-  }, []);
+  const sorted = useMemo(() =>
+    [...MOCK_TECHNICIANS].sort((a, b) => {
+      const oa = STATUS_SORT[a.status as string] ?? 99;
+      const ob = STATUS_SORT[b.status as string] ?? 99;
+      return oa !== ob ? oa - ob : a.name.localeCompare(b.name);
+    }), []);
 
-  const filtered = useMemo(() => {
-    if (statusFilter === "all") return sorted;
-    return sorted.filter((t) => t.status === statusFilter);
-  }, [statusFilter, sorted]);
+  const filtered = useMemo(() =>
+    statusFilter === "all" ? sorted : sorted.filter((t) => t.status === statusFilter),
+    [statusFilter, sorted]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: MOCK_TECHNICIANS.length };
-    STATUS_FILTERS.forEach((s) => {
-      if (s !== "all") c[s] = MOCK_TECHNICIANS.filter((t) => t.status === s).length;
-    });
+    STATUS_FILTERS.forEach((s) => { if (s !== "all") c[s] = MOCK_TECHNICIANS.filter((t) => t.status === s).length; });
     return c;
   }, []);
 
@@ -197,47 +157,45 @@ export default function AgentsScreen() {
 
   const handleMessage = (tech: Technician) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (tech.activeTaskId) {
-      router.push(`/messages/${tech.activeTaskId}` as any);
-    } else {
-      Linking.openURL(`sms:${tech.phone}`);
-    }
+    if (tech.activeTaskId) router.push(`/messages/${tech.activeTaskId}` as any);
+    else Linking.openURL(`sms:${tech.phone}`);
   };
 
   return (
-    <ScreenContainer edges={["left", "right"]}>
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
       {/* ── Header ── */}
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: HEADER_BG, paddingTop: insets.top + 6 },
-        ]}
-      >
+      <View style={[styles.header, { paddingTop: insets.top + 6 } as ViewStyle]}>
         <View style={styles.headerLeft}>
-          {/* NVC Logo */}
-          <Image
-            source={require("@/assets/images/nvc-logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <Image source={NVC_LOGO_DARK as any} style={styles.logo as any} resizeMode="contain" />
           <View>
+            <Text style={styles.headerLabel}>NVC360</Text>
             <Text style={styles.headerTitle}>Field Team</Text>
-            <Text style={styles.headerSub}>
-              {activeCount} active · {counts.all} total
-            </Text>
           </View>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.mapBtn, { opacity: pressed ? 0.8 : 1 }]}
-          onPress={() => router.push("/dispatcher" as any)}
-        >
-          <IconSymbol name="map.fill" size={15} color="#fff" />
-          <Text style={styles.mapBtnText}>Live Map</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Text style={styles.headerStat}>{activeCount} active</Text>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/agent/new" as any);
+            }}
+          >
+            <IconSymbol name="plus" size={14} color="#fff" />
+            <Text style={styles.mapBtnText}>Add</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.mapBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
+            onPress={() => router.push("/dispatcher" as any)}
+          >
+            <IconSymbol name="map.fill" size={14} color="#fff" />
+            <Text style={styles.mapBtnText}>Live Map</Text>
+          </Pressable>
+        </View>
       </View>
 
-      {/* ── Status Filter Tabs ── */}
-      <View style={[styles.filterBar, { backgroundColor: HEADER_BG_DARK }]}>
+      {/* ── Status Filter Bar ── */}
+      <View style={styles.filterBar}>
         <FlatList
           data={STATUS_FILTERS as unknown as StatusFilter[]}
           horizontal
@@ -246,33 +204,24 @@ export default function AgentsScreen() {
           contentContainerStyle={styles.filterList}
           renderItem={({ item }) => {
             const isActive = statusFilter === item;
-            const dotColor = item === "all" ? "#fff" : (STATUS_BG_TINTS[item] ?? "#fff");
+            const dotColor = item === "all" ? "#fff" : (STATUS_COLOR[item] ?? "#fff");
             const count = counts[item] ?? 0;
             return (
               <Pressable
                 style={[
                   styles.filterTab,
-                  {
-                    backgroundColor: isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)",
-                    borderColor: isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.12)",
-                  },
-                ]}
+                  { backgroundColor: isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)",
+                    borderColor: isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)" },
+                ] as ViewStyle[]}
                 onPress={() => setStatusFilter(item)}
               >
-                {item !== "all" && (
-                  <View style={[styles.filterDot, { backgroundColor: dotColor }]} />
-                )}
-                <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "rgba(255,255,255,0.65)" }]}>
+                {item !== "all" && <View style={[styles.filterDot, { backgroundColor: dotColor } as ViewStyle]} />}
+                <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "rgba(255,255,255,0.65)" } as TextStyle]}>
                   {FILTER_LABELS[item]}
                 </Text>
                 {count > 0 && (
-                  <View style={[
-                    styles.filterCount,
-                    { backgroundColor: isActive ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.12)" },
-                  ]}>
-                    <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }]}>
-                      {count}
-                    </Text>
+                  <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)" } as ViewStyle]}>
+                    <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "rgba(255,255,255,0.7)" } as TextStyle]}>{count}</Text>
                   </View>
                 )}
               </Pressable>
@@ -281,7 +230,7 @@ export default function AgentsScreen() {
         />
       </View>
 
-      {/* ── Technician List ── */}
+      {/* ── Tech List ── */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id.toString()}
@@ -289,12 +238,14 @@ export default function AgentsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <IconSymbol name="person.2.fill" size={40} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted }]}>No technicians in this status</Text>
+            <View style={styles.emptyIcon}>
+              <IconSymbol name="person.2.fill" size={32} color="#C0C8D8" />
+            </View>
+            <Text style={styles.emptyTitle}>No technicians in this status</Text>
           </View>
         }
         renderItem={({ item }) => (
-          <TechRow
+          <TechCard
             tech={item}
             onPress={() => router.push(`/agent/${item.id}` as any)}
             onCall={() => handleCall(item)}
@@ -308,133 +259,109 @@ export default function AgentsScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<{
+  header: ViewStyle; headerLeft: ViewStyle; logo: ViewStyle;
+  headerLabel: TextStyle; headerTitle: TextStyle; headerRight: ViewStyle;
+  headerStat: TextStyle; addBtn: ViewStyle; mapBtn: ViewStyle; mapBtnText: TextStyle;
+  filterBar: ViewStyle; filterList: ViewStyle; filterTab: ViewStyle;
+  filterDot: ViewStyle; filterTabText: TextStyle; filterCount: ViewStyle;
+  filterCountText: TextStyle; listContent: ViewStyle;
+  card: ViewStyle; cardAccent: ViewStyle; avatar: ViewStyle;
+  avatarText: TextStyle; statusDot: ViewStyle; info: ViewStyle;
+  nameRow: ViewStyle; name: TextStyle; statusPill: ViewStyle;
+  pillDot: ViewStyle; statusPillText: TextStyle; metaText: TextStyle;
+  metaTextMuted: TextStyle; statsRow: ViewStyle; stat: ViewStyle;
+  statDot: ViewStyle; statText: TextStyle; actions: ViewStyle;
+  actionBtn: ViewStyle; empty: ViewStyle; emptyIcon: ViewStyle; emptyTitle: TextStyle;
+}>({
   // Header
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: NVC_BLUE,
   },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  logo: { width: 32, height: 32, borderRadius: 7 },
+  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
+  headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerStat: { fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600" },
+  addBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "#E85D04", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16,
   },
-  logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-  },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  headerSub: { fontSize: 11, color: "rgba(255,255,255,0.72)", marginTop: 1 },
   mapBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 5,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16,
   },
   mapBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
   // Filter bar
-  filterBar: {
-    paddingBottom: 8,
-  },
+  filterBar: { backgroundColor: "#1A5FA8", paddingBottom: 8 },
   filterList: { paddingHorizontal: 14, paddingTop: 8, gap: 6 },
   filterTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 4,
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1, gap: 4,
   },
   filterDot: { width: 6, height: 6, borderRadius: 3 },
   filterTabText: { fontSize: 11, fontWeight: "600" },
-  filterCount: {
-    paddingHorizontal: 5,
-    paddingVertical: 0,
-    borderRadius: 7,
-    minWidth: 16,
-    alignItems: "center",
-  },
+  filterCount: { paddingHorizontal: 5, borderRadius: 7, minWidth: 16, alignItems: "center" },
   filterCountText: { fontSize: 10, fontWeight: "700" },
 
   // List
-  listContent: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 24 },
+  listContent: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 32 },
 
-  // Compact row card
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderLeftWidth: 3,          // colored status accent on left edge
-    paddingVertical: 8,
-    paddingRight: 10,
-    paddingLeft: 10,
-    marginBottom: 6,
-    gap: 9,
+  // Card
+  card: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: WIDGET_SURFACE_LIGHT, borderRadius: 14,
+    marginBottom: 8, overflow: "hidden",
+    paddingVertical: 10, paddingRight: 10, gap: 10,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
-
-  // Avatar
+  cardAccent: { width: 4, alignSelf: "stretch" },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
   avatarText: { fontSize: 13, fontWeight: "800", letterSpacing: 0.3 },
   statusDot: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    borderWidth: 1.5,
+    position: "absolute", bottom: 0, right: 0,
+    width: 10, height: 10, borderRadius: 5, borderWidth: 2,
   },
 
-  // Info block
-  info: { flex: 1, gap: 2 },
+  // Info
+  info: { flex: 1, gap: 3 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: { fontSize: 13, fontWeight: "700", flex: 1 },
+  name: { fontSize: 13, fontWeight: "700", flex: 1, color: "#1A1E2A" },
   statusPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    flexShrink: 0,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, flexShrink: 0,
   },
-  statusPillText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.2 },
-  metaRow: { flexDirection: "row", alignItems: "center" },
-  metaText: { fontSize: 11, flex: 1 },
-  statsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
+  pillDot: { width: 5, height: 5, borderRadius: 3 },
+  statusPillText: { fontSize: 10, fontWeight: "700" },
+  metaText: { fontSize: 11, color: "#6B7280" },
+  metaTextMuted: { fontSize: 11, color: "#9CA3AF", fontStyle: "italic" },
+  statsRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   stat: { flexDirection: "row", alignItems: "center", gap: 3 },
-  statText: { fontSize: 10 },
-  statDivider: { fontSize: 10 },
+  statDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: "#D1D5DB" },
+  statText: { fontSize: 10, color: "#9CA3AF" },
 
-  // Action buttons
-  actions: { gap: 5, flexShrink: 0 },
+  // Actions
+  actions: { gap: 6, flexShrink: 0 },
   actionBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 30, height: 30, borderRadius: 9, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
   },
 
-  // Empty state
-  empty: { alignItems: "center", paddingTop: 60, gap: 10 },
-  emptyText: { fontSize: 14, fontWeight: "500" },
+  // Empty
+  empty: { alignItems: "center", paddingTop: 80, gap: 10 },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 20, backgroundColor: WIDGET_SURFACE_LIGHT,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "600", color: "#6B7280" },
 });

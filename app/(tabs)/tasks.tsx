@@ -7,13 +7,20 @@ import {
   TextInput,
   StyleSheet,
   Image,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK } from "@/constants/brand";
+import {
+  NVC_BLUE,
+  NVC_ORANGE,
+  NVC_LOGO_DARK,
+  WIDGET_SURFACE_LIGHT,
+} from "@/constants/brand";
 import {
   MOCK_TASKS,
   STATUS_COLORS,
@@ -33,8 +40,22 @@ const FILTERS: { key: "all" | TaskStatus; label: string }[] = [
   { key: "failed", label: "Failed" },
 ];
 
+const PRIORITY_LABELS: Record<string, string> = {
+  low: "Low",
+  medium: "Med",
+  high: "High",
+  urgent: "Urgent",
+};
+
+const SHADOW: ViewStyle = {
+  shadowColor: "#1E3A5F",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  elevation: 3,
+};
+
 function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
-  const colors = useColors();
   const statusColor = STATUS_COLORS[task.status];
   const priorityColor = PRIORITY_COLORS[task.priority];
 
@@ -49,51 +70,66 @@ function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
-      ]}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.82 }] as ViewStyle[]}
       onPress={onPress}
     >
-      <View style={[styles.cardBar, { backgroundColor: statusColor }]} />
+      {/* Colored left accent bar */}
+      <View style={[styles.cardBar, { backgroundColor: statusColor } as ViewStyle]} />
+
       <View style={styles.cardBody}>
+        {/* Top row: customer name + priority badge */}
         <View style={styles.cardRow}>
-          <Text style={[styles.cardCustomer, { color: colors.foreground }]} numberOfLines={1}>
+          <Text style={styles.cardCustomer} numberOfLines={1}>
             {task.customerName}
           </Text>
-          <View style={[styles.priorityDot, { backgroundColor: priorityColor }]} />
+          <View style={[styles.priorityBadge, { backgroundColor: priorityColor + "20", borderColor: priorityColor + "40" } as ViewStyle]}>
+            <Text style={[styles.priorityBadgeText, { color: priorityColor } as TextStyle]}>
+              {PRIORITY_LABELS[task.priority] ?? task.priority}
+            </Text>
+          </View>
         </View>
-        <Text style={[styles.cardAddress, { color: colors.muted }]} numberOfLines={1}>
+
+        {/* Address */}
+        <Text style={styles.cardAddress} numberOfLines={1}>
           {task.jobAddress}
         </Text>
+
+        {/* Status pill + technician */}
         <View style={styles.cardRow}>
-          <View style={[styles.statusPill, { backgroundColor: statusColor + "20" }]}>
-            <Text style={[styles.statusPillText, { color: statusColor }]}>
+          <View style={[styles.statusPill, { backgroundColor: statusColor + "18" } as ViewStyle]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor } as ViewStyle]} />
+            <Text style={[styles.statusPillText, { color: statusColor } as TextStyle]}>
               {STATUS_LABELS[task.status]}
             </Text>
           </View>
           {task.technicianName ? (
-            <Text style={[styles.cardTech, { color: colors.muted }]} numberOfLines={1}>
+            <Text style={styles.cardTech} numberOfLines={1}>
               {task.technicianName}
             </Text>
           ) : (
-            <Text style={[styles.cardTech, { color: "#EF4444" }]}>Unassigned</Text>
+            <Text style={styles.cardTechUnassigned}>Unassigned</Text>
           )}
         </View>
+
+        {/* Bottom row: order ref + time */}
         <View style={styles.cardRow}>
-          {task.orderRef && (
-            <Text style={[styles.cardRef, { color: colors.muted }]}>{task.orderRef}</Text>
+          {task.orderRef ? (
+            <Text style={styles.cardRef}>{task.orderRef}</Text>
+          ) : (
+            <View />
           )}
-          <Text style={[styles.cardTime, { color: colors.muted }]}>{timeAgo}</Text>
+          <Text style={styles.cardTime}>{timeAgo}</Text>
         </View>
       </View>
-      <IconSymbol name="chevron.right" size={16} color={colors.muted} style={styles.cardChevron} />
+
+      <View style={styles.cardChevronWrap}>
+        <IconSymbol name="chevron.right" size={15} color="#C0C8D8" />
+      </View>
     </Pressable>
   );
 }
 
 export default function TasksScreen() {
-  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
@@ -115,38 +151,49 @@ export default function TasksScreen() {
     return list;
   }, [filter, search]);
 
+  const countFor = (key: "all" | TaskStatus) =>
+    key === "all" ? MOCK_TASKS.length : MOCK_TASKS.filter((t) => t.status === key).length;
+
   return (
-    <ScreenContainer edges={["left", "right"]}>
-      <View style={[styles.header, { backgroundColor: NVC_BLUE, paddingTop: insets.top + 6 }]}>
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
+      {/* ── Header ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 6 } as ViewStyle]}>
         <View style={styles.headerLeft}>
-          <Image source={NVC_LOGO_DARK} style={styles.headerLogo} resizeMode="contain" />
-          <Text style={styles.headerTitle}>Work Orders</Text>
+          <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
+          <View>
+            <Text style={styles.headerLabel}>NVC360</Text>
+            <Text style={styles.headerTitle}>Work Orders</Text>
+          </View>
         </View>
         <Pressable
-          style={({ pressed }) => [styles.addBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.8 : 1 }]}
+          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
           onPress={() => router.push("/create-task")}
         >
-          <IconSymbol name="plus" size={20} color="#fff" />
+          <IconSymbol name="plus" size={18} color="#fff" />
         </Pressable>
       </View>
 
-      <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Search orders, customers, technicians..."
-          placeholderTextColor={colors.muted}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch("")}>
-            <IconSymbol name="xmark" size={16} color={colors.muted} />
-          </Pressable>
-        )}
+      {/* ── Search Bar ── */}
+      <View style={styles.searchWrapper}>
+        <View style={styles.searchBar}>
+          <IconSymbol name="magnifyingglass" size={16} color="#9CA3AF" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search orders, customers, technicians..."
+            placeholderTextColor="#9CA3AF"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <IconSymbol name="xmark" size={15} color="#9CA3AF" />
+            </Pressable>
+          )}
+        </View>
       </View>
 
+      {/* ── Filter Tabs ── */}
       <FlatList
         data={FILTERS}
         horizontal
@@ -155,32 +202,26 @@ export default function TasksScreen() {
         contentContainerStyle={styles.filterList}
         renderItem={({ item }) => {
           const isActive = filter === item.key;
-          const count =
-            item.key === "all"
-              ? MOCK_TASKS.length
-              : MOCK_TASKS.filter((t) => t.status === item.key).length;
+          const count = countFor(item.key);
           return (
             <Pressable
               style={[
                 styles.filterTab,
-                {
-                  backgroundColor: isActive ? NVC_BLUE : colors.surface,
-                  borderColor: isActive ? NVC_BLUE : colors.border,
-                },
-              ]}
+                isActive ? styles.filterTabActive : styles.filterTabInactive,
+              ] as ViewStyle[]}
               onPress={() => setFilter(item.key)}
             >
-              <Text style={[styles.filterTabText, { color: isActive ? "#fff" : colors.muted }]}>
+              <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "#6B7280" } as TextStyle]}>
                 {item.label}
               </Text>
               {count > 0 && (
                 <View
                   style={[
                     styles.filterCount,
-                    { backgroundColor: isActive ? "rgba(255,255,255,0.3)" : colors.border },
+                    { backgroundColor: isActive ? "rgba(255,255,255,0.28)" : "#E5E7EB" } as ViewStyle,
                   ]}
                 >
-                  <Text style={[styles.filterCountText, { color: isActive ? "#fff" : colors.muted }]}>
+                  <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "#6B7280" } as TextStyle]}>
                     {count}
                   </Text>
                 </View>
@@ -190,6 +231,7 @@ export default function TasksScreen() {
         }}
       />
 
+      {/* ── Task List ── */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id.toString()}
@@ -197,8 +239,11 @@ export default function TasksScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted }]}>No work orders found</Text>
+            <View style={styles.emptyIcon}>
+              <IconSymbol name="doc.text.fill" size={32} color="#C0C8D8" />
+            </View>
+            <Text style={styles.emptyTitle}>No work orders found</Text>
+            <Text style={styles.emptySubtitle}>Try adjusting your filters or search</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -209,45 +254,103 @@ export default function TasksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<{
+  header: ViewStyle;
+  headerLeft: ViewStyle;
+  headerLogo: ViewStyle;
+  headerLabel: TextStyle;
+  headerTitle: TextStyle;
+  addBtn: ViewStyle;
+  searchWrapper: ViewStyle;
+  searchBar: ViewStyle;
+  searchInput: TextStyle;
+  filterList: ViewStyle;
+  filterTab: ViewStyle;
+  filterTabActive: ViewStyle;
+  filterTabInactive: ViewStyle;
+  filterTabText: TextStyle;
+  filterCount: ViewStyle;
+  filterCountText: TextStyle;
+  listContent: ViewStyle;
+  card: ViewStyle;
+  cardBar: ViewStyle;
+  cardBody: ViewStyle;
+  cardRow: ViewStyle;
+  cardCustomer: TextStyle;
+  priorityBadge: ViewStyle;
+  priorityBadgeText: TextStyle;
+  cardAddress: TextStyle;
+  statusPill: ViewStyle;
+  statusDot: ViewStyle;
+  statusPillText: TextStyle;
+  cardTech: TextStyle;
+  cardTechUnassigned: TextStyle;
+  cardRef: TextStyle;
+  cardTime: TextStyle;
+  cardChevronWrap: ViewStyle;
+  empty: ViewStyle;
+  emptyIcon: ViewStyle;
+  emptyTitle: TextStyle;
+  emptySubtitle: TextStyle;
+}>({
+  // ── Header
   header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: NVC_BLUE,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
-  headerLogo: { width: 30, height: 30, borderRadius: 6 },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerLogo: { width: 32, height: 32, borderRadius: 7 },
+  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
+  headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
   addBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: NVC_ORANGE,
   },
+
+  // ── Search
+  searchWrapper: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
-    marginVertical: 10,
+    backgroundColor: WIDGET_SURFACE_LIGHT,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1,
     gap: 8,
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  searchInput: { flex: 1, fontSize: 14 },
-  filterList: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+  searchInput: { flex: 1, fontSize: 14, color: "#1A1E2A" },
+
+  // ── Filter Tabs
+  filterList: { paddingHorizontal: 16, paddingBottom: 10, paddingTop: 6, gap: 7 },
   filterTab: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
-    borderWidth: 1,
     gap: 5,
+  },
+  filterTabActive: { backgroundColor: NVC_BLUE },
+  filterTabInactive: {
+    backgroundColor: WIDGET_SURFACE_LIGHT,
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   filterTabText: { fontSize: 13, fontWeight: "600" },
   filterCount: {
@@ -258,26 +361,68 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   filterCountText: { fontSize: 11, fontWeight: "700" },
-  listContent: { paddingHorizontal: 16, paddingBottom: 32 },
+
+  // ── Task Cards
+  listContent: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4 },
   card: {
     flexDirection: "row",
     borderRadius: 14,
-    borderWidth: 1,
     marginBottom: 10,
     overflow: "hidden",
+    backgroundColor: WIDGET_SURFACE_LIGHT,
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   cardBar: { width: 5 },
-  cardBody: { flex: 1, padding: 12, gap: 5 },
+  cardBody: { flex: 1, paddingHorizontal: 13, paddingVertical: 12, gap: 5 },
   cardRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardCustomer: { fontSize: 15, fontWeight: "700", flex: 1 },
-  priorityDot: { width: 8, height: 8, borderRadius: 4 },
-  cardAddress: { fontSize: 12 },
-  statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  cardCustomer: { fontSize: 15, fontWeight: "700", flex: 1, marginRight: 8, color: "#1A1E2A" },
+
+  priorityBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 7,
+    borderWidth: 1,
+  },
+  priorityBadgeText: { fontSize: 10, fontWeight: "700" },
+
+  cardAddress: { fontSize: 12, color: "#6B7280" },
+
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusPillText: { fontSize: 11, fontWeight: "700" },
-  cardTech: { fontSize: 12, flex: 1, textAlign: "right" },
-  cardRef: { fontSize: 11 },
-  cardTime: { fontSize: 11 },
-  cardChevron: { alignSelf: "center", marginRight: 10 },
-  empty: { alignItems: "center", paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 16, fontWeight: "500" },
+
+  cardTech: { fontSize: 12, flex: 1, textAlign: "right", color: "#6B7280" },
+  cardTechUnassigned: { fontSize: 12, flex: 1, textAlign: "right", color: "#EF4444" },
+  cardRef: { fontSize: 11, color: "#9CA3AF" },
+  cardTime: { fontSize: 11, color: "#9CA3AF" },
+  cardChevronWrap: { alignSelf: "center", marginRight: 12 },
+
+  // Empty state
+  empty: { alignItems: "center", paddingTop: 80, gap: 10 },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: WIDGET_SURFACE_LIGHT,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#1E3A5F",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#374151" },
+  emptySubtitle: { fontSize: 13, color: "#9CA3AF" },
 });

@@ -65,7 +65,7 @@ export const appRouter = router({
           branding: z.record(z.string(), z.unknown()).optional(),
           smsSenderName: z.string().optional(),
           emailDomain: z.string().optional(),
-          tookanApiKey: z.string().optional(),
+          nvc360ApiKey: z.string().optional(),
           isActive: z.boolean().optional(),
         }),
       )

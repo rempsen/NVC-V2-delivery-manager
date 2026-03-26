@@ -1,7 +1,7 @@
-# Tookan Delivery Manager — Design Plan
+# NVC360 Dispatch — Design Plan
 
 ## Brand Identity
-- **App Name:** Tookan Delivery Manager
+- **App Name:** NVC360 Dispatch
 - **Primary Color:** #1A56DB (deep blue — professional logistics)
 - **Accent Color:** #F97316 (orange — urgency, action)
 - **Success:** #22C55E (green)
@@ -77,7 +77,7 @@
    Agents tab → See all online agents → Tap agent → View active tasks
 
 4. **Configure API:**
-   Settings → Enter Tookan API Key → Save → App connects to real Tookan data
+   Settings → Enter NVC360 API Key → Save → App connects to real NVC360 data
 
 ## Tab Bar (4 tabs)
 - Home (house.fill)

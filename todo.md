@@ -135,7 +135,7 @@
 - [x] CompanyCam — connect/disconnect
 - [x] Google Calendar — connect/disconnect
 - [x] Office 365 Calendar — connect/disconnect
-- [x] Tookan — shown as connected
+- [x] NVC360 Dispatch — shown as connected
 - [x] Stripe Payments — connect/disconnect
 - [x] Twilio SMS — shown as connected
 - [x] Category filter tabs
@@ -145,7 +145,7 @@
 
 ## Pending / Future Work
 - [ ] Real Mapbox integration (requires API key)
-- [ ] Real Tookan API integration (requires API key)
+- [ ] Real NVC360 API integration (requires API key)
 - [ ] Real Twilio SMS (requires credentials)
 - [ ] Auth: JWT login with tenant detection
 - [ ] Geo-clock in/out with device GPS
@@ -258,3 +258,100 @@
 - [x] All views accessible via public dev-server URLs
 - [x] eas.json created with development/preview/production build profiles
 - [x] app.config.ts: runtimeVersion policy added, EAS_BUILD_NO_EXPO_GO_WARNING suppressed
+
+## Branding Cleanup — Remove All "NVC360" References
+- [ ] Replace all "NVC360" text in source files (labels, comments, strings, imports)
+- [ ] Replace "NVC360" in config files (package.json, app.config.ts, eas.json, etc.)
+- [ ] Replace "NVC360" in todo.md and design.md
+- [ ] Verify zero remaining instances with grep
+
+## Live Data — Dispatcher Dashboard
+- [ ] Connect work orders table to tRPC tasks.list API
+- [ ] Connect fleet map pins to tRPC technicians.list API
+- [ ] Connect team panel to live technician status from API
+- [ ] Add loading states and error handling throughout dashboard
+- [ ] Auto-refresh every 30 seconds for live feel
+
+## /web Route & Customer Portal
+- [ ] Add /web route that redirects to /preview (shareable branded entry point)
+- [ ] Build full Customer Portal landing page (/portal/[jobHash])
+- [ ] Portal: job history list with status timeline
+- [ ] Portal: upcoming bookings section
+- [ ] Portal: technician contact card (call, SMS, chat)
+- [ ] Portal: branded header with client company logo/color
+- [ ] Portal: mobile-responsive layout
+
+## Apple-First Widget Design System (v3)
+- [ ] Theme tokens: soft gradient background, pure white cards, shadow depth
+- [ ] Desktop Dashboard: gradient mesh bg, white floating cards, gradient stat tiles, hover lift
+- [ ] Mobile Dashboard: widget cards, gradient KPI tiles, clean typography
+- [ ] Mobile Work Orders: white card rows, status color accents, no hard borders
+- [ ] Mobile Technicians: compact white cards, status color left-border
+- [ ] Settings, Task Detail, Create Order, Agent Detail, Messages: white card style
+- [ ] NVCHeader: white background with NVC blue logo on light screens
+- [ ] Customer Portal: clean white layout, gradient hero
+- [ ] Preview Switcher: gradient background, white cards
+- [ ] Login screen: gradient background, white card form
+
+## Integrations Rebuild (v4)
+- [x] Calendar: Google Calendar OAuth connect/disconnect
+- [x] Calendar: Microsoft Outlook OAuth connect/disconnect
+- [x] Field Documentation Storage: Dropbox connect/disconnect
+- [x] Field Documentation Storage: Google Drive connect/disconnect
+- [x] Field Documentation Storage: OneDrive connect/disconnect
+- [x] Field Documentation Storage: Box connect/disconnect
+- [x] Payments: QuickBooks Online connect/disconnect
+- [x] Payments: Xero connect/disconnect
+- [x] Payments: Export to CSV
+- [x] Payments: Export to XLS
+- [x] Communications: SMS number picker/configure
+- [x] Communications: WhatsApp Business connect/disconnect
+- [x] All integration categories: category filter tabs, connect/disconnect UI, feature lists
+
+## Customers CRM Tab (v4)
+- [x] Customers tab added to mobile tab bar (5th tab)
+- [x] Customer list with search, status filter (VIP/Active/Prospect/Inactive)
+- [x] Stats row: total clients, active/VIP count, total revenue
+- [x] Customer row: company, contact, industry, jobs, revenue, terms
+- [x] /customer/new — create new customer record
+- [x] /customer/[id] — view/edit customer record
+- [x] Full CRM form: company name, contact, email, phone, industry picker
+- [x] Mailing address + physical address (same-as toggle)
+- [x] City, province, postal code, country fields
+- [x] Payment terms picker (COD, Net 15/30/45/60, Prepaid)
+- [x] Status: Active, VIP, Prospect, Inactive
+- [x] Tags: 13 classification tags (multi-select)
+- [x] Internal notes
+- [x] Create / Edit / Delete customer
+
+## Technician Full Profile (v4)
+- [x] 5-tab profile: Overview, Personal, Admin, Skills, Safety
+- [x] Overview: hero card, stats, active jobs, quick info
+- [x] Personal: first/last name, DOB, home address, emergency contact
+- [x] Admin: employee ID, hire date, employment type, hourly/overtime rate
+- [x] Admin: SIN/tax ID (secure), tax exempt toggle
+- [x] Admin: bank name, transit number, account number (secure)
+- [x] Skills: 18 core trade skills (multi-select grid)
+- [x] Skills: 19 certifications (Red Seal, Journeyman, HVAC, etc.)
+- [x] Skills: 16 industry tags
+- [x] Skills: 9 department tags
+- [x] Safety: 13 safety training courses (multi-select)
+- [x] Safety: First Aid expiry, WHMIS expiry dates
+- [x] Safety: medical/accommodation notes
+- [x] Add Technician button in Technicians tab header → /agent/new
+- [x] Create / Edit / Delete technician
+
+## NVC Logo Fix (v4)
+- [x] Processed logo to remove white bounding box
+- [x] nvc-logo-transparent.png: white mark on transparent background
+- [x] nvc-logo-dark-transparent.png: dark mark on transparent background
+- [x] NVCHeader logo: smaller (26px), no border-radius, blends on blue header
+
+## Missing Routes Fixed (v4)
+- [x] /pricing — Pricing & Billing Rules screen created
+- [x] /customer/new — Create customer route
+- [x] /customer/[id] — Edit customer route
+- [x] /agent/new — Create technician route (via agent/[id] with id=new)
+
+## TypeScript Status
+- [x] 0 TypeScript errors across entire project

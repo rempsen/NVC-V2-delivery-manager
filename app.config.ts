@@ -6,6 +6,8 @@ import type { ExpoConfig } from "expo/config";
 // e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
 // Bundle ID can only contain letters, numbers, and dots
 // Android requires each dot-separated segment to start with a letter
+// NOTE: This bundle ID is a Manus platform-generated identifier and cannot be changed
+// without breaking the published build. It is an internal technical ID, not user-visible.
 const rawBundleId = "space.manus.tookan.delivery.manager.t20260325202550";
 const bundleId =
   rawBundleId
@@ -29,6 +31,7 @@ const schemeFromBundleId = `manus${timestamp}`;
 const env = {
   // App branding - update these values directly (do not use env vars)
   appName: "NVC360 2.0",
+  // NOTE: appSlug is the Manus platform's unique project identifier — do not change.
   appSlug: "tookan-delivery-manager",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png

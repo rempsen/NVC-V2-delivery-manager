@@ -11,583 +11,379 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useColors } from "@/hooks/use-colors";
-import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
+import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 
-// ─── Role Definitions ─────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UserRole =
-  | "nvc_super_admin"
-  | "nvc_project_manager"
-  | "nvc_support"
-  | "company_admin"
-  | "divisional_manager"
-  | "dispatcher"
-  | "field_technician"
-  | "office_staff";
+  | "nvc_super_admin" | "nvc_project_manager" | "nvc_support"
+  | "company_admin" | "divisional_manager" | "dispatcher"
+  | "field_technician" | "office_staff";
 
 export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  tenantId: string | null;
-  tenantName: string | null;
-  tenantColor: string | null;
-  tenantLogo: string | null;
-  avatarUrl: string | null;
-  provider: "email" | "google" | "apple";
+  id: string; name: string; email: string; role: UserRole;
+  tenantId: string | null; tenantName: string | null;
+  tenantColor: string | null; tenantLogo: string | null;
+  avatarUrl: string | null; provider: "email" | "google" | "apple";
 }
 
-// ─── Mock Users for Demo ──────────────────────────────────────────────────────
+// ─── Mock Users ───────────────────────────────────────────────────────────────
 
 const MOCK_USERS: Record<string, AuthUser> = {
-  "admin@nvc360.com": {
-    id: "u-nvc-001",
-    name: "Dan Rosenblat",
-    email: "admin@nvc360.com",
-    role: "nvc_super_admin",
-    tenantId: null,
-    tenantName: "NVC360",
-    tenantColor: "#E85D04",
-    tenantLogo: null,
-    avatarUrl: null,
-    provider: "email",
-  },
-  "pm@nvc360.com": {
-    id: "u-nvc-002",
-    name: "Sarah Mitchell",
-    email: "pm@nvc360.com",
-    role: "nvc_project_manager",
-    tenantId: null,
-    tenantName: "NVC360",
-    tenantColor: "#E85D04",
-    tenantLogo: null,
-    avatarUrl: null,
-    provider: "email",
-  },
-  "dispatch@acmehvac.com": {
-    id: "u-t1-001",
-    name: "James Chen",
-    email: "dispatch@acmehvac.com",
-    role: "dispatcher",
-    tenantId: "t-001",
-    tenantName: "Acme HVAC Services",
-    tenantColor: "#3B82F6",
-    tenantLogo: null,
-    avatarUrl: null,
-    provider: "email",
-  },
-  "tech@acmehvac.com": {
-    id: "u-t1-002",
-    name: "Mike Torres",
-    email: "tech@acmehvac.com",
-    role: "field_technician",
-    tenantId: "t-001",
-    tenantName: "Acme HVAC Services",
-    tenantColor: "#3B82F6",
-    tenantLogo: null,
-    avatarUrl: null,
-    provider: "email",
-  },
+  "admin@nvc360.com": { id: "u-nvc-001", name: "Dan Rosenblat", email: "admin@nvc360.com", role: "nvc_super_admin", tenantId: null, tenantName: "NVC360", tenantColor: "#E85D04", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "pm@nvc360.com": { id: "u-nvc-002", name: "Sarah Mitchell", email: "pm@nvc360.com", role: "nvc_project_manager", tenantId: null, tenantName: "NVC360", tenantColor: "#8B5CF6", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "dispatch@acmehvac.com": { id: "u-t1-001", name: "James Chen", email: "dispatch@acmehvac.com", role: "dispatcher", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "tech@acmehvac.com": { id: "u-t1-002", name: "Mike Torres", email: "tech@acmehvac.com", role: "field_technician", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
+  "admin@plumbpro.com": { id: "u-t2-001", name: "Lisa Park", email: "admin@plumbpro.com", role: "company_admin", tenantId: "t-002", tenantName: "PlumbPro Solutions", tenantColor: "#22C55E", tenantLogo: null, avatarUrl: null, provider: "email" },
 };
-
-// ─── Google OAuth Discovery ───────────────────────────────────────────────────
-
-const GOOGLE_DISCOVERY = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-};
-
-// ─── Role Badge ───────────────────────────────────────────────────────────────
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  nvc_super_admin: "NVC360 Super Admin",
-  nvc_project_manager: "NVC360 Project Manager",
-  nvc_support: "NVC360 Support",
-  company_admin: "Company Admin",
-  divisional_manager: "Divisional Manager",
-  dispatcher: "Dispatcher",
-  field_technician: "Field Technician",
-  office_staff: "Office Staff",
+  nvc_super_admin: "NVC360 Super Admin", nvc_project_manager: "NVC360 Project Manager",
+  nvc_support: "NVC360 Support", company_admin: "Company Admin",
+  divisional_manager: "Divisional Manager", dispatcher: "Dispatcher",
+  field_technician: "Field Technician", office_staff: "Office Staff",
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  nvc_super_admin: "#E85D04",
-  nvc_project_manager: "#8B5CF6",
-  nvc_support: "#3B82F6",
-  company_admin: "#22C55E",
-  divisional_manager: "#06B6D4",
-  dispatcher: "#F59E0B",
-  field_technician: "#6366F1",
-  office_staff: "#6B7280",
+  nvc_super_admin: "#E85D04", nvc_project_manager: "#8B5CF6", nvc_support: "#3B82F6",
+  company_admin: "#22C55E", divisional_manager: "#06B6D4", dispatcher: "#F59E0B",
+  field_technician: "#6366F1", office_staff: "#6B7280",
 };
 
-// ─── Demo Account Chip ────────────────────────────────────────────────────────
+// ─── Demo Chip ────────────────────────────────────────────────────────────────
 
-function DemoChip({
-  email,
-  role,
-  onPress,
-}: {
-  email: string;
-  role: UserRole;
-  onPress: () => void;
-}) {
-  const colors = useColors();
+function DemoChip({ email, role, onPress }: { email: string; role: UserRole; onPress: () => void }) {
   const roleColor = ROLE_COLORS[role];
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.demoChip,
-        { backgroundColor: roleColor + "15", borderColor: roleColor + "40", opacity: pressed ? 0.75 : 1 },
-      ]}
+      style={({ pressed }) => [styles.demoChip, { backgroundColor: roleColor + "12", borderColor: roleColor + "35", opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
       onPress={onPress}
     >
-      <View style={[styles.demoChipDot, { backgroundColor: roleColor }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.demoChipRole, { color: roleColor }]}>{ROLE_LABELS[role]}</Text>
-        <Text style={[styles.demoChipEmail, { color: colors.muted }]}>{email}</Text>
+      <View style={[styles.demoChipDot, { backgroundColor: roleColor }] as ViewStyle[]} />
+      <View style={styles.demoChipInfo}>
+        <Text style={[styles.demoChipRole, { color: roleColor }] as TextStyle[]}>{ROLE_LABELS[role]}</Text>
+        <Text style={styles.demoChipEmail}>{email}</Text>
       </View>
       <IconSymbol name="arrow.right.circle.fill" size={16} color={roleColor} />
     </Pressable>
   );
 }
 
-// ─── Main Login Screen ────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
-  const colors = useColors();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
-  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
 
-  // ── Google OAuth ──────────────────────────────────────────────────────────
-  // NOTE: expo-auth-session requires a native build (not available in Expo Go).
-  // In production, configure GOOGLE_CLIENT_ID and use expo-auth-session with a
-  // custom development build. For now, the button simulates a successful login.
-
-  const handleGoogleSignIn = async () => {
-    setLoadingProvider("google");
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      // In production: open Google OAuth via expo-auth-session in a custom dev build
-      // For Expo Go demo: simulate successful Google login after a short delay
-      await new Promise((r) => setTimeout(r, 900));
-      const mockUser: AuthUser = {
-        id: "u-google-001",
-        name: "Google Demo User",
-        email: "demo@gmail.com",
-        role: "dispatcher",
-        tenantId: "t-001",
-        tenantName: "Acme HVAC Services",
-        tenantColor: "#3B82F6",
-        tenantLogo: null,
-        avatarUrl: null,
-        provider: "google",
-      };
-      await saveAndNavigate(mockUser);
-    } catch {
-      Alert.alert("Error", "Failed to complete Google sign-in.");
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  // ── Apple Sign-In ─────────────────────────────────────────────────────────
-
-  const handleAppleSignIn = async () => {
-    if (Platform.OS !== "ios") {
-      Alert.alert("Apple Sign-In", "Apple Sign-In is only available on iOS devices.");
-      return;
-    }
-    setLoadingProvider("apple");
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      // In production: send credential.identityToken to your backend
-      const mockUser: AuthUser = {
-        id: credential.user,
-        name:
-          credential.fullName?.givenName
-            ? `${credential.fullName.givenName} ${credential.fullName.familyName ?? ""}`.trim()
-            : "Apple User",
-        email: credential.email ?? "apple_user@privaterelay.appleid.com",
-        role: "dispatcher",
-        tenantId: "t-001",
-        tenantName: "Acme HVAC Services",
-        tenantColor: "#3B82F6",
-        tenantLogo: null,
-        avatarUrl: null,
-        provider: "apple",
-      };
-      await saveAndNavigate(mockUser);
-    } catch (e: any) {
-      if (e.code !== "ERR_REQUEST_CANCELED") {
-        Alert.alert("Apple Sign-In Failed", "Please try again or use email login.");
-      }
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  // ── Email Login ───────────────────────────────────────────────────────────
-
-  const handleEmailLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Missing Fields", "Please enter your email and password.");
-      return;
-    }
-    setLoading(true);
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 800));
-      const user = MOCK_USERS[email.toLowerCase().trim()];
-      if (!user || password !== "demo123") {
-        Alert.alert("Login Failed", "Invalid email or password.\n\nHint: Use password 'demo123' with any demo account.");
-        return;
-      }
-      await saveAndNavigate(user);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Demo Quick Login ──────────────────────────────────────────────────────
-
-  const handleDemoLogin = async (demoEmail: string) => {
-    setLoading(true);
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      const user = MOCK_USERS[demoEmail];
-      if (user) await saveAndNavigate(user);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Save & Navigate ───────────────────────────────────────────────────────
+  const haptic = () => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
 
   const saveAndNavigate = async (user: AuthUser) => {
     if (Platform.OS !== "web") {
       await SecureStore.setItemAsync("nvc360_user", JSON.stringify(user));
       await SecureStore.setItemAsync("nvc360_token", `mock_jwt_${user.id}_${Date.now()}`);
     }
-    // Role-based routing
     if (user.role === "nvc_super_admin" || user.role === "nvc_project_manager") {
       router.replace("/super-admin" as any);
-    } else if (user.role === "dispatcher" || user.role === "company_admin" || user.role === "divisional_manager") {
-      router.replace("/(tabs)" as any);
     } else {
       router.replace("/(tabs)" as any);
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    haptic(); setLoadingProvider("google");
+    try {
+      await new Promise((r) => setTimeout(r, 900));
+      await saveAndNavigate({ id: "u-google-001", name: "Google Demo User", email: "demo@gmail.com", role: "dispatcher", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "google" });
+    } catch { Alert.alert("Error", "Google sign-in failed."); }
+    finally { setLoadingProvider(null); }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (Platform.OS !== "ios") { Alert.alert("Apple Sign-In", "Apple Sign-In is only available on iOS."); return; }
+    setLoadingProvider("apple");
+    try {
+      const credential = await AppleAuthentication.signInAsync({ requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL] });
+      await saveAndNavigate({ id: credential.user, name: credential.fullName?.givenName ? `${credential.fullName.givenName} ${credential.fullName.familyName ?? ""}`.trim() : "Apple User", email: credential.email ?? "apple@privaterelay.appleid.com", role: "dispatcher", tenantId: "t-001", tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "apple" });
+    } catch (e: any) { if (e.code !== "ERR_REQUEST_CANCELED") Alert.alert("Apple Sign-In Failed", "Please try again."); }
+    finally { setLoadingProvider(null); }
+  };
+
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) { Alert.alert("Missing Fields", "Please enter your email and password."); return; }
+    haptic(); setLoading(true);
+    try {
+      await new Promise((r) => setTimeout(r, 800));
+      const user = MOCK_USERS[email.toLowerCase().trim()];
+      if (!user || password !== "demo123") { Alert.alert("Login Failed", "Invalid credentials.\n\nHint: Use password 'demo123' with any demo account."); return; }
+      await saveAndNavigate(user);
+    } finally { setLoading(false); }
+  };
+
+  const handleDemoLogin = async (demoEmail: string) => {
+    haptic(); setLoading(true);
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      const user = MOCK_USERS[demoEmail];
+      if (user) await saveAndNavigate(user);
+    } finally { setLoading(false); }
+  };
+
   return (
-    <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* ── Logo & Brand ── */}
+    <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* ── Brand Header ── */}
           <View style={styles.brandSection}>
-            <View style={[styles.logoCircle, { borderColor: colors.border }]}>
-              <Text style={[styles.logoText, { color: colors.foreground }]}>NVC</Text>
+            <View style={styles.logoWrap}>
+              <Image source={NVC_LOGO_DARK as any} style={styles.logoImg as any} resizeMode="contain" />
             </View>
-            <Text style={[styles.brandTitle, { color: colors.foreground }]}>NVC360</Text>
-            <Text style={[styles.brandSubtitle, { color: colors.muted }]}>
-              Field Service Management Platform
-            </Text>
+            <Text style={styles.brandTitle}>NVC360</Text>
+            <Text style={styles.brandSubtitle}>Field Service Management Platform</Text>
           </View>
 
-          {/* ── Social Auth Buttons ── */}
-          <View style={styles.socialSection}>
-            {/* Google */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialBtn,
-                { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
-              ]}
-              onPress={handleGoogleSignIn}
-              disabled={loadingProvider !== null || loading}
-            >
-              {loadingProvider === "google" ? (
-                <ActivityIndicator size="small" color={colors.foreground} />
-              ) : (
-                <>
-                  <View style={styles.googleIcon}>
-                    <Text style={styles.googleIconText}>G</Text>
-                  </View>
-                  <Text style={[styles.socialBtnText, { color: colors.foreground }]}>
-                    Continue with Google
-                  </Text>
-                </>
-              )}
-            </Pressable>
+          {/* ── Auth Card ── */}
+          <View style={styles.card}>
 
-            {/* Apple — iOS only */}
-            {Platform.OS === "ios" && (
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={12}
-                style={styles.appleBtn}
-                onPress={handleAppleSignIn}
-              />
-            )}
-
-            {/* Apple — non-iOS fallback */}
-            {Platform.OS !== "ios" && (
+            {/* Social Buttons */}
+            <View style={styles.socialSection}>
               <Pressable
-                style={({ pressed }) => [
-                  styles.socialBtn,
-                  { backgroundColor: "#000", borderColor: "#000", opacity: pressed ? 0.85 : 1 },
-                ]}
-                onPress={handleAppleSignIn}
+                style={({ pressed }) => [styles.socialBtn, styles.googleBtn, pressed && { opacity: 0.85 }] as ViewStyle[]}
+                onPress={handleGoogleSignIn}
                 disabled={loadingProvider !== null || loading}
               >
-                {loadingProvider === "apple" ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
+                {loadingProvider === "google" ? <ActivityIndicator size="small" color="#374151" /> : (
                   <>
-                    <IconSymbol name="apple.logo" size={18} color="#fff" />
-                    <Text style={[styles.socialBtnText, { color: "#fff" }]}>
-                      Continue with Apple
-                    </Text>
+                    <View style={styles.googleIcon}><Text style={styles.googleIconText}>G</Text></View>
+                    <Text style={styles.googleBtnText}>Continue with Google</Text>
                   </>
                 )}
               </Pressable>
-            )}
-          </View>
 
-          {/* ── Divider ── */}
-          <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.muted }]}>or sign in with email</Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
-
-          {/* ── Email / Password Form ── */}
-          <View style={styles.form}>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <IconSymbol name="envelope.fill" size={16} color={colors.muted} />
-              <TextInput
-                style={[styles.input, { color: colors.foreground }]}
-                placeholder="Work email address"
-                placeholderTextColor={colors.muted}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-              />
+              {Platform.OS === "ios" ? (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={12}
+                  style={styles.appleBtn}
+                  onPress={handleAppleSignIn}
+                />
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.socialBtn, styles.appleWebBtn, pressed && { opacity: 0.85 }] as ViewStyle[]}
+                  onPress={handleAppleSignIn}
+                  disabled={loadingProvider !== null || loading}
+                >
+                  {loadingProvider === "apple" ? <ActivityIndicator size="small" color="#fff" /> : (
+                    <>
+                      <IconSymbol name="apple.logo" size={18} color="#fff" />
+                      <Text style={styles.appleBtnText}>Continue with Apple</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
             </View>
 
-            <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <IconSymbol name="lock.fill" size={16} color={colors.muted} />
-              <TextInput
-                style={[styles.input, { color: colors.foreground }]}
-                placeholder="Password"
-                placeholderTextColor={colors.muted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleEmailLogin}
-              />
-              <Pressable onPress={() => setShowPassword((v) => !v)} style={{ padding: 4 }}>
-                <IconSymbol
-                  name={showPassword ? "eye.slash.fill" : "eye.fill"}
-                  size={16}
-                  color={colors.muted}
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign in with email</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Email Form */}
+            <View style={styles.form}>
+              <View style={styles.inputWrapper}>
+                <IconSymbol name="envelope.fill" size={16} color="#9CA3AF" />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Work email address"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="next"
                 />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <IconSymbol name="lock.fill" size={16} color="#9CA3AF" />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleEmailLogin}
+                />
+                <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <IconSymbol name={showPassword ? "eye.slash.fill" : "eye.fill"} size={16} color="#9CA3AF" />
+                </Pressable>
+              </View>
+
+              <Pressable style={styles.forgotBtn} onPress={() => Alert.alert("Reset Password", "A password reset link will be sent to your email.")}>
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [styles.loginBtn, (pressed || loading) && { opacity: 0.85 }] as ViewStyle[]}
+                onPress={handleEmailLogin}
+                disabled={loading || loadingProvider !== null}
+              >
+                {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.loginBtnText}>Sign In</Text>}
               </Pressable>
             </View>
-
-            <Pressable style={styles.forgotBtn} onPress={() => Alert.alert("Reset Password", "A password reset link will be sent to your email.")}>
-              <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.loginBtn,
-                { backgroundColor: NVC_BLUE, opacity: pressed || loading ? 0.85 : 1 },
-              ]}
-              onPress={handleEmailLogin}
-              disabled={loading || loadingProvider !== null}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.loginBtnText}>Sign In</Text>
-              )}
-            </Pressable>
           </View>
 
           {/* ── Demo Accounts ── */}
           <Pressable
-            style={({ pressed }) => [
-              styles.demoToggle,
-              { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-            ]}
-            onPress={() => setShowDemoAccounts((v) => !v)}
+            style={({ pressed }) => [styles.demoToggle, pressed && { opacity: 0.7 }] as ViewStyle[]}
+            onPress={() => setShowDemo((v) => !v)}
           >
-            <IconSymbol name="person.2.fill" size={14} color={colors.muted} />
-            <Text style={[styles.demoToggleText, { color: colors.muted }]}>
-              {showDemoAccounts ? "Hide" : "Show"} demo accounts
-            </Text>
-            <IconSymbol
-              name={showDemoAccounts ? "chevron.up" : "chevron.down"}
-              size={12}
-              color={colors.muted}
-            />
+            <IconSymbol name="person.2.fill" size={14} color="#9CA3AF" />
+            <Text style={styles.demoToggleText}>{showDemo ? "Hide" : "Show"} demo accounts</Text>
+            <IconSymbol name={showDemo ? "chevron.up" : "chevron.down"} size={12} color="#9CA3AF" />
           </Pressable>
 
-          {showDemoAccounts && (
+          {showDemo && (
             <View style={styles.demoSection}>
-              <Text style={[styles.demoSectionTitle, { color: colors.muted }]}>
-                TAP TO LOGIN AS — password: demo123
-              </Text>
+              <Text style={styles.demoSectionTitle}>TAP TO LOGIN — password: demo123</Text>
               {Object.entries(MOCK_USERS).map(([demoEmail, user]) => (
-                <DemoChip
-                  key={demoEmail}
-                  email={demoEmail}
-                  role={user.role}
-                  onPress={() => handleDemoLogin(demoEmail)}
-                />
+                <DemoChip key={demoEmail} email={demoEmail} role={user.role} onPress={() => handleDemoLogin(demoEmail)} />
               ))}
             </View>
           )}
 
-          {/* ── Footer ── */}
+          {/* Footer */}
           <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.muted }]}>
+            <Text style={styles.footerText}>
               By signing in, you agree to NVC360's{" "}
-              <Text style={{ color: colors.primary }}>Terms of Service</Text>
+              <Text style={styles.footerLink}>Terms of Service</Text>
               {" "}and{" "}
-              <Text style={{ color: colors.primary }}>Privacy Policy</Text>
+              <Text style={styles.footerLink}>Privacy Policy</Text>
             </Text>
-            <Text style={[styles.footerVersion, { color: colors.muted }]}>
-              NVC360 2.0 · nvc360.com
-            </Text>
+            <Text style={styles.footerVersion}>NVC360 v2.0 · nvc360.com</Text>
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, padding: 24, paddingBottom: 40 },
-  brandSection: { alignItems: "center", paddingTop: 24, paddingBottom: 32, gap: 8 },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create<{
+  scroll: ViewStyle; brandSection: ViewStyle; logoWrap: ViewStyle;
+  logoImg: ViewStyle; brandTitle: TextStyle; brandSubtitle: TextStyle;
+  card: ViewStyle; socialSection: ViewStyle; socialBtn: ViewStyle;
+  googleBtn: ViewStyle; googleIcon: ViewStyle; googleIconText: TextStyle;
+  googleBtnText: TextStyle; appleBtn: ViewStyle; appleWebBtn: ViewStyle;
+  appleBtnText: TextStyle; divider: ViewStyle; dividerLine: ViewStyle;
+  dividerText: TextStyle; form: ViewStyle; inputWrapper: ViewStyle;
+  input: TextStyle; forgotBtn: ViewStyle; forgotText: TextStyle;
+  loginBtn: ViewStyle; loginBtnText: TextStyle; demoToggle: ViewStyle;
+  demoToggleText: TextStyle; demoSection: ViewStyle; demoSectionTitle: TextStyle;
+  demoChip: ViewStyle; demoChipDot: ViewStyle; demoChipInfo: ViewStyle;
+  demoChipRole: TextStyle; demoChipEmail: TextStyle; footer: ViewStyle;
+  footerText: TextStyle; footerLink: TextStyle; footerVersion: TextStyle;
+}>({
+  scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
+
+  // Brand
+  brandSection: { alignItems: "center", paddingTop: 40, paddingBottom: 28, gap: 8 },
+  logoWrap: {
+    width: 80, height: 80, borderRadius: 20,
+    backgroundColor: NVC_BLUE,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 16, elevation: 8, marginBottom: 4,
   },
-  logoText: { fontSize: 28, fontWeight: "900", letterSpacing: -1 },
-  brandTitle: { fontSize: 28, fontWeight: "900", letterSpacing: -0.5 },
-  brandSubtitle: { fontSize: 14, textAlign: "center" },
-  socialSection: { gap: 12, marginBottom: 8 },
+  logoImg: { width: 56, height: 56 },
+  brandTitle: { fontSize: 30, fontWeight: "900", color: "#1A1E2A", letterSpacing: -0.8 },
+  brandSubtitle: { fontSize: 14, color: "#6B7280", textAlign: "center" },
+
+  // Card
+  card: {
+    backgroundColor: WIDGET_SURFACE_LIGHT, borderRadius: 20,
+    padding: 24, marginBottom: 16,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1, shadowRadius: 20, elevation: 5,
+  },
+
+  // Social
+  socialSection: { gap: 12, marginBottom: 4 },
   socialBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 10,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    height: 52, borderRadius: 12, gap: 10,
   },
-  googleIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  googleBtn: { backgroundColor: "#F9FAFB", borderWidth: 1.5, borderColor: "#E5E7EB" },
+  googleIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff", borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
   googleIconText: { fontSize: 13, fontWeight: "800", color: "#4285F4" },
-  socialBtnText: { fontSize: 15, fontWeight: "600" },
+  googleBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
   appleBtn: { width: "100%", height: 52 },
-  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontSize: 12, fontWeight: "500" },
+  appleWebBtn: { backgroundColor: "#000" },
+  appleBtnText: { fontSize: 15, fontWeight: "600", color: "#fff" },
+
+  // Divider
+  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#E5E7EB" },
+  dividerText: { fontSize: 12, fontWeight: "500", color: "#9CA3AF" },
+
+  // Form
   form: { gap: 12 },
   inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    gap: 10,
+    flexDirection: "row", alignItems: "center", height: 52,
+    borderRadius: 12, borderWidth: 1.5, borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB", paddingHorizontal: 14, gap: 10,
   },
-  input: { flex: 1, fontSize: 15 },
+  input: { flex: 1, fontSize: 15, color: "#1A1E2A" },
   forgotBtn: { alignSelf: "flex-end" },
-  forgotText: { fontSize: 13, fontWeight: "600" },
+  forgotText: { fontSize: 13, fontWeight: "600", color: NVC_BLUE },
   loginBtn: {
-    height: 52,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
+    height: 52, borderRadius: 12, backgroundColor: NVC_BLUE,
+    alignItems: "center", justifyContent: "center", marginTop: 4,
   },
   loginBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+
+  // Demo
   demoToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 20,
-    paddingVertical: 10,
-    borderTopWidth: 1,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 12,
   },
-  demoToggleText: { fontSize: 13, fontWeight: "500" },
-  demoSection: { gap: 8, marginTop: 12 },
-  demoSectionTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.8, textAlign: "center" },
+  demoToggleText: { fontSize: 13, fontWeight: "500", color: "#9CA3AF" },
+  demoSection: { gap: 8, marginBottom: 8 },
+  demoSectionTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.8, textAlign: "center", color: "#9CA3AF", marginBottom: 4 },
   demoChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 10,
+    flexDirection: "row", alignItems: "center",
+    padding: 12, borderRadius: 12, borderWidth: 1, gap: 10,
   },
   demoChipDot: { width: 8, height: 8, borderRadius: 4 },
+  demoChipInfo: { flex: 1 },
   demoChipRole: { fontSize: 12, fontWeight: "700" },
-  demoChipEmail: { fontSize: 11, marginTop: 1 },
-  footer: { alignItems: "center", gap: 6, marginTop: 28 },
-  footerText: { fontSize: 11, textAlign: "center", lineHeight: 16 },
-  footerVersion: { fontSize: 11 },
+  demoChipEmail: { fontSize: 11, marginTop: 1, color: "#9CA3AF" },
+
+  // Footer
+  footer: { alignItems: "center", gap: 6, marginTop: 16 },
+  footerText: { fontSize: 11, textAlign: "center", lineHeight: 16, color: "#9CA3AF" },
+  footerLink: { color: NVC_BLUE, fontWeight: "600" },
+  footerVersion: { fontSize: 11, color: "#C0C8D8" },
 });
