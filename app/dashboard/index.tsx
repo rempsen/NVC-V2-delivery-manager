@@ -4,7 +4,7 @@
  * Sections: Dashboard, Work Orders, Technicians (full CRUD), Customers (full CRM), Map, Reports
  * Route: /dashboard
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -587,6 +587,55 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
   const [woFilter, setWoFilter] = useState<TaskStatus | "all">("all");
   const [techFilter, setTechFilter] = useState<"all" | "online" | "busy" | "offline">("all");
 
+  // Panel collapse state
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+
+  // Drag-to-assign state (web only — uses HTML5 drag events)
+  const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
+  const [dragOverTechId, setDragOverTechId] = useState<number | null>(null);
+  const [assignedOverrides, setAssignedOverrides] = useState<Record<number, number>>({});
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // ETA ticker — re-renders every 30s
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const handleDrop = (techId: number) => {
+    if (draggingTaskId === null) return;
+    const task = tasks.find((t) => t.id === draggingTaskId);
+    const tech = technicians.find((t) => t.id === techId);
+    if (!task || !tech) { setDraggingTaskId(null); setDragOverTechId(null); return; }
+    setAssignedOverrides((prev) => ({ ...prev, [draggingTaskId]: techId }));
+    showToast(`✓ ${task.customerName} assigned to ${tech.name}`);
+    setDraggingTaskId(null);
+    setDragOverTechId(null);
+  };
+
+  // ETA helper: minutes remaining until technician's active job scheduled time
+  const getEtaMinutes = (tech: Technician): number | null => {
+    const activeTask = tasks.find(
+      (t) => t.technicianId === tech.id && (t.status === "en_route" || t.status === "on_site"),
+    );
+    if (!activeTask?.scheduledAt) return null;
+    return Math.round((new Date(activeTask.scheduledAt).getTime() - now.getTime()) / 60_000);
+  };
+
+  const getEtaColor = (mins: number): string => {
+    if (mins < 0) return "#EF4444";
+    if (mins <= 5) return "#EF4444";
+    if (mins <= 15) return "#F59E0B";
+    return "#22C55E";
+  };
+
   // Computed metrics
   const active = tasks.filter((t) => ["on_site", "en_route", "assigned"].includes(t.status)).length;
   const completed = tasks.filter((t) => t.status === "completed").length;
@@ -639,100 +688,129 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
       {/* ── 3-Panel Map-Dominant Layout ── */}
       <View style={{ flex: 1, flexDirection: "row", overflow: "hidden" }}>
 
-        {/* ── LEFT PANEL: Work Orders List (240px) ── */}
-        <View style={[styles.mapPanelLeft, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
+        {/* ── LEFT PANEL: Work Orders List ── */}
+        <View style={[leftCollapsed ? styles.mapPanelCollapsed : styles.mapPanelLeft, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
           {/* Panel header */}
           <View style={[styles.mapPanelHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE_DARK }]}>
-            <Text style={{ fontSize: 12, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>WORK ORDERS</Text>
+            {!leftCollapsed && <Text style={{ fontSize: 12, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>WORK ORDERS</Text>}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <View style={{ backgroundColor: NVC_ORANGE, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
-                <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{tasks.filter(t => t.status !== "completed").length}</Text>
-              </View>
+              {!leftCollapsed && (
+                <>
+                  <View style={{ backgroundColor: NVC_ORANGE, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{tasks.filter(t => t.status !== "completed").length}</Text>
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: NVC_ORANGE, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }] as ViewStyle[]}
+                    onPress={() => router.push("/create-task" as any)}
+                  >
+                    <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>+ New</Text>
+                  </Pressable>
+                </>
+              )}
+              {/* Collapse toggle */}
               <Pressable
-                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: NVC_ORANGE, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }] as ViewStyle[]}
-                onPress={() => router.push("/create-task" as any)}
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 6, padding: 4 }] as ViewStyle[]}
+                onPress={() => setLeftCollapsed((v) => !v)}
               >
-                <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>+ New</Text>
+                <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{leftCollapsed ? "▶" : "◀"}</Text>
               </Pressable>
             </View>
           </View>
 
-          {/* Search */}
-          <View style={[styles.mapPanelSearch, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-            <IconSymbol name="magnifyingglass" size={12} color={colors.muted} />
-            <TextInput
-              style={[{ flex: 1, fontSize: 12, color: colors.foreground }] as TextStyle[]}
-              placeholder="Search orders..."
-              placeholderTextColor={colors.muted}
-              value={woSearch}
-              onChangeText={setWoSearch}
-            />
-          </View>
+          {/* Left panel body — hidden when collapsed */}
+          {!leftCollapsed && (
+            <>
+              {/* Search */}
+              <View style={[styles.mapPanelSearch, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+                <IconSymbol name="magnifyingglass" size={12} color={colors.muted} />
+                <TextInput
+                  style={[{ flex: 1, fontSize: 12, color: colors.foreground }] as TextStyle[]}
+                  placeholder="Search orders..."
+                  placeholderTextColor={colors.muted}
+                  value={woSearch}
+                  onChangeText={setWoSearch}
+                />
+              </View>
 
-          {/* Status filter chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 8, paddingVertical: 6, flexShrink: 0 }}>
-            {(["all", "unassigned", "assigned", "en_route", "on_site", "completed"] as const).map((s) => {
-              const isActive = woFilter === s;
-              const color = s === "all" ? NVC_BLUE : STATUS_COLORS[s as TaskStatus] ?? NVC_BLUE;
-              const label = s === "all" ? "All" : STATUS_LABELS[s as TaskStatus] ?? s;
-              const count = s === "all" ? tasks.length : tasks.filter(t => t.status === s).length;
-              return (
-                <Pressable
-                  key={s}
-                  style={[{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1.5, marginRight: 5, backgroundColor: isActive ? color : "transparent", borderColor: isActive ? color : color + "60" }] as ViewStyle[]}
-                  onPress={() => setWoFilter(s)}
-                >
-                  <Text style={[{ fontSize: 10, fontWeight: "700", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} {count > 0 ? `(${count})` : ""}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+              {/* Status filter chips */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 8, paddingVertical: 6, flexShrink: 0 }}>
+                {(["all", "unassigned", "assigned", "en_route", "on_site", "completed"] as const).map((s) => {
+                  const isActive = woFilter === s;
+                  const color = s === "all" ? NVC_BLUE : STATUS_COLORS[s as TaskStatus] ?? NVC_BLUE;
+                  const label = s === "all" ? "All" : STATUS_LABELS[s as TaskStatus] ?? s;
+                  const count = s === "all" ? tasks.length : tasks.filter(t => t.status === s).length;
+                  return (
+                    <Pressable
+                      key={s}
+                      style={[{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1.5, marginRight: 5, backgroundColor: isActive ? color : "transparent", borderColor: isActive ? color : color + "60" }] as ViewStyle[]}
+                      onPress={() => setWoFilter(s)}
+                    >
+                      <Text style={[{ fontSize: 10, fontWeight: "700", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} {count > 0 ? `(${count})` : ""}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
-          {/* Work order rows */}
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-            {tasks
-              .filter(t => {
-                const matchFilter = woFilter === "all" || t.status === woFilter;
-                const matchSearch = !woSearch || t.customerName.toLowerCase().includes(woSearch.toLowerCase()) || t.jobAddress.toLowerCase().includes(woSearch.toLowerCase());
-                return matchFilter && matchSearch;
-              })
-              .map((task) => {
-                const sc = STATUS_COLORS[task.status] ?? "#6B7280";
-                const pc = PRIORITY_COLORS[task.priority] ?? "#6B7280";
-                const isSelected = selectedTechId !== null && task.technicianId === selectedTechId;
-                return (
-                  <Pressable
-                    key={task.id}
-                    style={({ pressed }) => [{
-                      paddingHorizontal: 10, paddingVertical: 8,
-                      borderLeftWidth: 3, borderLeftColor: sc,
-                      borderBottomWidth: 1, borderBottomColor: colors.border,
-                      backgroundColor: isSelected ? sc + "10" : pressed ? colors.background : "transparent",
-                    }] as ViewStyle[]}
-                    onPress={() => router.push(`/task/${task.id}` as any)}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-                      <Text style={[{ fontSize: 11, fontWeight: "700", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
-                        {task.orderRef ?? `#${task.id}`}
-                      </Text>
-                      <View style={{ backgroundColor: pc + "20", borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
-                        <Text style={[{ fontSize: 9, fontWeight: "800", color: pc }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
+              {/* Work order rows — draggable on web */}
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {tasks
+                  .filter(t => {
+                    const matchFilter = woFilter === "all" || t.status === woFilter;
+                    const matchSearch = !woSearch || t.customerName.toLowerCase().includes(woSearch.toLowerCase()) || t.jobAddress.toLowerCase().includes(woSearch.toLowerCase());
+                    return matchFilter && matchSearch;
+                  })
+                  .map((task) => {
+                    const sc = STATUS_COLORS[task.status] ?? "#6B7280";
+                    const pc = PRIORITY_COLORS[task.priority] ?? "#6B7280";
+                    const isSelected = selectedTechId !== null && task.technicianId === selectedTechId;
+                    const isDragging = draggingTaskId === task.id;
+                    return (
+                      <View
+                        key={task.id}
+                        // @ts-ignore — web-only drag events
+                        draggable={Platform.OS === "web"}
+                        onDragStart={Platform.OS === "web" ? () => setDraggingTaskId(task.id) : undefined}
+                        onDragEnd={Platform.OS === "web" ? () => { setDraggingTaskId(null); setDragOverTechId(null); } : undefined}
+                        style={[{
+                          paddingHorizontal: 10, paddingVertical: 8,
+                          borderLeftWidth: 3, borderLeftColor: sc,
+                          borderBottomWidth: 1, borderBottomColor: colors.border,
+                          backgroundColor: isDragging ? sc + "20" : isSelected ? sc + "10" : "transparent",
+                          opacity: isDragging ? 0.6 : 1,
+                          cursor: Platform.OS === "web" ? "grab" : undefined,
+                        }] as any}
+                      >
+                        <Pressable onPress={() => router.push(`/task/${task.id}` as any)}>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                            <Text style={[{ fontSize: 11, fontWeight: "700", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
+                              {task.orderRef ?? `#${task.id}`}
+                            </Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                              {Platform.OS === "web" && (
+                                <Text style={{ fontSize: 9, color: colors.muted }}>⠿</Text>
+                              )}
+                              <View style={{ backgroundColor: pc + "20", borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
+                                <Text style={[{ fontSize: 9, fontWeight: "800", color: pc }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
+                              </View>
+                            </View>
+                          </View>
+                          <Text style={[{ fontSize: 12, fontWeight: "600", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
+                          <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress}</Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                            <View style={{ backgroundColor: sc + "20", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                              <Text style={[{ fontSize: 9, fontWeight: "700", color: sc }] as TextStyle[]}>{STATUS_LABELS[task.status] ?? task.status}</Text>
+                            </View>
+                            {task.technicianName && (
+                              <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>· {task.technicianName}</Text>
+                            )}
+                          </View>
+                        </Pressable>
                       </View>
-                    </View>
-                    <Text style={[{ fontSize: 12, fontWeight: "600", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
-                    <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
-                      <View style={{ backgroundColor: sc + "20", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                        <Text style={[{ fontSize: 9, fontWeight: "700", color: sc }] as TextStyle[]}>{STATUS_LABELS[task.status] ?? task.status}</Text>
-                      </View>
-                      {task.technicianName && (
-                        <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>· {task.technicianName}</Text>
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })}
-          </ScrollView>
+                    );
+                  })}
+              </ScrollView>
+            </>
+          )}
         </View>
 
         {/* ── CENTER PANEL: Full-height Live Map ── */}
@@ -745,6 +823,11 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
               onSelectTech={onSelectTech}
               height={0}
               style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+              etaData={Object.fromEntries(
+                sortedTechs
+                  .map((t) => [t.id, getEtaMinutes(t)] as [number, number | null])
+                  .filter(([, v]) => v !== null) as [number, number][]
+              )}
             />
           ) : (
             <FleetMapPanel technicians={sortedTechs} selectedId={selectedTechId} onSelect={onSelectTech} />
@@ -756,113 +839,176 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
           </View>
         </View>
 
-        {/* ── RIGHT PANEL: Technician Roster (220px) ── */}
-        <View style={[styles.mapPanelRight, { backgroundColor: colors.surface, borderLeftColor: colors.border }]}>
+        {/* ── RIGHT PANEL: Technician Roster ── */}
+        <View
+          style={[rightCollapsed ? styles.mapPanelCollapsed : styles.mapPanelRight, { backgroundColor: colors.surface, borderLeftColor: colors.border }]}
+          // @ts-ignore — web-only drag events
+          onDragOver={Platform.OS === "web" ? (e: any) => e.preventDefault() : undefined}
+        >
           {/* Panel header */}
           <View style={[styles.mapPanelHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE_DARK }]}>
-            <Text style={{ fontSize: 12, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>FIELD TEAM</Text>
-            <View style={[styles.liveBadge, { backgroundColor: "#22C55E25" }]}>
-              <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
-              <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>{onlineCount} live</Text>
-            </View>
+            {/* Collapse toggle */}
+            <Pressable
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 6, padding: 4 }] as ViewStyle[]}
+              onPress={() => setRightCollapsed((v) => !v)}
+            >
+              <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{rightCollapsed ? "◀" : "▶"}</Text>
+            </Pressable>
+            {!rightCollapsed && (
+              <>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>FIELD TEAM</Text>
+                <View style={[styles.liveBadge, { backgroundColor: "#22C55E25" }]}>
+                  <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
+                  <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>{onlineCount} live</Text>
+                </View>
+              </>
+            )}
           </View>
 
-          {/* Tech status filter */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 8, paddingVertical: 6, flexShrink: 0 }}>
-            {(["all", "online", "busy", "offline"] as const).map((s) => {
-              const isActive = techFilter === s;
-              const color = s === "all" ? NVC_BLUE : s === "online" ? "#22C55E" : s === "busy" ? "#F59E0B" : "#6B7280";
-              const label = s === "all" ? "All" : s === "online" ? "Available" : s === "busy" ? "On Job" : "Offline";
-              const count = s === "all" ? technicians.length : technicians.filter(t => t.status === s).length;
-              return (
-                <Pressable
-                  key={s}
-                  style={[{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, borderWidth: 1.5, marginRight: 4, backgroundColor: isActive ? color : "transparent", borderColor: isActive ? color : color + "60" }] as ViewStyle[]}
-                  onPress={() => setTechFilter(s)}
-                >
-                  <Text style={[{ fontSize: 10, fontWeight: "700", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} ({count})</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          {/* Right panel body — hidden when collapsed */}
+          {!rightCollapsed && (
+            <>
+              {/* Tech status filter */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 8, paddingVertical: 6, flexShrink: 0 }}>
+                {(["all", "online", "busy", "offline"] as const).map((s) => {
+                  const isActive = techFilter === s;
+                  const color = s === "all" ? NVC_BLUE : s === "online" ? "#22C55E" : s === "busy" ? "#F59E0B" : "#6B7280";
+                  const label = s === "all" ? "All" : s === "online" ? "Available" : s === "busy" ? "On Job" : "Offline";
+                  const count = s === "all" ? technicians.length : technicians.filter(t => t.status === s).length;
+                  return (
+                    <Pressable
+                      key={s}
+                      style={[{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, borderWidth: 1.5, marginRight: 4, backgroundColor: isActive ? color : "transparent", borderColor: isActive ? color : color + "60" }] as ViewStyle[]}
+                      onPress={() => setTechFilter(s)}
+                    >
+                      <Text style={[{ fontSize: 10, fontWeight: "700", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} ({count})</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
-          {/* Tech roster */}
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-            {sortedTechs
-              .filter(t => techFilter === "all" || t.status === techFilter)
-              .map((tech) => {
-                const sc = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
-                const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
-                const utilPct = tech.status === "busy" ? 100 : (tech.status as string) === "en_route" ? 75 : tech.status === "online" ? 30 : 0;
-                const activeTasks = tasks.filter(t => t.technicianId === tech.id && t.status !== "completed");
-                return (
-                  <Pressable
-                    key={tech.id}
-                    style={({ pressed }) => [{
-                      paddingHorizontal: 10, paddingVertical: 8,
-                      borderLeftWidth: 3, borderLeftColor: sc,
-                      borderBottomWidth: 1, borderBottomColor: colors.border,
-                      backgroundColor: selectedTechId === tech.id ? sc + "12" : pressed ? colors.background : "transparent",
-                    }] as ViewStyle[]}
-                    onPress={() => onSelectTech(tech.id)}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      {/* Avatar */}
-                      <View style={{ position: "relative" }}>
-                        <View style={[styles.techAvatar, { backgroundColor: sc + "20", borderColor: sc + "50", borderWidth: 1.5, width: 32, height: 32, borderRadius: 16 }]}>
-                          <Text style={[styles.techAvatarText, { color: sc, fontSize: 11 }] as TextStyle[]}>{initials}</Text>
-                        </View>
-                        <View style={[styles.techStatusDot, { backgroundColor: sc, borderColor: colors.surface, width: 8, height: 8, borderRadius: 4, bottom: -1, right: -1 }]} />
-                      </View>
-                      {/* Info */}
-                      <View style={{ flex: 1, gap: 1 }}>
-                        <Text style={[{ fontSize: 12, fontWeight: "700", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{tech.name}</Text>
-                        <View style={{ backgroundColor: sc + "18", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, alignSelf: "flex-start" }}>
-                          <Text style={[{ fontSize: 9, fontWeight: "700", color: sc }] as TextStyle[]}>{TECH_STATUS_LABELS[tech.status] ?? tech.status}</Text>
-                        </View>
-                      </View>
-                      {/* Quick actions */}
-                      <View style={{ flexDirection: "row", gap: 3 }}>
-                        <Pressable
-                          style={[styles.techQuickBtn, { backgroundColor: NVC_BLUE + "15" }] as ViewStyle[]}
-                          onPress={() => router.push(`/messages/1` as any)}
-                        >
-                          <IconSymbol name="paperplane.fill" size={9} color={NVC_BLUE} />
+              {/* Drag-to-assign hint */}
+              {draggingTaskId !== null && (
+                <View style={{ backgroundColor: NVC_BLUE + "15", paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: NVC_BLUE + "30" }}>
+                  <Text style={[{ fontSize: 10, color: NVC_BLUE, fontWeight: "700", textAlign: "center" }] as TextStyle[]}>
+                    Drop on a technician to assign
+                  </Text>
+                </View>
+              )}
+
+              {/* Tech roster */}
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {sortedTechs
+                  .filter(t => techFilter === "all" || t.status === techFilter)
+                  .map((tech) => {
+                    const sc = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
+                    const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                    const utilPct = tech.status === "busy" ? 100 : (tech.status as string) === "en_route" ? 75 : tech.status === "online" ? 30 : 0;
+                    const activeTasks = tasks.filter(t => t.technicianId === tech.id && t.status !== "completed");
+                    const etaMins = getEtaMinutes(tech);
+                    const etaColor = etaMins !== null ? getEtaColor(etaMins) : null;
+                    const isDropTarget = dragOverTechId === tech.id;
+                    return (
+                      <View
+                        key={tech.id}
+                        // @ts-ignore — web-only drag events
+                        onDragOver={Platform.OS === "web" ? (e: any) => { e.preventDefault(); setDragOverTechId(tech.id); } : undefined}
+                        onDragLeave={Platform.OS === "web" ? () => setDragOverTechId(null) : undefined}
+                        onDrop={Platform.OS === "web" ? (e: any) => { e.preventDefault(); handleDrop(tech.id); } : undefined}
+                        style={[{
+                          paddingHorizontal: 10, paddingVertical: 8,
+                          borderLeftWidth: 3, borderLeftColor: isDropTarget ? "#22C55E" : sc,
+                          borderBottomWidth: 1, borderBottomColor: colors.border,
+                          backgroundColor: isDropTarget ? "#22C55E15" : selectedTechId === tech.id ? sc + "12" : "transparent",
+                          transition: Platform.OS === "web" ? "background-color 0.15s" : undefined,
+                        }] as any}
+                      >
+                        <Pressable onPress={() => onSelectTech(tech.id)}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            {/* Avatar */}
+                            <View style={{ position: "relative" }}>
+                              <View style={[styles.techAvatar, { backgroundColor: sc + "20", borderColor: sc + "50", borderWidth: 1.5, width: 32, height: 32, borderRadius: 16 }]}>
+                                <Text style={[styles.techAvatarText, { color: sc, fontSize: 11 }] as TextStyle[]}>{initials}</Text>
+                              </View>
+                              <View style={[styles.techStatusDot, { backgroundColor: sc, borderColor: colors.surface, width: 8, height: 8, borderRadius: 4, bottom: -1, right: -1 }]} />
+                            </View>
+                            {/* Info */}
+                            <View style={{ flex: 1, gap: 1 }}>
+                              <Text style={[{ fontSize: 12, fontWeight: "700", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{tech.name}</Text>
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                <View style={{ backgroundColor: sc + "18", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                                  <Text style={[{ fontSize: 9, fontWeight: "700", color: sc }] as TextStyle[]}>{TECH_STATUS_LABELS[tech.status] ?? tech.status}</Text>
+                                </View>
+                                {/* ETA badge */}
+                                {etaMins !== null && etaColor && (
+                                  <View style={{ backgroundColor: etaColor + "20", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: etaColor + "50" }}>
+                                    <Text style={[{ fontSize: 9, fontWeight: "800", color: etaColor }] as TextStyle[]}>
+                                      {etaMins < 0 ? `${Math.abs(etaMins)}m late` : `${etaMins}m`}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                            </View>
+                            {/* Quick actions */}
+                            <View style={{ flexDirection: "row", gap: 3 }}>
+                              <Pressable
+                                style={[styles.techQuickBtn, { backgroundColor: NVC_BLUE + "15" }] as ViewStyle[]}
+                                onPress={() => router.push(`/messages/1` as any)}
+                              >
+                                <IconSymbol name="paperplane.fill" size={9} color={NVC_BLUE} />
+                              </Pressable>
+                              <Pressable
+                                style={[styles.techQuickBtn, { backgroundColor: "#22C55E15" }] as ViewStyle[]}
+                                onPress={() => router.push(`/agent/${tech.id}` as any)}
+                              >
+                                <IconSymbol name="arrow.right" size={9} color="#22C55E" />
+                              </Pressable>
+                            </View>
+                          </View>
+                          {/* Active job address */}
+                          {tech.activeTaskAddress && (
+                            <Text style={[{ fontSize: 10, color: colors.muted, marginTop: 3, marginLeft: 40 }] as TextStyle[]} numberOfLines={1}>
+                              {tech.activeTaskAddress}
+                            </Text>
+                          )}
+                          {/* Utilization bar */}
+                          <View style={[styles.utilRow, { marginTop: 4, marginLeft: 40 }]}>
+                            <View style={[styles.utilBar, { backgroundColor: colors.border, flex: 1 }]}>
+                              <View style={[styles.utilFill, { width: `${utilPct}%` as any, backgroundColor: sc }]} />
+                            </View>
+                            <Text style={[styles.utilText, { color: colors.muted }] as TextStyle[]}>{utilPct}%</Text>
+                          </View>
+                          {/* Active jobs count */}
+                          {activeTasks.length > 0 && (
+                            <Text style={[{ fontSize: 10, color: NVC_BLUE, fontWeight: "600", marginTop: 2, marginLeft: 40 }] as TextStyle[]}>
+                              {activeTasks.length} active job{activeTasks.length > 1 ? "s" : ""}
+                            </Text>
+                          )}
                         </Pressable>
-                        <Pressable
-                          style={[styles.techQuickBtn, { backgroundColor: "#22C55E15" }] as ViewStyle[]}
-                          onPress={() => router.push(`/agent/${tech.id}` as any)}
-                        >
-                          <IconSymbol name="arrow.right" size={9} color="#22C55E" />
-                        </Pressable>
                       </View>
-                    </View>
-                    {/* Active job address */}
-                    {tech.activeTaskAddress && (
-                      <Text style={[{ fontSize: 10, color: colors.muted, marginTop: 3, marginLeft: 40 }] as TextStyle[]} numberOfLines={1}>
-                        {tech.activeTaskAddress}
-                      </Text>
-                    )}
-                    {/* Utilization bar */}
-                    <View style={[styles.utilRow, { marginTop: 4, marginLeft: 40 }]}>
-                      <View style={[styles.utilBar, { backgroundColor: colors.border, flex: 1 }]}>
-                        <View style={[styles.utilFill, { width: `${utilPct}%` as any, backgroundColor: sc }]} />
-                      </View>
-                      <Text style={[styles.utilText, { color: colors.muted }] as TextStyle[]}>{utilPct}%</Text>
-                    </View>
-                    {/* Active jobs count */}
-                    {activeTasks.length > 0 && (
-                      <Text style={[{ fontSize: 10, color: NVC_BLUE, fontWeight: "600", marginTop: 2, marginLeft: 40 }] as TextStyle[]}>
-                        {activeTasks.length} active job{activeTasks.length > 1 ? "s" : ""}
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-          </ScrollView>
+                    );
+                  })}
+              </ScrollView>
+            </>
+          )}
         </View>
 
       </View>
+
+      {/* ── Assignment Toast ── */}
+      {toastMsg && Platform.OS === "web" && (
+        <View style={{
+          position: "absolute", bottom: 24, left: "50%", transform: [{ translateX: -150 }],
+          backgroundColor: "#1E3A5F", borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12,
+          zIndex: 999, shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+          flexDirection: "row", alignItems: "center", gap: 8, minWidth: 300,
+        } as any}>
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#22C55E", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>✓</Text>
+          </View>
+          <Text style={[{ color: "#fff", fontSize: 13, fontWeight: "600", flex: 1 }] as TextStyle[]}>{toastMsg}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -2721,6 +2867,11 @@ const styles = StyleSheet.create({
   liveBadgeText: { fontSize: 10, fontWeight: "700" } as TextStyle,
 
   // 3-Panel Map Layout
+  mapPanelCollapsed: {
+    width: 32,
+    flexDirection: "column",
+    overflow: "hidden",
+  } as ViewStyle,
   mapPanelLeft: {
     width: 240,
     flexDirection: "column",

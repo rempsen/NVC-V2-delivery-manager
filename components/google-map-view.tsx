@@ -61,6 +61,8 @@ interface GoogleMapViewProps {
   zoom?: number;
   style?: React.CSSProperties;
   height?: number;
+  /** ETA data keyed by technician ID: minutes remaining (negative = overdue) */
+  etaData?: Record<number, number>;
 }
 
 export function GoogleMapView({
@@ -72,6 +74,7 @@ export function GoogleMapView({
   zoom = 11,
   height = 500,
   style,
+  etaData = {},
 }: GoogleMapViewProps) {
   const { isLoaded, error } = useGoogleMaps();
   const colors = useColors();
@@ -126,19 +129,41 @@ export function GoogleMapView({
       const color = STATUS_COLORS[tech.status] ?? "#9CA3AF";
       const isSelected = tech.id === selectedId;
 
+      // Build ETA label for this tech
+      const etaMins = etaData[tech.id];
+      const hasEta = etaMins !== undefined;
+      const etaColor = hasEta
+        ? (etaMins < 0 ? "#EF4444" : etaMins <= 5 ? "#EF4444" : etaMins <= 15 ? "#F59E0B" : "#22C55E")
+        : null;
+      const etaLabel = hasEta
+        ? (etaMins < 0 ? `${Math.abs(etaMins)}m late` : `${etaMins}m`)
+        : null;
+
+      // Custom SVG marker with ETA badge
+      const initials = tech.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+      const size = isSelected ? 44 : 36;
+      const badgeHtml = hasEta && etaColor && etaLabel
+        ? `<rect x="${size - 2}" y="-6" width="${etaLabel.length * 6 + 8}" height="14" rx="7" fill="${etaColor}" stroke="white" stroke-width="1.5"/>
+           <text x="${size - 2 + (etaLabel.length * 6 + 8) / 2}" y="5" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="8" font-weight="800" fill="white">${etaLabel}</text>`
+        : "";
+
+      const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${size + (hasEta ? etaLabel!.length * 6 + 16 : 0)}" height="${size + 8}" viewBox="0 0 ${size + (hasEta ? etaLabel!.length * 6 + 16 : 0)} ${size + 8}">
+        <circle cx="${size / 2}" cy="${size / 2 + 4}" r="${size / 2}" fill="${color}" stroke="white" stroke-width="${isSelected ? 3 : 2}"/>
+        <text x="${size / 2}" y="${size / 2 + 8}" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="${isSelected ? 13 : 11}" font-weight="700" fill="white">${initials}</text>
+        ${badgeHtml}
+      </svg>`;
+
       const svgMarker = {
-        path: G.SymbolPath.CIRCLE,
-        fillColor: color,
-        fillOpacity: 1,
-        strokeColor: isSelected ? "#fff" : color,
-        strokeWeight: isSelected ? 3 : 1.5,
-        scale: isSelected ? 14 : 10,
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgContent)}`,
+        scaledSize: new G.Size(size + (hasEta ? etaLabel!.length * 6 + 16 : 0), size + 8),
+        anchor: new G.Point((size + (hasEta ? etaLabel!.length * 6 + 16 : 0)) / 2, size + 4),
       };
 
       if (markersRef.current.has(key)) {
         const existing = markersRef.current.get(key)!;
         existing.setPosition({ lat: tech.latitude, lng: tech.longitude });
         existing.setIcon(svgMarker);
+        existing.setZIndex(isSelected ? 100 : 10);
       } else {
         const marker = new G.Marker({
           position: { lat: tech.latitude, lng: tech.longitude },
@@ -149,6 +174,9 @@ export function GoogleMapView({
         });
 
         marker.addListener("click", () => {
+          const etaBadge = hasEta && etaColor && etaLabel
+            ? `<div style="display:inline-block; background:${etaColor}; color:white; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; margin-top:5px;">${etaLabel}</div>`
+            : "";
           infoWindow.setContent(`
             <div style="font-family: -apple-system, sans-serif; padding: 4px 2px; min-width: 160px;">
               <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">${tech.name}</div>
@@ -156,6 +184,7 @@ export function GoogleMapView({
                 <span style="width: 8px; height: 8px; border-radius: 50%; background: ${color}; display: inline-block;"></span>
                 <span style="font-size: 12px; color: #555; text-transform: capitalize;">${tech.status.replace("_", " ")}</span>
               </div>
+              ${etaBadge}
               ${tech.transportType ? `<div style="font-size: 11px; color: #888; margin-top: 4px;">Transport: ${tech.transportType}</div>` : ""}
             </div>
           `);

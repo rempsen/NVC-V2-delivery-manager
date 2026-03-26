@@ -750,3 +750,14 @@
 ## 3-Panel Map-Dominant Layout (v5.4)
 - [x] Web Dashboard: 3-panel full-screen dispatcher view (left: work orders list, center: large dominant map, right: technician roster)
 - [x] Mobile Dispatcher: map-dominant layout with collapsible bottom drawer for work orders and right tech strip
+
+## Sprint: Drag-to-Assign, Collapsible Panels, ETA Badges (v5.5)
+- [x] Web Dashboard: collapsible left panel (work orders) with toggle button
+- [x] Web Dashboard: collapsible right panel (technician roster) with toggle button
+- [x] Web Dashboard: full-screen map mode when both panels are collapsed
+- [x] Web Dashboard: drag-to-assign — drag work order card from left panel onto technician in right panel
+- [x] Web Dashboard: drag-to-assign — visual drop target highlight on technician row when dragging
+- [x] Web Dashboard: drag-to-assign — assignment confirmation toast on successful drop
+- [x] Web Dashboard: live ETA countdown badges on technician map pins (minutes until scheduled job)
+- [x] Web Dashboard: live ETA countdown badges on technician roster cards
+- [x] Web Dashboard: ETA badge color-coded (green > 15min, yellow 5-15min, red < 5min)
