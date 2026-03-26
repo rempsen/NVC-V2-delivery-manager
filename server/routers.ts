@@ -6,6 +6,8 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { adminRouter } from "./adminRouter";
 import { mapsRouter } from "./mapsRouter";
+import { stripeRouter } from "./stripeRouter";
+import { exportRouter } from "./exportRouter";
 import crypto from "crypto";
 import * as gemini from "./gemini";
 import { Expo } from "expo-server-sdk";
@@ -607,6 +609,49 @@ export const appRouter = router({
         }),
       )
       .mutation(({ input }) => db.updateTechnicianStatus(input.id, input.status)),
+
+    /** Geo-clock in: record shift start with GPS coordinates */
+    clockIn: protectedProcedure
+      .input(z.object({ id: z.number(), lat: z.number(), lng: z.number() }))
+      .mutation(async ({ input }) => {
+        const { technicians: techTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new Error("Database not available");
+        await drizzleDb.update(techTable).set({
+          clockInAt: new Date(),
+          clockInLat: String(input.lat),
+          clockInLng: String(input.lng),
+          clockOutAt: null,
+          clockOutLat: null,
+          clockOutLng: null,
+          todayMinutesWorked: 0,
+          status: "online",
+        }).where(eq(techTable.id, input.id));
+        return { success: true, clockInAt: new Date().toISOString() };
+      }),
+
+    /** Geo-clock out: record shift end and compute minutes worked */
+    clockOut: protectedProcedure
+      .input(z.object({ id: z.number(), lat: z.number(), lng: z.number() }))
+      .mutation(async ({ input }) => {
+        const { technicians: techTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new Error("Database not available");
+        const rows = await drizzleDb.select({ clockInAt: techTable.clockInAt }).from(techTable).where(eq(techTable.id, input.id)).limit(1);
+        const clockInAt = rows[0]?.clockInAt;
+        const clockOutAt = new Date();
+        const minutesWorked = clockInAt ? Math.round((clockOutAt.getTime() - new Date(clockInAt).getTime()) / 60_000) : 0;
+        await drizzleDb.update(techTable).set({
+          clockOutAt,
+          clockOutLat: String(input.lat),
+          clockOutLng: String(input.lng),
+          todayMinutesWorked: minutesWorked,
+          status: "offline",
+        }).where(eq(techTable.id, input.id));
+        return { success: true, clockOutAt: clockOutAt.toISOString(), minutesWorked };
+      }),
   }),
 
   // ─── Customers (CRM) ───────────────────────────────────────────────────────
@@ -950,6 +995,18 @@ export const appRouter = router({
     dispatchHistory: protectedProcedure
       .input(z.object({ tenantId: z.number(), limit: z.number().default(20) }))
       .query(({ input }) => db.getDispatchHistory(input.tenantId, input.limit)),
+
+    /** Send a test SMS to validate Twilio credentials */
+    sendTestSms: protectedProcedure
+      .input(z.object({ tenantId: z.number(), phone: z.string() }))
+      .mutation(async ({ input }) => {
+        const { resolveTwilioCredentials, sendSmsIfConfigured } = await import("./twilio.js");
+        const tenant = await db.getTenantById(input.tenantId);
+        const creds = resolveTwilioCredentials(tenant as any);
+        if (!creds) throw new Error("Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in Secrets.");
+        await sendSmsIfConfigured(input.phone, "NVC360 2.0 test SMS — your Twilio integration is working!", creds);
+        return { success: true };
+      }),
   }),
 
   // ─── File Attachments ──────────────────────────────────────────────────────
@@ -1175,6 +1232,12 @@ export const appRouter = router({
 
   // ─── Maps & Routing ──────────────────────────────────────────────────────
   maps: mapsRouter,
+
+  // ─── Stripe Payments ─────────────────────────────────────────────────────
+  stripe: stripeRouter,
+
+  // ─── PDF / CSV Exports ───────────────────────────────────────────────────
+  export: exportRouter,
 
   // ── NVC Super Admin (nvc_manager / super_admin roles only) ────────────────
   admin: adminRouter,

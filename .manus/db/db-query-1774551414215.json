@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE technicians\n  ADD COLUMN IF NOT EXISTS clockInAt TIMESTAMP NULL,\n  ADD COLUMN IF NOT EXISTS clockInLat DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS clockInLng DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS clockOutAt TIMESTAMP NULL,\n  ADD COLUMN IF NOT EXISTS clockOutLat DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS clockOutLng DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS todayMinutesWorked INT NOT NULL DEFAULT 0;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nALTER TABLE technicians\n  ADD COLUMN IF NOT EXISTS clockInAt TIMESTAMP NULL,\n  ADD COLUMN IF NOT EXISTS clockInLat DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS clockInLng DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS clockOutAt TIMESTAMP NULL,\n  ADD COLUMN IF NOT EXISTS clockOutLat DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS clockOutLng DECIMAL(10,7) NULL,\n  ADD COLUMN IF NOT EXISTS todayMinutesWorked INT NOT NULL DEFAULT 0;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1836
+}

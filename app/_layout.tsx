@@ -10,6 +10,9 @@ import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import * as Notifications from "expo-notifications";
 
+// Background GPS tracking task — MUST be imported at global scope before any component mounts
+import "@/lib/background-location-task";
+
 // Show notifications as alerts even when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

@@ -916,3 +916,20 @@
 - [x] Added pushLocationToServer callback — calls trpc.technicians.updateLocation with live lat/lng
 - [x] Added Mark All As Read button to notification panel header in dashboard
 - [x] TypeScript: 0 errors | Tests: 94 passed, 1 skipped (95 total)
+
+## Sprint: Hardening — Twilio, NVC360 API, Background GPS, Invoice PDF (Mar 26)
+
+- [x] Twilio credentials validated live — NVC360 Twilio account confirmed active (+14849467992)
+- [x] SMS (Twilio) settings tile wired to /settings/sms-twilio sub-screen
+- [x] NVC360 Dispatch API settings sub-screen created (/settings/nvc360-api) — API key, endpoint, fleet/merchant IDs, sync options, test connection
+- [x] Dispatch API settings tile wired to /settings/nvc360-api (was routing to /integrations)
+- [x] expo-task-manager installed and configured
+- [x] Background GPS tracking module created (lib/background-location-task.ts) — defines BACKGROUND_LOCATION_TASK, startBackgroundLocationTracking(), stopBackgroundLocationTracking()
+- [x] app.config.ts updated: isIosBackgroundLocationEnabled, isAndroidBackgroundLocationEnabled, locationAlwaysPermission, expo-task-manager plugin added
+- [x] Background task imported at global scope in app/_layout.tsx (before any component mounts)
+- [x] agent-task/[id].tsx: startLocationTracking() now also starts background GPS task via startBackgroundLocationTracking()
+- [x] agent-task/[id].tsx: stopLocationTracking() now also stops background GPS task
+- [x] expo-file-system and expo-sharing installed
+- [x] Invoice PDF export button added to completed job banner in agent-task/[id].tsx
+- [x] handleDownloadInvoice: fetches PDF from server, triggers browser download on web, share sheet on native
+- [x] TypeScript: 0 errors | Tests: 98 passed, 1 skipped (99 total)

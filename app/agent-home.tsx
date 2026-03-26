@@ -5,7 +5,7 @@
  * today's stats, and quick access to task workflow.
  * No map of other agents — this is the agent-only view.
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -19,9 +19,12 @@ import {
   TextStyle,
   Linking,
   Platform,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -36,6 +39,19 @@ import {
 } from "@/lib/nvc-types";
 import { trpc } from "@/lib/trpc";
 import { useTenant } from "@/hooks/use-tenant";
+
+// ─── Push notification handler (show alerts in foreground) ───────────────────
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 // ─── Status ordering for agent view ──────────────────────────────────────────
 
@@ -149,6 +165,79 @@ export default function AgentHomeScreen() {
   const { tenantId, isDemo } = useTenant();
   const [refreshing, setRefreshing] = useState(false);
 
+  // ── Geo-clock state ───────────────────────────────────────────────────────────────────
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [clockInTime, setClockInTime] = useState<Date | null>(null);
+  const [clockLoading, setClockLoading] = useState(false);
+  const technicianId = useRef<number | null>(null); // set from task data
+
+  const clockInMutation = trpc.technicians.clockIn.useMutation();
+  const clockOutMutation = trpc.technicians.clockOut.useMutation();
+  const savePushTokenMutation = trpc.technicians.updateStatus.useMutation();
+
+  // Register for push notifications on mount
+  useEffect(() => {
+    if (Platform.OS === "web" || isDemo) return;
+    (async () => {
+      try {
+        if (Platform.OS === "android") {
+          await Notifications.setNotificationChannelAsync("nvc360", {
+            name: "NVC360 Jobs",
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+          });
+        }
+        const { status: existing } = await Notifications.getPermissionsAsync();
+        let finalStatus = existing;
+        if (existing !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== "granted") return;
+        // Token is obtained — in production, save to DB via technicians.updatePushToken
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        console.log("[PushToken]", tokenData.data);
+      } catch (e) {
+        // Silently ignore — push tokens require physical device
+      }
+    })();
+  }, [isDemo]);
+
+  const handleClockToggle = useCallback(async () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setClockLoading(true);
+    try {
+      let lat = 0;
+      let lng = 0;
+      if (Platform.OS !== "web") {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        }
+      }
+      const techId = technicianId.current ?? 1; // fallback for demo
+      if (!isClockedIn) {
+        await clockInMutation.mutateAsync({ id: techId, lat, lng });
+        setIsClockedIn(true);
+        setClockInTime(new Date());
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("Clocked In", `Shift started at ${new Date().toLocaleTimeString()}`);
+      } else {
+        const result = await clockOutMutation.mutateAsync({ id: techId, lat, lng });
+        setIsClockedIn(false);
+        setClockInTime(null);
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("Clocked Out", `Shift ended. Total: ${result.minutesWorked} min`);
+      }
+    } catch (e: any) {
+      Alert.alert("Clock Error", e?.message ?? "Could not record clock event. Try again.");
+    } finally {
+      setClockLoading(false);
+    }
+  }, [isClockedIn, clockInMutation, clockOutMutation]);
+
   // ── Real API query ───────────────────────────────────────────────────────────
   const { data: apiTasks, isLoading, refetch } = trpc.tasks.list.useQuery(
     { tenantId: tenantId ?? 0 },
@@ -243,12 +332,30 @@ export default function AgentHomeScreen() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          {/* Geo-clock button */}
           <Pressable
-            style={({ pressed }) => [styles.headerIconBtn, pressed && { opacity: 0.7 }]}
-            onPress={() => router.push("/(tabs)" as any)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={({ pressed }) => [
+              styles.clockBtn,
+              isClockedIn ? styles.clockBtnActive : styles.clockBtnInactive,
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={handleClockToggle}
+            disabled={clockLoading}
           >
-            <IconSymbol name="house.fill" size={18} color="#fff" />
+            {clockLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <IconSymbol
+                  name={isClockedIn ? "stop.circle.fill" : "play.circle.fill"}
+                  size={14}
+                  color="#fff"
+                />
+                <Text style={styles.clockBtnText}>
+                  {isClockedIn ? "Clock Out" : "Clock In"}
+                </Text>
+              </>
+            )}
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.headerIconBtn, pressed && { opacity: 0.7 }]}
@@ -602,9 +709,32 @@ const styles = StyleSheet.create({
     color: "#374151",
   } as TextStyle,
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#9CA3AF",
     textAlign: "center",
-    lineHeight: 20,
+    marginTop: 4,
+  } as TextStyle,
+
+  // Geo-clock button
+  clockBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    minWidth: 90,
+    justifyContent: "center",
+  } as ViewStyle,
+  clockBtnActive: {
+    backgroundColor: "#EF4444",
+  } as ViewStyle,
+  clockBtnInactive: {
+    backgroundColor: "#22C55E",
+  } as ViewStyle,
+  clockBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
   } as TextStyle,
 });

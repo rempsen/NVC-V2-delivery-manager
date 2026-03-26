@@ -95,10 +95,14 @@ const config: ExpoConfig = {
     [
       "expo-location",
       {
-        locationAlwaysAndWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location for arrival detection.",
-        locationWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location for arrival detection.",
+        locationAlwaysAndWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location to track your route and send live ETAs to customers.",
+        locationWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location for arrival detection and live tracking.",
+        locationAlwaysPermission: "Allow $(PRODUCT_NAME) to track your location in the background so dispatchers can see your position while you're on a job.",
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
       },
     ],
+    "expo-task-manager",
     [
       "expo-image-picker",
       {

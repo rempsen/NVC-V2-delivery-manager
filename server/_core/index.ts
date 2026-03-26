@@ -8,6 +8,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerIntegrationCallbacks } from "../integrations/oauth-callbacks";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { initLocationHub } from "../locationHub";
 
 // ─── Allowed Origins ──────────────────────────────────────────────────────────
 const ALLOWED_ORIGIN_PATTERNS: RegExp[] = [
@@ -128,6 +129,9 @@ async function startServer() {
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
+
+  // ─── WebSocket Location Hub ───────────────────────────────────────────────
+  initLocationHub(server);
 
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);

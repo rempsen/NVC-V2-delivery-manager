@@ -46,6 +46,10 @@ import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
 import { MOCK_TASKS, STATUS_COLORS, STATUS_LABELS, type Task } from "@/lib/nvc-types";
 import { useTenant } from "@/hooks/use-tenant";
+import {
+  startBackgroundLocationTracking,
+  stopBackgroundLocationTracking,
+} from "@/lib/background-location-task";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -469,6 +473,9 @@ export default function AgentTaskScreen() {
   const saveNotesMutation = trpc.tasks.saveTaskNotes.useMutation();
   const completeTaskMutation = trpc.tasks.completeTask.useMutation();
   const updateLocationMutation = trpc.technicians.updateLocation.useMutation();
+  const createPaymentIntentMutation = trpc.stripe.createPaymentIntent.useMutation();
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   // ── Init phase from task status ──────────────────────────────────────────────
   useEffect(() => {
@@ -520,6 +527,7 @@ export default function AgentTaskScreen() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") return;
     setLocationStatus("tracking");
+    // Start foreground location watch (geofence detection + distance display)
     locationWatchRef.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 5 },
       (loc) => {
@@ -531,12 +539,19 @@ export default function AgentTaskScreen() {
         if (dist <= GEOFENCE_RADIUS_M) triggerAutoArrive(loc.coords.latitude, loc.coords.longitude);
       },
     );
-  }, [task, pushLocationToServer]);
+    // Also start background tracking so GPS continues when app is backgrounded
+    if (!isDemo && task?.technicianId) {
+      const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+      await startBackgroundLocationTracking(task.technicianId, apiBase);
+    }
+  }, [task, pushLocationToServer, isDemo]);
 
   const stopLocationTracking = useCallback(() => {
     locationWatchRef.current?.remove();
     locationWatchRef.current = null;
     setLocationStatus("idle");
+    // Stop background tracking too
+    stopBackgroundLocationTracking().catch(console.warn);
   }, []);
 
   useEffect(() => {
@@ -619,6 +634,86 @@ export default function AgentTaskScreen() {
     }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [taskId, isDemo, notes, photos, signatureUri, totalBill, paymentMethod]);
+
+  const handleChargeCard = useCallback(async () => {
+    const amountFloat = parseFloat(totalBill || "0");
+    if (!amountFloat || amountFloat <= 0) {
+      Alert.alert("Amount Required", "Please enter the total bill amount before charging the card.");
+      return;
+    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setStripeLoading(true);
+    try {
+      const result = await createPaymentIntentMutation.mutateAsync({
+        amountCents: Math.round(amountFloat * 100),
+        currency: "cad",
+        taskId: typeof taskId === "string" ? parseInt(taskId) : (taskId as number),
+        customerName: task?.customerName,
+        customerEmail: task?.customerEmail,
+        description: `Work Order #${taskId} — ${task?.customerName ?? ""}`,
+      });
+      Alert.alert(
+        "Payment Intent Created",
+        `Amount: $${amountFloat.toFixed(2)} CAD\nIntent ID: ${result.paymentIntentId}\n\nUse your Stripe card reader or share the payment link with the customer via the Stripe Dashboard.`,
+        [{ text: "OK", style: "default" }],
+      );
+    } catch (e: any) {
+      if (e?.message?.includes("STRIPE_SECRET_KEY")) {
+        Alert.alert("Stripe Not Configured", "Add STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY in Settings → Secrets to enable card payments.");
+      } else {
+        Alert.alert("Payment Error", e?.message ?? "Could not create payment intent.");
+      }
+    } finally {
+      setStripeLoading(false);
+    }
+  }, [totalBill, taskId, task, createPaymentIntentMutation]);
+
+  const handleDownloadInvoice = useCallback(async () => {
+    if (isDemo) {
+      Alert.alert("Demo Mode", "Invoice PDF download is not available in demo mode.");
+      return;
+    }
+    const numericTaskId = typeof taskId === "string" ? parseInt(taskId) : (taskId as number);
+    if (!numericTaskId || isNaN(numericTaskId)) {
+      Alert.alert("Error", "Invalid task ID.");
+      return;
+    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setInvoiceLoading(true);
+    try {
+      // Fetch PDF from server
+      const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+      const url = `${apiBase}/trpc/export.invoicePdf?input=${encodeURIComponent(JSON.stringify({ json: { taskId: numericTaskId } }))}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const json = await res.json() as any;
+      const pdfBase64: string = json?.result?.data?.json?.pdfBase64 ?? "";
+      const filename: string = json?.result?.data?.json?.filename ?? `invoice-${numericTaskId}.pdf`;
+      if (!pdfBase64) throw new Error("No PDF data returned");
+      if (Platform.OS === "web") {
+        // Web: trigger browser download
+        const link = document.createElement("a");
+        link.href = `data:application/pdf;base64,${pdfBase64}`;
+        link.download = filename;
+        link.click();
+      } else {
+        // Native: save to cache and share
+        const FileSystem = await import("expo-file-system/legacy");
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(fileUri, pdfBase64, { encoding: FileSystem.EncodingType.Base64 });
+        const Sharing = await import("expo-sharing");
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, { mimeType: "application/pdf", dialogTitle: "Save Invoice PDF" });
+        } else {
+          Alert.alert("Sharing Not Available", `PDF saved to: ${fileUri}`);
+        }
+      }
+    } catch (e: any) {
+      Alert.alert("Export Failed", e?.message ?? "Could not generate invoice PDF.");
+    } finally {
+      setInvoiceLoading(false);
+    }
+  }, [taskId, isDemo]);
 
   const callCustomer = () => {
     if (task?.customerPhone) Linking.openURL(`tel:${task.customerPhone}`);
@@ -937,6 +1032,23 @@ export default function AgentTaskScreen() {
                 ))}
               </ScrollView>
             )}
+            {/* Stripe Charge Card button — only when Card is selected */}
+            {!isFinished && paymentMethod === "Card" && (
+              <Pressable
+                style={({ pressed }) => [styles.chargeCardBtn, pressed && { opacity: 0.85 }] as ViewStyle[]}
+                onPress={handleChargeCard}
+                disabled={stripeLoading}
+              >
+                {stripeLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <IconSymbol name="creditcard.fill" size={16} color="#fff" />
+                    <Text style={styles.chargeCardBtnText}>Charge Card via Stripe</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
             {isFinished && totalBill && (
               <Text style={styles.finishedFieldText}>Paid via {paymentMethod}</Text>
             )}
@@ -949,6 +1061,20 @@ export default function AgentTaskScreen() {
             <IconSymbol name="checkmark.circle.fill" size={36} color="#22C55E" />
             <Text style={styles.completedTitle}>Job Completed Successfully</Text>
             <Text style={styles.completedSubtitle}>This work order has been marked as complete.</Text>
+            <TouchableOpacity
+              style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+              onPress={handleDownloadInvoice}
+              disabled={invoiceLoading}
+            >
+              {invoiceLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <IconSymbol name="doc.text.fill" size={15} color="#fff" />
+                  <Text style={styles.invoiceBtnText}>Download Invoice PDF</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         )}
         {phase === "failed" && (
@@ -1263,6 +1389,23 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
   } as ViewStyle,
+  // Stripe charge card button
+  chargeCardBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, marginTop: 10, paddingVertical: 12, paddingHorizontal: 20,
+    backgroundColor: "#635BFF", borderRadius: 10,
+  } as ViewStyle,
+  chargeCardBtnText: {
+    color: "#fff", fontSize: 14, fontWeight: "700",
+  } as TextStyle,
+  invoiceBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, marginTop: 14, paddingVertical: 12, paddingHorizontal: 24,
+    backgroundColor: "#22C55E", borderRadius: 10,
+  } as ViewStyle,
+  invoiceBtnText: {
+    color: "#fff", fontSize: 14, fontWeight: "700",
+  } as TextStyle,
 });
 
 // Swipe bar styles

@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, Pressable, TextInput,
   StyleSheet, ViewStyle, TextStyle, Image,
   Platform, useWindowDimensions, ScrollView, Modal,
+  Alert, ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -291,6 +292,35 @@ export default function CustomersScreen() {
   const [sortKey, setSortKey] = useState<CustomerSortKey>("name_asc");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const { tenantId, isDemo } = useTenant();
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const exportCsvQuery = trpc.export.customersCsv.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: false },
+  );
+
+  const handleExportCsv = useCallback(async () => {
+    if (isDemo) { Alert.alert("Demo Mode", "Export is available with a live account."); return; }
+    setExportLoading(true);
+    try {
+      const result = await exportCsvQuery.refetch();
+      const data = result.data;
+      if (!data) throw new Error("No data returned");
+      if (Platform.OS === "web") {
+        const blob = new Blob([(data as any).csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = (data as any).filename; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        Alert.alert("Export Ready", `CSV export generated. File: ${(data as any).filename}`);
+      }
+    } catch (e: any) {
+      Alert.alert("Export Failed", e?.message ?? "Could not generate export.");
+    } finally {
+      setExportLoading(false);
+    }
+  }, [isDemo, exportCsvQuery]);
 
   // Responsive columns
   const numColumns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
@@ -374,16 +404,29 @@ export default function CustomersScreen() {
             <Text style={styles.headerTitle}>Clients</Text>
           </View>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push("/customer/new" as any);
-          }}
-        >
-          <IconSymbol name="plus" size={16} color="#fff" />
-          <Text style={styles.addBtnText}>Add Client</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {exportLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.exportBtn, pressed && { opacity: 0.75 }] as ViewStyle[]}
+              onPress={handleExportCsv}
+            >
+              <IconSymbol name="square.and.arrow.down" size={13} color="#fff" />
+              <Text style={styles.exportBtnText}>CSV</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/customer/new" as any);
+            }}
+          >
+            <IconSymbol name="plus" size={16} color="#fff" />
+            <Text style={styles.addBtnText}>Add Client</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Stats Strip ── */}
@@ -651,6 +694,7 @@ const styles = StyleSheet.create<{
   gridViewBtn: ViewStyle; gridViewBtnText: TextStyle;
   // Empty
   empty: ViewStyle; emptyText: TextStyle; emptyAction: ViewStyle; emptyActionText: TextStyle;
+  exportBtn: ViewStyle; exportBtnText: TextStyle;
 }>({
   // Header
   header: {
@@ -838,4 +882,10 @@ const styles = StyleSheet.create<{
     backgroundColor: NVC_BLUE, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12,
   },
   emptyActionText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  exportBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#10B981", borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  exportBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 });

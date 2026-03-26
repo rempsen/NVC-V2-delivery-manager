@@ -165,8 +165,8 @@ export default function SettingsScreen() {
         <SectionLabel title="Integrations" />
         <TileGrid>
           <GridTile tileWidth={tileWidth} icon="arrow.triangle.2.circlepath" iconColor="#3B82F6" label="All Integrations" value="2 connected" onPress={() => router.push("/integrations" as any)} />
-          <GridTile tileWidth={tileWidth} icon="location.fill" iconColor={NVC_ORANGE} label="Dispatch API" value="Connected" onPress={() => router.push("/integrations" as any)} />
-          <GridTile tileWidth={tileWidth} icon="message.fill" iconColor="#22C55E" label="SMS (Twilio)" value="Configured" onPress={() => router.push("/integrations" as any)} />
+          <GridTile tileWidth={tileWidth} icon="location.fill" iconColor={NVC_ORANGE} label="Dispatch API" value="Connected" onPress={() => router.push("/settings/nvc360-api" as any)} />
+          <GridTile tileWidth={tileWidth} icon="message.fill" iconColor="#22C55E" label="SMS (Twilio)" value="Configured" onPress={() => router.push("/settings/sms-twilio" as any)} />
           <GridTile tileWidth={tileWidth} icon="envelope.fill" iconColor="#8B5CF6" label="Email (SMTP)" value="nvc360.com" onPress={() => router.push("/settings/email-smtp" as any)} />
           <GridTile tileWidth={tileWidth} icon="map.fill" iconColor="#F59E0B" label="Mapbox API" value="Configured" onPress={() => router.push("/settings/mapbox-api" as any)} />
         </TileGrid>

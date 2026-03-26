@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import { GoogleMapView, type RoutePolyline } from "@/components/google-map-view"
 import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
+import { useLocationHub } from "@/hooks/use-location-hub";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -369,6 +370,18 @@ export default function DispatcherDashboard() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizeError, setOptimizeError] = useState<string | null>(null);
   const [lastOptimized, setLastOptimized] = useState<Date | null>(null);
+  // Real-time WebSocket position overrides (techId → {lat, lng})
+  const [wsPositions, setWsPositions] = useState<Record<number, { lat: number; lng: number }>>({});
+
+  // Subscribe to real-time location updates via WebSocket
+  useLocationHub({
+    tenantId: 1, // TODO: replace with actual tenantId from auth context
+    enabled: Platform.OS === "web",
+    onLocationUpdate: useCallback((techId: number, lat: number, lng: number) => {
+      setWsPositions((prev) => ({ ...prev, [techId]: { lat, lng } }));
+    }, []),
+  });
+
   // Active technicians (online/busy/en_route) with their active task locations
   const activeTechs = useMemo(() =>
     MOCK_TECHNICIANS.filter((t) => t.status === "busy" || (t.status as string) === "en_route" || t.status === "online"),
@@ -376,12 +389,15 @@ export default function DispatcherDashboard() {
 
   const activeTechTasks = useMemo(() => {
     return activeTechs.map((tech) => {
+      // Apply real-time WebSocket position override if available
+      const wsPos = wsPositions[tech.id];
+      const techWithLivePos = wsPos ? { ...tech, latitude: wsPos.lat, longitude: wsPos.lng } : tech;
       const task = MOCK_TASKS.find(
         (t) => t.technicianId === tech.id && (t.status === "en_route" || t.status === "on_site" || t.status === "assigned"),
       );
-      return { tech, task };
+      return { tech: techWithLivePos, task };
     }).filter((x) => x.task !== undefined) as Array<{ tech: Technician; task: Task }>;
-  }, [activeTechs]);
+  }, [activeTechs, wsPositions]);
 
   // tRPC mutations
   const getEtasMutation = trpc.maps.getEtas.useQuery(

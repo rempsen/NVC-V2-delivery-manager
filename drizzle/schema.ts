@@ -117,6 +117,16 @@ export const technicians = mysqlTable("technicians", {
   photoUrl: varchar("photoUrl", { length: 500 }),
   /** Push notification token */
   pushToken: varchar("pushToken", { length: 255 }),
+  /** Geo-clock: shift start */
+  clockInAt: timestamp("clockInAt"),
+  clockInLat: decimal("clockInLat", { precision: 10, scale: 7 }),
+  clockInLng: decimal("clockInLng", { precision: 10, scale: 7 }),
+  /** Geo-clock: shift end */
+  clockOutAt: timestamp("clockOutAt"),
+  clockOutLat: decimal("clockOutLat", { precision: 10, scale: 7 }),
+  clockOutLng: decimal("clockOutLng", { precision: 10, scale: 7 }),
+  /** Total minutes worked today (computed on clock-out) */
+  todayMinutesWorked: int("todayMinutesWorked").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

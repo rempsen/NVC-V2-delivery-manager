@@ -13,6 +13,8 @@ import {
   TextStyle,
   ScrollView,
   useWindowDimensions,
+  Alert,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -149,6 +151,51 @@ export default function TasksScreen() {
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const { tenantId, isDemo } = useTenant();
+  const [exportLoading, setExportLoading] = useState(false);
+
+  // ── Export queries (lazy, triggered on demand) ──────────────────────────────
+  const exportCsvQuery = trpc.export.workOrdersCsv.useQuery(
+    { tenantId: tenantId ?? 0, status: filter === "all" ? undefined : filter },
+    { enabled: false },
+  );
+  const exportPdfQuery = trpc.export.workOrdersPdf.useQuery(
+    { tenantId: tenantId ?? 0, status: filter === "all" ? undefined : filter },
+    { enabled: false },
+  );
+
+  const handleExport = useCallback(async (format: "csv" | "pdf") => {
+    if (isDemo) { Alert.alert("Demo Mode", "Export is available with a live account."); return; }
+    setExportLoading(true);
+    try {
+      const result = format === "csv"
+        ? await exportCsvQuery.refetch()
+        : await exportPdfQuery.refetch();
+      const data = result.data;
+      if (!data) throw new Error("No data returned");
+      if (Platform.OS === "web") {
+        if (format === "csv") {
+          const blob = new Blob([(data as any).csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = (data as any).filename; a.click();
+          URL.revokeObjectURL(url);
+        } else {
+          const byteChars = atob((data as any).pdfBase64);
+          const bytes = new Uint8Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+          const blob = new Blob([bytes], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          window.open(url, "_blank");
+        }
+      } else {
+        Alert.alert("Export Ready", `${format.toUpperCase()} export generated. File: ${(data as any).filename}`);
+      }
+    } catch (e: any) {
+      Alert.alert("Export Failed", e?.message ?? "Could not generate export.");
+    } finally {
+      setExportLoading(false);
+    }
+  }, [isDemo, filter, exportCsvQuery, exportPdfQuery]);
 
   // Responsive columns: 2 on narrow mobile, 3 on wide/tablet, 4 on desktop
   const numColumns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
@@ -236,6 +283,26 @@ export default function TasksScreen() {
         </View>
         <View style={styles.headerRight}>
           <Text style={styles.headerCount}>{allTasks.length} total</Text>
+          {exportLoading ? (
+            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+          ) : (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.exportBtn, pressed && { opacity: 0.75 }] as ViewStyle[]}
+                onPress={() => handleExport("csv")}
+              >
+                <IconSymbol name="square.and.arrow.down" size={13} color="#fff" />
+                <Text style={styles.exportBtnText}>CSV</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.exportBtn, { backgroundColor: "#DC2626" }, pressed && { opacity: 0.75 }] as ViewStyle[]}
+                onPress={() => handleExport("pdf")}
+              >
+                <IconSymbol name="doc.fill" size={13} color="#fff" />
+                <Text style={styles.exportBtnText}>PDF</Text>
+              </Pressable>
+            </>
+          )}
           <Pressable
             style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
             onPress={() => router.push("/create-task")}
@@ -465,4 +532,10 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#374151" },
   emptySubtitle: { fontSize: 13, color: "#9CA3AF" },
+  exportBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#10B981", borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
+  } as ViewStyle,
+  exportBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" } as TextStyle,
 });
