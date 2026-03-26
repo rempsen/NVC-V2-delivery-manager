@@ -648,3 +648,56 @@
 - [x] Disconnect persisted to database
 - [ ] Sync status and last-synced timestamp per integration card
 - [ ] Integration health check (token validity indicator)
+
+## Sprint: 4-Tier Permission System & Multi-Tenant Admin (Mar 26)
+
+### DB Schema
+- [x] Add `role` column to users table: super_admin | nvc_manager | merchant_manager | agent
+- [x] Add `is_nvc_platform` flag to tenants table (marks NVC's own platform tenant)
+- [x] Add `merchant_settings` table (preferences, theme, notifications, SMS, email, templates per merchant)
+- [x] Add `user_merchant_access` join table (NVC staff can access specific merchant tenants)
+- [x] Add `suspended` / `suspendedAt` columns to tenants table
+- [x] Add `passwordHash` column to tenantUsers table
+
+### Backend — Roles & Guards
+- [x] Define UserRole enum: super_admin, nvc_manager, merchant_manager, agent
+- [x] Add `role` to JWT payload and ctx on every authenticated request
+- [x] Create `superAdminProcedure` (super_admin only)
+- [x] Create `nvcAdminProcedure` (super_admin | nvc_manager)
+- [x] Create `merchantManagerProcedure` (merchant_manager | above, scoped to own tenant)
+- [x] Ensure all existing routes enforce minimum agent-level auth
+
+### Backend — NVC Admin Router
+- [x] `admin.listMerchants` — list all tenants with stats (task count, agent count, last active)
+- [x] `admin.getMerchant` — full merchant detail + settings
+- [x] `admin.createMerchant` — create new merchant tenant + owner account (super_admin only)
+- [x] `admin.updateMerchantSettings` — edit preferences, theme, notifications, SMS, email, templates
+- [x] `admin.suspendMerchant` / `admin.reactivateMerchant` (super_admin only)
+- [x] `admin.deleteMerchant` — soft-delete (super_admin only)
+- [x] `admin.impersonateMerchant` — generate scoped JWT for merchant context (NVC staff only)
+- [x] `admin.promoteUser` — change a user's role (super_admin only)
+- [x] `admin.listPlatformUsers` — cross-tenant user list with role badges
+- [x] `admin.getPlatformStats` — total merchants, users, tasks, completion rate
+
+### NVC Super Admin Dashboard (Web)
+- [x] `/admin` route — NVC-only, redirects non-admins to merchant dashboard
+- [x] Overview tab: platform stats cards (merchants, users, tasks, completion rate)
+- [x] Merchants tab: searchable/filterable list with plan/status filters and badges
+- [x] Merchant detail panel: agents, task stats, settings, suspend/activate controls
+- [x] Create Merchant form: company name, slug, industry, plan, owner credentials
+- [x] Impersonate button: opens merchant dashboard in scoped session
+- [x] Users tab: platform-wide user list with role badges
+
+### Merchant Manager UI
+- [x] `/merchant` route — merchant manager/admin only, redirects others
+- [x] Team tab: list own agents/technicians, add new member with role selector
+- [x] Customers tab: list own customers with search, add new customer
+- [x] Settings tab: preferences, auto-allocation, notification templates, integrations shortcuts
+- [x] All data strictly scoped to the authenticated merchant's tenantId
+
+### Role-Aware Mobile Navigation
+- [ ] Agent role: hide Customers tab, hide admin actions, show only assigned tasks
+- [ ] Merchant Manager role: show Agents, Customers, Tasks tabs with full CRUD
+- [ ] NVC Manager role: show all tabs + Super Admin link
+- [ ] Super Admin role: show all tabs + Super Admin link + impersonate banner
+- [ ] Role loaded from JWT on app start, persisted in SecureStore

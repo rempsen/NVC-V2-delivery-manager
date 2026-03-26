@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
+import { adminRouter } from "./adminRouter";
 import crypto from "crypto";
 import * as gemini from "./gemini";
 
@@ -908,10 +909,12 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.recordLocation(input as any)),
 
-    history: protectedProcedure
+     history: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .query(({ input }) => db.getLocationHistoryForTask(input.taskId)),
   }),
-});
 
+  // ── NVC Super Admin (nvc_manager / super_admin roles only) ────────────────
+  admin: adminRouter,
+});
 export type AppRouter = typeof appRouter;

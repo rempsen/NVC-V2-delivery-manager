@@ -19,7 +19,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["super_admin", "nvc_manager", "merchant_manager", "agent", "user", "admin"]).default("agent").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -55,6 +55,8 @@ export const tenants = mysqlTable("tenants", {
   ]).default("other").notNull(),
   plan: mysqlEnum("plan", ["starter", "professional", "enterprise"]).default("starter").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
+  isNvcPlatform: boolean("isNvcPlatform").default(false).notNull(),
+  suspended: boolean("suspended").default(false).notNull(),
   /** White-label branding: { logoUrl, primaryColor, accentColor, companyName, tagline } */
   branding: json("branding"),
   /** SMS sender name shown to customers (e.g., "Acme HVAC") */
@@ -493,3 +495,45 @@ export const technicianSkills = mysqlTable("technicianSkills", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type TechnicianSkill = typeof technicianSkills.$inferSelect;
+
+// ─── Merchant Settings ────────────────────────────────────────────────────────
+/**
+ * Per-merchant configuration: preferences, theme, notifications, SMS, email, templates.
+ * One row per tenant. NVC super admins can edit all rows; merchant managers can edit their own.
+ */
+export const merchantSettings = mysqlTable("merchantSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull().unique(),
+  /** General preferences: { timezone, currency, dateFormat, language } */
+  preferences: json("preferences"),
+  /** Theme overrides: { primaryColor, accentColor, logoUrl } */
+  theme: json("theme"),
+  /** Notification config: { jobAssigned, jobCompleted, jobFailed, dailySummary } */
+  notifications: json("notifications"),
+  /** Auto-allocation rules: { enabled, algorithm, maxDistanceKm } */
+  autoAllocation: boolean("autoAllocation").default(false).notNull(),
+  /** SMS config: { enabled, senderName, templates: { confirmation, enRoute, completed } } */
+  smsConfig: json("smsConfig"),
+  /** Email config: { enabled, fromName, fromEmail, templates: { confirmation, receipt } } */
+  emailConfig: json("emailConfig"),
+  /** Workflow templates config: { pickup_delivery, appointment, field_workforce } */
+  templates: json("templates"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type MerchantSettings = typeof merchantSettings.$inferSelect;
+export type InsertMerchantSettings = typeof merchantSettings.$inferInsert;
+
+// ─── User Merchant Access (NVC staff cross-tenant access) ─────────────────────
+/**
+ * Grants NVC staff (super_admin / nvc_manager) access to a specific merchant tenant.
+ * Used for impersonation and cross-tenant support operations.
+ */
+export const userMerchantAccess = mysqlTable("userMerchantAccess", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  tenantId: int("tenantId").notNull(),
+  grantedBy: int("grantedBy").notNull(),
+  grantedAt: timestamp("grantedAt").defaultNow().notNull(),
+});
+export type UserMerchantAccess = typeof userMerchantAccess.$inferSelect;
+export type InsertUserMerchantAccess = typeof userMerchantAccess.$inferInsert;
