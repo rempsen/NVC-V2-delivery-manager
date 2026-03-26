@@ -355,3 +355,54 @@
 
 ## TypeScript Status
 - [x] 0 TypeScript errors across entire project
+
+## Web Dispatcher Dashboard — Full Rebuild (v4)
+- [x] Persistent left sidebar with 6 sections: Dashboard, Work Orders, Technicians, Customers, Live Map, Reports
+- [x] NVC logo + brand in sidebar header
+- [x] User footer in sidebar (name, role, avatar)
+- [x] Badge on Work Orders nav item showing unassigned count
+- [x] Top bar with section title, date, notifications bell, New Order CTA
+- [x] Dashboard section: 6 KPI stat cards with gradient backgrounds and depth shadows
+- [x] Dashboard section: Two-column layout (map + recent orders left, quick actions + field team right)
+- [x] Dashboard section: Live fleet map panel with tech pins and status colors
+- [x] Dashboard section: Quick Actions 2x2 grid (New Order, Add Customer, Send Alert, Export)
+- [x] Dashboard section: Field Team list with status dots, live job address, status pills
+- [x] Work Orders section: full table with 7 columns, status/priority pills, search, filter tabs
+- [x] Technicians section: full table with 8 columns, status filter tabs, KPI row
+- [x] Technicians section: Add Technician button → full modal with 4 tabs (Personal, Admin/Pay, Skills/Certs, Safety)
+- [x] Technicians section: Edit/Delete technician from table row
+- [x] Customers section: full CRM table with 9 columns, status filter tabs, KPI row
+- [x] Customers section: Add Customer button → full modal with 4 tabs (Company Info, Addresses, Billing/Tags, Notes)
+- [x] Customers section: Edit/Delete customer from table row
+- [x] Customers section: All CRM fields (company, contact, email, phone, industry, status, mailing address, physical address, terms, tags, notes)
+- [x] Live Map section: full-screen fleet map panel
+- [x] Reports section: KPI cards + placeholder with Export Data CTA
+- [x] TypeScript: 0 errors across entire project
+
+## Integrations Rebuild (v4)
+- [x] Calendar: Google Calendar OAuth connect/disconnect
+- [x] Calendar: Microsoft Outlook Calendar OAuth connect/disconnect
+- [x] Storage: Dropbox connect/disconnect (field & dispatch docs)
+- [x] Storage: Google Drive connect/disconnect
+- [x] Storage: OneDrive connect/disconnect
+- [x] Storage: Box connect/disconnect
+- [x] Payments: QuickBooks Online connect/disconnect
+- [x] Payments: Xero connect/disconnect
+- [x] Payments: Export to CSV
+- [x] Payments: Export to XLS
+- [x] Communications: SMS number picker and configuration
+- [x] Communications: WhatsApp Business connect/disconnect
+
+## Customer CRM — Mobile
+- [x] Customers tab added to mobile tab bar
+- [x] Customer list with search, VIP/Active/Prospect/Inactive filter tabs, revenue stats
+- [x] Customer detail/edit screen: all CRM fields, create/edit/delete
+- [x] Customer detail: mailing address, physical address (with same-as toggle), notes, terms, industry, tags
+
+## Technician Profile — Full (Mobile)
+- [x] Technician detail rebuilt as 5-tab screen: Overview, Personal, Admin, Skills, Safety
+- [x] Personal tab: name, DOB, address, emergency contact
+- [x] Admin tab: employee ID, employment type, hourly/overtime rates, SIN, tax exempt, direct deposit banking
+- [x] Skills tab: 18 trade skills, 19 certifications, 16 industries, 9 departments
+- [x] Safety tab: 13 training courses with expiry dates, medical notes
+- [x] Add Technician button in Technicians tab header

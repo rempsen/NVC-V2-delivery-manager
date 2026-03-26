@@ -1,9 +1,10 @@
 /**
- * NVC360 Desktop Dispatcher Dashboard
- * Full-width web-optimized layout: sidebar + map + work orders + team panel
+ * NVC360 Desktop Dispatcher Dashboard — v4
+ * Full-width web-optimized layout: sidebar + 6 sections
+ * Sections: Dashboard, Work Orders, Technicians (full CRUD), Customers (full CRM), Map, Reports
  * Route: /dashboard
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,6 +14,11 @@ import {
   StyleSheet,
   Platform,
   Image,
+  Switch,
+  Modal,
+  Alert,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -31,13 +37,115 @@ import {
 } from "@/lib/nvc-types";
 import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_SORT_ORDER } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
+import { MOCK_CUSTOMERS, type Customer } from "@/app/(tabs)/customers";
 
-// Default demo tenant ID — in production this comes from auth context
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const DEMO_TENANT_ID = 1;
+
+const INDUSTRY_OPTIONS = [
+  "HVAC", "Plumbing", "Electrical", "Construction", "IT Services",
+  "Property Management", "Landscaping", "Cleaning Services", "Logistics",
+  "Retail", "Healthcare", "Security", "Flooring", "Roofing",
+];
+
+const TERMS_OPTIONS = ["COD", "Net 15", "Net 30", "Net 45", "Net 60", "Prepaid"];
+
+const CUSTOMER_STATUS_OPTIONS: { key: Customer["status"]; label: string; color: string }[] = [
+  { key: "active", label: "Active", color: "#16A34A" },
+  { key: "vip", label: "VIP", color: "#7C3AED" },
+  { key: "prospect", label: "Prospect", color: "#2563EB" },
+  { key: "inactive", label: "Inactive", color: "#6B7280" },
+];
+
+const COMMON_TAGS = [
+  "Commercial", "Residential", "Industrial", "Government", "Recurring",
+  "Priority Client", "Net Terms", "Prepaid", "Warranty Active", "High Volume",
+  "Seasonal", "New Client", "Referral",
+];
+
+const SKILL_OPTIONS = [
+  "HVAC", "Plumbing", "Electrical", "Carpentry", "Welding",
+  "Painting", "Flooring", "Roofing", "Landscaping", "IT Support",
+  "Security Systems", "Appliance Repair", "Concrete", "Drywall",
+  "Insulation", "Tile & Stone", "Glass & Glazing", "Elevator",
+];
+
+const CERT_OPTIONS = [
+  "Red Seal", "Journeyman", "HVAC Certification", "Electrical License",
+  "Plumbing License", "First Aid Level 1", "First Aid Level 2",
+  "WHMIS 2018", "Fall Protection", "Confined Space", "Forklift",
+  "Class 1 Driver", "Class 3 Driver", "Security License",
+  "Gas Fitter A", "Gas Fitter B", "Refrigeration License",
+  "Low Voltage License", "Fire Suppression",
+];
+
+const TRANSPORT_OPTIONS = ["car", "van", "truck", "bike", "foot"] as const;
+const EMPLOYMENT_TYPES = ["Full-Time", "Part-Time", "Contract", "Seasonal"];
+const DEPARTMENT_OPTIONS = ["Field Operations", "HVAC", "Plumbing", "Electrical", "IT", "Logistics", "Management", "Admin", "Sales"];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SidebarSection = "dashboard" | "workorders" | "technicians" | "map" | "reports" | "settings";
+type SidebarSection = "dashboard" | "workorders" | "technicians" | "customers" | "map" | "reports";
+
+interface EditableCustomer {
+  company: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  industry: string;
+  status: Customer["status"];
+  mailingAddress: string;
+  mailingCity: string;
+  mailingProvince: string;
+  mailingPostal: string;
+  sameAddress: boolean;
+  physicalAddress: string;
+  physicalCity: string;
+  physicalProvince: string;
+  physicalPostal: string;
+  terms: string;
+  tags: string[];
+  notes: string;
+}
+
+interface EditableTechnician {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  status: string;
+  transportType: string;
+  skills: string[];
+  certifications: string[];
+  employeeId: string;
+  hireDate: string;
+  employmentType: string;
+  department: string;
+  hourlyRate: string;
+  overtimeRate: string;
+  homeAddress: string;
+  city: string;
+  province: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  notes: string;
+}
+
+const BLANK_CUSTOMER: EditableCustomer = {
+  company: "", contactName: "", email: "", phone: "", industry: "",
+  status: "active", mailingAddress: "", mailingCity: "", mailingProvince: "",
+  mailingPostal: "", sameAddress: true, physicalAddress: "", physicalCity: "",
+  physicalProvince: "", physicalPostal: "", terms: "Net 30", tags: [], notes: "",
+};
+
+const BLANK_TECH: EditableTechnician = {
+  firstName: "", lastName: "", phone: "", email: "", status: "offline",
+  transportType: "van", skills: [], certifications: [], employeeId: "",
+  hireDate: "", employmentType: "Full-Time", department: "Field Operations",
+  hourlyRate: "", overtimeRate: "", homeAddress: "", city: "", province: "",
+  emergencyContact: "", emergencyPhone: "", notes: "",
+};
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
@@ -45,27 +153,21 @@ const NAV_ITEMS: { id: SidebarSection; label: string; icon: any; badge?: number 
   { id: "dashboard", label: "Dashboard", icon: "house.fill" },
   { id: "workorders", label: "Work Orders", icon: "paperplane.fill", badge: 2 },
   { id: "technicians", label: "Technicians", icon: "person.2.fill" },
+  { id: "customers", label: "Customers", icon: "building.2.fill" },
   { id: "map", label: "Live Map", icon: "map.fill" },
   { id: "reports", label: "Reports", icon: "chart.bar.fill" },
-  { id: "settings", label: "Settings", icon: "gear" },
 ];
 
-function Sidebar({
-  active,
-  onSelect,
-}: {
-  active: SidebarSection;
-  onSelect: (s: SidebarSection) => void;
-}) {
-  const colors = useColors();
+function Sidebar({ active, onSelect }: { active: SidebarSection; onSelect: (s: SidebarSection) => void }) {
+  const router = useRouter();
   return (
-    <View style={[styles.sidebar, { backgroundColor: NVC_BLUE_DARK, borderRightColor: "rgba(255,255,255,0.1)" }]}>
+    <View style={styles.sidebar}>
       {/* Logo */}
       <View style={styles.sidebarLogo}>
-        <Image source={NVC_LOGO_DARK} style={styles.sidebarLogoImg} resizeMode="contain" />
+        <Image source={NVC_LOGO_DARK as any} style={styles.sidebarLogoImg as any} resizeMode="contain" />
         <View>
           <Text style={styles.sidebarBrand}>NVC360</Text>
-          <Text style={styles.sidebarBrandSub}>Dispatch</Text>
+          <Text style={styles.sidebarBrandSub}>Dispatcher</Text>
         </View>
       </View>
 
@@ -80,11 +182,11 @@ function Sidebar({
                 styles.sidebarItem,
                 isActive && styles.sidebarItemActive,
                 pressed && !isActive && { backgroundColor: "rgba(255,255,255,0.08)" },
-              ]}
+              ] as ViewStyle[]}
               onPress={() => onSelect(item.id)}
             >
               <IconSymbol name={item.icon} size={18} color={isActive ? "#fff" : "rgba(255,255,255,0.6)"} />
-              <Text style={[styles.sidebarItemLabel, isActive && { color: "#fff", fontWeight: "700" }]}>
+              <Text style={[styles.sidebarItemLabel, isActive && { color: "#fff", fontWeight: "700" }] as TextStyle[]}>
                 {item.label}
               </Text>
               {item.badge ? (
@@ -97,77 +199,71 @@ function Sidebar({
         })}
       </View>
 
+      {/* Divider */}
+      <View style={styles.sidebarDivider} />
+
+      {/* Bottom nav */}
+      <View style={styles.sidebarBottomNav}>
+        {[
+          { label: "Integrations", icon: "link", route: "/integrations" },
+          { label: "Settings", icon: "gear", route: "/(tabs)/settings" },
+        ].map((item) => (
+          <Pressable
+            key={item.label}
+            style={({ pressed }) => [styles.sidebarItem, pressed && { backgroundColor: "rgba(255,255,255,0.08)" }] as ViewStyle[]}
+            onPress={() => router.push(item.route as any)}
+          >
+            <IconSymbol name={item.icon as any} size={18} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.sidebarItemLabel}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {/* User footer */}
-      <View style={[styles.sidebarFooter, { borderTopColor: "rgba(255,255,255,0.1)" }]}>
-        <View style={[styles.sidebarAvatar, { backgroundColor: NVC_ORANGE }]}>
+      <View style={styles.sidebarFooter}>
+        <View style={styles.sidebarAvatar}>
           <Text style={styles.sidebarAvatarText}>D</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.sidebarUserName}>Dan Rosenblat</Text>
-          <Text style={styles.sidebarUserRole}>Dispatcher · Admin</Text>
+          <Text style={styles.sidebarUserRole}>Admin · Dispatcher</Text>
         </View>
       </View>
     </View>
   );
 }
 
-// ─── Fleet Map (Simulated) ────────────────────────────────────────────────────
+// ─── Fleet Map ────────────────────────────────────────────────────────────────
 
-function FleetMapPanel({
-  technicians,
-  selectedId,
-  onSelect,
-}: {
+function FleetMapPanel({ technicians, selectedId, onSelect }: {
   technicians: Technician[];
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
-  const colors = useColors();
-
-  // Map grid positions for each technician (normalized 0-100%)
   const positions: Record<number, { x: number; y: number }> = {
-    1: { x: 48, y: 42 },
-    2: { x: 36, y: 58 },
-    3: { x: 62, y: 30 },
-    4: { x: 28, y: 70 },
-    5: { x: 55, y: 68 },
-    6: { x: 44, y: 52 },
-    7: { x: 70, y: 45 },
-    8: { x: 32, y: 38 },
-    9: { x: 22, y: 55 },
-    10: { x: 58, y: 55 },
+    1: { x: 48, y: 42 }, 2: { x: 36, y: 58 }, 3: { x: 62, y: 30 },
+    4: { x: 28, y: 70 }, 5: { x: 55, y: 68 }, 6: { x: 44, y: 52 },
+    7: { x: 70, y: 45 }, 8: { x: 32, y: 38 }, 9: { x: 22, y: 55 }, 10: { x: 58, y: 55 },
   };
-
   const statusDot: Record<string, string> = {
-    online: "#22C55E",
-    busy: "#F59E0B",
-    offline: "#6B7280",
-    on_break: "#3B82F6",
-    en_route: "#8B5CF6",
+    online: "#22C55E", busy: "#F59E0B", offline: "#6B7280", on_break: "#3B82F6", en_route: "#8B5CF6",
   };
 
   return (
-    <View style={[styles.mapPanel, { backgroundColor: "#0d1b2a" }]}>
-      {/* Grid lines */}
+    <View style={styles.mapPanel}>
       {[20, 40, 60, 80].map((pct) => (
         <View key={`h${pct}`} style={[styles.mapGridH, { top: `${pct}%` as any }]} />
       ))}
       {[20, 40, 60, 80].map((pct) => (
         <View key={`v${pct}`} style={[styles.mapGridV, { left: `${pct}%` as any }]} />
       ))}
-
-      {/* Roads */}
       <View style={[styles.mapRoad, { top: "35%", height: 5 }]} />
       <View style={[styles.mapRoad, { top: "60%", height: 3 }]} />
       <View style={[styles.mapRoadV, { left: "40%", width: 5 }]} />
       <View style={[styles.mapRoadV, { left: "65%", width: 3 }]} />
-
-      {/* City label */}
       <View style={styles.mapCityLabel}>
         <Text style={styles.mapCityText}>Winnipeg, MB</Text>
       </View>
-
-      {/* Technician pins */}
       {technicians.map((tech) => {
         const pos = positions[tech.id] ?? { x: 50, y: 50 };
         const color = statusDot[tech.status] ?? "#6B7280";
@@ -176,20 +272,19 @@ function FleetMapPanel({
         return (
           <Pressable
             key={tech.id}
-            style={({ pressed }) => [
-              styles.techPin,
-              {
-                left: `${pos.x}%` as any,
-                top: `${pos.y}%` as any,
-                borderColor: isSelected ? "#fff" : color,
-                backgroundColor: color + "22",
-                transform: [{ scale: pressed ? 0.9 : isSelected ? 1.15 : 1 }],
-              },
-            ]}
+            style={({ pressed }) => [{
+              position: "absolute",
+              left: `${pos.x}%` as any,
+              top: `${pos.y}%` as any,
+              transform: [{ scale: pressed ? 0.9 : isSelected ? 1.15 : 1 }],
+              zIndex: isSelected ? 10 : 1,
+            }] as ViewStyle[]}
             onPress={() => onSelect(tech.id)}
           >
-            <View style={[styles.techPinDot, { backgroundColor: color }]}>
-              <Text style={styles.techPinInitials}>{initials}</Text>
+            <View style={[styles.techPin, { borderColor: isSelected ? "#fff" : color, backgroundColor: color + "22" }]}>
+              <View style={[styles.techPinDot, { backgroundColor: color }]}>
+                <Text style={styles.techPinInitials}>{initials}</Text>
+              </View>
             </View>
             {isSelected && (
               <View style={[styles.techPinLabel, { backgroundColor: NVC_BLUE }]}>
@@ -199,8 +294,6 @@ function FleetMapPanel({
           </Pressable>
         );
       })}
-
-      {/* Map attribution */}
       <View style={styles.mapAttr}>
         <Text style={styles.mapAttrText}>Live GPS · Simulated · Mapbox integration pending</Text>
       </View>
@@ -210,33 +303,22 @@ function FleetMapPanel({
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
-function StatCard({
-  label,
-  value,
-  gradient,
-  icon,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  gradient: [string, string];
-  icon: any;
-  sub?: string;
+function StatCard({ label, value, gradient, icon, sub }: {
+  label: string; value: string | number; gradient: [string, string]; icon: any; sub?: string;
 }) {
   const [hovered, setHovered] = React.useState(false);
   return (
     <Pressable
-      // @ts-ignore — web-only hover events
+      // @ts-ignore
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       style={[styles.statCard, {
         backgroundColor: gradient[0],
         transform: hovered && Platform.OS === "web" ? [{ translateY: -4 }] : [],
-        shadowOpacity: hovered && Platform.OS === "web" ? 0.25 : 0.12,
-        shadowRadius: hovered && Platform.OS === "web" ? 20 : 10,
-      }]}
+        shadowOpacity: hovered ? 0.28 : 0.14,
+        shadowRadius: hovered ? 20 : 10,
+      }] as ViewStyle[]}
     >
-      {/* Subtle gradient overlay using a second View */}
       <View style={[StyleSheet.absoluteFillObject, { backgroundColor: gradient[1], opacity: 0.45, borderRadius: 16 }]} />
       <View style={styles.statIcon}>
         <IconSymbol name={icon} size={18} color="rgba(255,255,255,0.9)" />
@@ -250,51 +332,37 @@ function StatCard({
 
 // ─── Work Order Row ───────────────────────────────────────────────────────────
 
-function WorkOrderRow({
-  task,
-  onPress,
-}: {
-  task: Task;
-  onPress: () => void;
-}) {
+function WorkOrderRow({ task, onPress }: { task: Task; onPress: () => void }) {
   const colors = useColors();
   const statusColor = STATUS_COLORS[task.status];
   const priorityColor = PRIORITY_COLORS[task.priority];
-
   return (
     <Pressable
       style={({ pressed }) => [
         styles.woRow,
         { backgroundColor: pressed ? colors.surface : colors.background, borderBottomColor: colors.border },
-      ]}
+      ] as ViewStyle[]}
       onPress={onPress}
     >
-      {/* Status bar */}
       <View style={[styles.woStatusBar, { backgroundColor: statusColor }]} />
-
-      {/* Main content */}
       <View style={styles.woMain}>
         <View style={styles.woTopRow}>
-          <Text style={[styles.woOrderRef, { color: colors.muted }]}>{task.orderRef ?? `WO-${task.id}`}</Text>
+          <Text style={[styles.woOrderRef, { color: colors.muted }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
           <View style={[styles.woPriorityBadge, { backgroundColor: priorityColor + "20" }]}>
-            <Text style={[styles.woPriorityText, { color: priorityColor }]}>{task.priority.toUpperCase()}</Text>
+            <Text style={[styles.woPriorityText, { color: priorityColor }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
           </View>
           <View style={[styles.woStatusBadge, { backgroundColor: statusColor + "20" }]}>
-            <Text style={[styles.woStatusText, { color: statusColor }]}>{STATUS_LABELS[task.status]}</Text>
+            <Text style={[styles.woStatusText, { color: statusColor }] as TextStyle[]}>{STATUS_LABELS[task.status]}</Text>
           </View>
         </View>
-        <Text style={[styles.woCustomer, { color: colors.foreground }]}>{task.customerName}</Text>
-        <Text style={[styles.woAddress, { color: colors.muted }]} numberOfLines={1}>{task.jobAddress}</Text>
+        <Text style={[styles.woCustomer, { color: colors.foreground }] as TextStyle[]}>{task.customerName}</Text>
+        <Text style={[styles.woAddress, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress}</Text>
         {task.technicianName && (
-          <Text style={[styles.woTech, { color: NVC_BLUE }]}>
-            ↳ {task.technicianName}
-          </Text>
+          <Text style={[styles.woTech, { color: NVC_BLUE }] as TextStyle[]}>↳ {task.technicianName}</Text>
         )}
       </View>
-
-      {/* Time */}
       <View style={styles.woTime}>
-        <Text style={[styles.woTimeText, { color: colors.muted }]}>
+        <Text style={[styles.woTimeText, { color: colors.muted }] as TextStyle[]}>
           {new Date(task.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Text>
         <IconSymbol name="chevron.right" size={14} color={colors.muted} />
@@ -303,57 +371,12 @@ function WorkOrderRow({
   );
 }
 
-// ─── Tech Row ─────────────────────────────────────────────────────────────────
-
-function TechRow({
-  tech,
-  isSelected,
-  onPress,
-}: {
-  tech: Technician;
-  isSelected: boolean;
-  onPress: () => void;
-}) {
-  const colors = useColors();
-  const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
-  const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
-
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.techRow,
-        {
-          backgroundColor: isSelected ? NVC_BLUE + "15" : pressed ? colors.surface : "transparent",
-          borderLeftColor: isSelected ? NVC_BLUE : statusColor,
-          borderBottomColor: colors.border,
-        },
-      ]}
-      onPress={onPress}
-    >
-      <View style={[styles.techAvatar, { backgroundColor: statusColor + "25" }]}>
-        <Text style={[styles.techAvatarText, { color: statusColor }]}>{initials}</Text>
-        <View style={[styles.techStatusDot, { backgroundColor: statusColor }]} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.techName, { color: colors.foreground }]}>{tech.name}</Text>
-        <Text style={[styles.techDetail, { color: colors.muted }]} numberOfLines={1}>
-          {tech.activeTaskAddress ?? "No active job"}
-        </Text>
-      </View>
-      <View style={[styles.techStatusPill, { backgroundColor: statusColor + "20" }]}>
-        <Text style={[styles.techStatusPillText, { color: statusColor }]}>
-          {TECH_STATUS_LABELS[tech.status] ?? tech.status}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
 // ─── Dashboard Section ────────────────────────────────────────────────────────
 
-function DashboardSection({ tasks, technicians, onSelectTech, selectedTechId }: {
+function DashboardSection({ tasks, technicians, customers, onSelectTech, selectedTechId }: {
   tasks: Task[];
   technicians: Technician[];
+  customers: Customer[];
   onSelectTech: (id: number) => void;
   selectedTechId: number | null;
 }) {
@@ -366,17 +389,17 @@ function DashboardSection({ tasks, technicians, onSelectTech, selectedTechId }: 
   const onlineCount = technicians.filter((t) => t.status !== "offline").length;
   const enRoute = technicians.filter((t) => (t.status as any) === "en_route").length;
   const onJob = technicians.filter((t) => t.status === "busy").length;
+  const activeCustomers = customers.filter((c) => c.status === "active" || c.status === "vip").length;
 
   const sortedTechs = [...technicians].sort(
     (a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5),
   );
-
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 6);
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 24 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 20 }} showsVerticalScrollIndicator={false}>
       {/* Stats row */}
       <View style={styles.statsRow}>
         <StatCard label="Active Jobs" value={active} gradient={["#E85D04", "#F97316"]} icon="bolt.fill" sub="↑ 2 from yesterday" />
@@ -384,70 +407,59 @@ function DashboardSection({ tasks, technicians, onSelectTech, selectedTechId }: 
         <StatCard label="Unassigned" value={unassigned} gradient={["#DC2626", "#EF4444"]} icon="exclamationmark.triangle.fill" sub="Needs attention" />
         <StatCard label="Online Techs" value={onlineCount} gradient={["#1E6FBF", "#3B8FDF"]} icon="person.2.fill" sub={`${onJob} on job`} />
         <StatCard label="En Route" value={enRoute} gradient={["#7C3AED", "#9B5CF6"]} icon="car.fill" />
-        <StatCard label="Avg Response" value="14m" gradient={["#0891B2", "#06B6D4"]} icon="clock.fill" sub="Target: 20m" />
+        <StatCard label="Active Clients" value={activeCustomers} gradient={["#0891B2", "#06B6D4"]} icon="building.2.fill" sub={`${customers.length} total`} />
       </View>
 
       {/* Two-column layout */}
       <View style={styles.twoCol}>
         {/* Left: Map + Recent Work Orders */}
         <View style={styles.leftCol}>
-          {/* Map */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Live Fleet Map</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Live Fleet Map</Text>
               <View style={[styles.liveBadge, { backgroundColor: "#22C55E20" }]}>
                 <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
-                <Text style={[styles.liveBadgeText, { color: "#22C55E" }]}>LIVE</Text>
+                <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>LIVE</Text>
               </View>
             </View>
-            <FleetMapPanel
-              technicians={sortedTechs}
-              selectedId={selectedTechId}
-              onSelect={onSelectTech}
-            />
+            <FleetMapPanel technicians={sortedTechs} selectedId={selectedTechId} onSelect={onSelectTech} />
           </View>
 
-          {/* Recent Work Orders */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Recent Work Orders</Text>
-              <Pressable
-                style={({ pressed }) => [styles.seeAllBtn, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Text style={[styles.seeAllText, { color: NVC_BLUE }]}>See All</Text>
+              <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Recent Work Orders</Text>
+              <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}>
+                <Text style={[{ color: NVC_BLUE, fontSize: 13, fontWeight: "600" }] as TextStyle[]}>See All</Text>
               </Pressable>
             </View>
             {recentTasks.map((task) => (
-              <WorkOrderRow
-                key={task.id}
-                task={task}
-                onPress={() => router.push(`/task/${task.id}` as any)}
-              />
+              <WorkOrderRow key={task.id} task={task} onPress={() => router.push(`/task/${task.id}` as any)} />
             ))}
           </View>
         </View>
 
-        {/* Right: Team Panel */}
+        {/* Right: Quick Actions + Field Team */}
         <View style={styles.rightCol}>
           {/* Quick Actions */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.foreground, marginBottom: 12 }]}>Quick Actions</Text>
+            <Text style={[styles.cardTitle, { color: colors.foreground, marginBottom: 12 }] as TextStyle[]}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
               {[
-                { label: "New Order", icon: "plus.circle.fill", color: NVC_ORANGE },
-                { label: "Assign Job", icon: "person.fill", color: NVC_BLUE },
-                { label: "Send Alert", icon: "bell.fill", color: "#F59E0B" },
-                { label: "Export", icon: "arrow.up.doc.fill", color: "#22C55E" },
+                { label: "New Order", icon: "plus.circle.fill", color: NVC_ORANGE, route: "/create-task" },
+                { label: "Add Customer", icon: "person.badge.plus", color: NVC_BLUE, route: null },
+                { label: "Send Alert", icon: "bell.fill", color: "#F59E0B", route: null },
+                { label: "Export", icon: "arrow.up.doc.fill", color: "#22C55E", route: null },
               ].map((action) => (
                 <Pressable
                   key={action.label}
                   style={({ pressed }) => [
                     styles.quickActionBtn,
                     { backgroundColor: action.color + "15", borderColor: action.color + "30", opacity: pressed ? 0.7 : 1 },
-                  ]}
+                  ] as ViewStyle[]}
+                  onPress={() => action.route && router.push(action.route as any)}
                 >
                   <IconSymbol name={action.icon as any} size={20} color={action.color} />
-                  <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>
+                  <Text style={[styles.quickActionLabel, { color: action.color }] as TextStyle[]}>{action.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -456,20 +468,46 @@ function DashboardSection({ tasks, technicians, onSelectTech, selectedTechId }: 
           {/* Field Team */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, flex: 1 }]}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Field Team</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.muted }]}>
+              <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Field Team</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.muted }] as TextStyle[]}>
                 {onlineCount} active · {technicians.length} total
               </Text>
             </View>
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-              {sortedTechs.map((tech) => (
-                <TechRow
-                  key={tech.id}
-                  tech={tech}
-                  isSelected={selectedTechId === tech.id}
-                  onPress={() => onSelectTech(tech.id)}
-                />
-              ))}
+              {sortedTechs.map((tech) => {
+                const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
+                const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                return (
+                  <Pressable
+                    key={tech.id}
+                    style={({ pressed }) => [
+                      styles.techRow,
+                      {
+                        backgroundColor: selectedTechId === tech.id ? NVC_BLUE + "15" : pressed ? colors.surface : "transparent",
+                        borderLeftColor: selectedTechId === tech.id ? NVC_BLUE : statusColor,
+                        borderBottomColor: colors.border,
+                      },
+                    ] as ViewStyle[]}
+                    onPress={() => onSelectTech(tech.id)}
+                  >
+                    <View style={[styles.techAvatar, { backgroundColor: statusColor + "25" }]}>
+                      <Text style={[styles.techAvatarText, { color: statusColor }] as TextStyle[]}>{initials}</Text>
+                      <View style={[styles.techStatusDot, { backgroundColor: statusColor }]} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.techName, { color: colors.foreground }] as TextStyle[]}>{tech.name}</Text>
+                      <Text style={[styles.techDetail, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>
+                        {tech.activeTaskAddress ?? "No active job"}
+                      </Text>
+                    </View>
+                    <View style={[styles.techStatusPill, { backgroundColor: statusColor + "20" }]}>
+                      <Text style={[styles.techStatusPillText, { color: statusColor }] as TextStyle[]}>
+                        {TECH_STATUS_LABELS[tech.status] ?? tech.status}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
@@ -507,27 +545,27 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
 
   return (
     <View style={{ flex: 1, padding: 24 }}>
-      {/* Header */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Work Orders</Text>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Work Orders</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
+            {tasks.length} total · {tasks.filter((t) => t.status === "unassigned").length} unassigned
+          </Text>
+        </View>
         <Pressable
-          style={({ pressed }) => [
-            styles.newOrderBtn,
-            { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 },
-          ]}
+          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
           onPress={() => router.push("/create-task" as any)}
         >
           <IconSymbol name="plus" size={16} color="#fff" />
-          <Text style={styles.newOrderBtnText}>New Order</Text>
+          <Text style={styles.primaryBtnText}>New Order</Text>
         </Pressable>
       </View>
 
-      {/* Search + Filters */}
       <View style={styles.searchRow}>
         <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
           <TextInput
-            style={[styles.searchInput, { color: colors.foreground }]}
+            style={[styles.searchInput, { color: colors.foreground }] as TextStyle[]}
             placeholder="Search orders, customers, addresses..."
             placeholderTextColor={colors.muted}
             value={search}
@@ -543,16 +581,10 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
           return (
             <Pressable
               key={f.key}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: isActive ? NVC_BLUE : colors.surface,
-                  borderColor: isActive ? NVC_BLUE : colors.border,
-                },
-              ]}
+              style={[styles.filterChip, { backgroundColor: isActive ? NVC_BLUE : colors.surface, borderColor: isActive ? NVC_BLUE : colors.border }] as ViewStyle[]}
               onPress={() => setFilter(f.key)}
             >
-              <Text style={[styles.filterChipText, { color: isActive ? "#fff" : colors.muted }]}>
+              <Text style={[styles.filterChipText, { color: isActive ? "#fff" : colors.muted }] as TextStyle[]}>
                 {f.label} {count > 0 ? `(${count})` : ""}
               </Text>
             </Pressable>
@@ -560,19 +592,17 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
         })}
       </ScrollView>
 
-      {/* Table */}
       <View style={[styles.tableCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {/* Table header */}
         <View style={[styles.tableHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE + "10" }]}>
           {["Order Ref", "Customer", "Address", "Technician", "Status", "Priority", "Time"].map((col) => (
-            <Text key={col} style={[styles.tableHeaderCell, { color: NVC_BLUE }]}>{col}</Text>
+            <Text key={col} style={[styles.tableHeaderCell, { color: NVC_BLUE }] as TextStyle[]}>{col}</Text>
           ))}
         </View>
-
-        <ScrollView>
+        <ScrollView showsVerticalScrollIndicator={false}>
           {filtered.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: colors.muted }]}>No work orders match your filter.</Text>
+              <IconSymbol name="magnifyingglass" size={32} color={colors.muted} />
+              <Text style={[styles.emptyText, { color: colors.muted }] as TextStyle[]}>No work orders match your filter.</Text>
             </View>
           ) : (
             filtered.map((task) => {
@@ -584,36 +614,24 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
                   style={({ pressed }) => [
                     styles.tableRow,
                     { borderBottomColor: colors.border, backgroundColor: pressed ? NVC_BLUE + "08" : "transparent" },
-                  ]}
+                  ] as ViewStyle[]}
                   onPress={() => router.push(`/task/${task.id}` as any)}
                 >
-                  <Text style={[styles.tableCell, styles.tableCellRef, { color: NVC_BLUE }]}>
-                    {task.orderRef ?? `WO-${task.id}`}
-                  </Text>
-                  <Text style={[styles.tableCell, { color: colors.foreground }]} numberOfLines={1}>
-                    {task.customerName}
-                  </Text>
-                  <Text style={[styles.tableCell, { color: colors.muted }]} numberOfLines={1}>
-                    {task.jobAddress.split(",")[0]}
-                  </Text>
-                  <Text style={[styles.tableCell, { color: colors.muted }]} numberOfLines={1}>
-                    {task.technicianName ?? "—"}
-                  </Text>
-                  <View style={styles.tableCell}>
+                  <Text style={[styles.tableCell, styles.tableCellRef, { color: NVC_BLUE }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
+                  <Text style={[styles.tableCell, { color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress.split(",")[0]}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.technicianName ?? "—"}</Text>
+                  <View style={styles.tableCell as any}>
                     <View style={[styles.statusPill, { backgroundColor: statusColor + "20" }]}>
-                      <Text style={[styles.statusPillText, { color: statusColor }]}>
-                        {STATUS_LABELS[task.status]}
-                      </Text>
+                      <Text style={[styles.statusPillText, { color: statusColor }] as TextStyle[]}>{STATUS_LABELS[task.status]}</Text>
                     </View>
                   </View>
-                  <View style={styles.tableCell}>
+                  <View style={styles.tableCell as any}>
                     <View style={[styles.statusPill, { backgroundColor: priorityColor + "20" }]}>
-                      <Text style={[styles.statusPillText, { color: priorityColor }]}>
-                        {task.priority.toUpperCase()}
-                      </Text>
+                      <Text style={[styles.statusPillText, { color: priorityColor }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.tableCell, { color: colors.muted }]}>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>
                     {new Date(task.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </Text>
                 </Pressable>
@@ -626,82 +644,998 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
   );
 }
 
+// ─── Customer Add/Edit Modal ──────────────────────────────────────────────────
+
+function CustomerModal({ visible, customer, onClose, onSave, onDelete }: {
+  visible: boolean;
+  customer: Customer | null;
+  onClose: () => void;
+  onSave: (data: EditableCustomer) => void;
+  onDelete?: () => void;
+}) {
+  const colors = useColors();
+  const isNew = !customer;
+  const [form, setForm] = useState<EditableCustomer>(BLANK_CUSTOMER);
+  const [tab, setTab] = useState<"info" | "address" | "billing" | "notes">("info");
+
+  React.useEffect(() => {
+    if (visible) {
+      if (customer) {
+        setForm({
+          company: customer.company,
+          contactName: customer.contactName,
+          email: customer.email,
+          phone: customer.phone,
+          industry: customer.industry,
+          status: customer.status,
+          mailingAddress: customer.mailingAddress ?? "",
+          mailingCity: customer.city ?? "",
+          mailingProvince: customer.province ?? "",
+          mailingPostal: customer.postalCode ?? "",
+          sameAddress: true,
+          physicalAddress: customer.physicalAddress ?? "",
+          physicalCity: "",
+          physicalProvince: "",
+          physicalPostal: "",
+          terms: customer.terms,
+          tags: customer.tags ?? [],
+          notes: customer.notes ?? "",
+        });
+      } else {
+        setForm(BLANK_CUSTOMER);
+      }
+      setTab("info");
+    }
+  }, [visible, customer]);
+
+  const update = (key: keyof EditableCustomer, val: any) => setForm((f) => ({ ...f, [key]: val }));
+  const toggleTag = (tag: string) => {
+    setForm((f) => ({
+      ...f,
+      tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
+    }));
+  };
+
+  const modalTabs = [
+    { id: "info" as const, label: "Company Info" },
+    { id: "address" as const, label: "Addresses" },
+    { id: "billing" as const, label: "Billing & Tags" },
+    { id: "notes" as const, label: "Notes" },
+  ];
+
+  const Field = ({ label, value, onChange, placeholder, multiline }: {
+    label: string; value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean;
+  }) => (
+    <View style={styles.modalField}>
+      <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>{label}</Text>
+      <TextInput
+        style={[styles.modalFieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, height: multiline ? 80 : 40 }] as TextStyle[]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+      />
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {/* Modal header */}
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE }]}>
+            <View>
+              <Text style={styles.modalTitle}>{isNew ? "Add New Customer" : `Edit: ${customer?.company}`}</Text>
+              <Text style={styles.modalSubtitle}>{isNew ? "Create a new CRM record" : "Update customer information"}</Text>
+            </View>
+            <Pressable style={({ pressed }) => [styles.modalCloseBtn, { opacity: pressed ? 0.7 : 1 }] as ViewStyle[]} onPress={onClose}>
+              <IconSymbol name="xmark" size={18} color="#fff" />
+            </Pressable>
+          </View>
+
+          {/* Tabs */}
+          <View style={[styles.modalTabs, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+            {modalTabs.map((t) => (
+              <Pressable
+                key={t.id}
+                style={[styles.modalTab, tab === t.id && { borderBottomColor: NVC_BLUE, borderBottomWidth: 2 }] as ViewStyle[]}
+                onPress={() => setTab(t.id)}
+              >
+                <Text style={[styles.modalTabText, { color: tab === t.id ? NVC_BLUE : colors.muted, fontWeight: tab === t.id ? "700" : "400" }] as TextStyle[]}>{t.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Tab content */}
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {tab === "info" && (
+              <View style={styles.modalSection}>
+                <View style={styles.modalRow2}>
+                  <Field label="Company Name *" value={form.company} onChange={(v) => update("company", v)} placeholder="Acme Corp" />
+                  <Field label="Contact Name" value={form.contactName} onChange={(v) => update("contactName", v)} placeholder="John Smith" />
+                </View>
+                <View style={styles.modalRow2}>
+                  <Field label="Email" value={form.email} onChange={(v) => update("email", v)} placeholder="contact@company.com" />
+                  <Field label="Phone" value={form.phone} onChange={(v) => update("phone", v)} placeholder="+1 (204) 555-0100" />
+                </View>
+                {/* Industry */}
+                <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>Industry</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row", gap: 6, paddingVertical: 4 }}>
+                    {INDUSTRY_OPTIONS.map((ind) => (
+                      <Pressable
+                        key={ind}
+                        style={[styles.chipBtn, { backgroundColor: form.industry === ind ? NVC_BLUE : colors.surface, borderColor: form.industry === ind ? NVC_BLUE : colors.border }] as ViewStyle[]}
+                        onPress={() => update("industry", ind)}
+                      >
+                        <Text style={[styles.chipBtnText, { color: form.industry === ind ? "#fff" : colors.muted }] as TextStyle[]}>{ind}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+                {/* Status */}
+                <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>Status</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                  {CUSTOMER_STATUS_OPTIONS.map((s) => (
+                    <Pressable
+                      key={s.key}
+                      style={[styles.chipBtn, { backgroundColor: form.status === s.key ? s.color : colors.surface, borderColor: form.status === s.key ? s.color : colors.border }] as ViewStyle[]}
+                      onPress={() => update("status", s.key)}
+                    >
+                      <Text style={[styles.chipBtnText, { color: form.status === s.key ? "#fff" : colors.muted }] as TextStyle[]}>{s.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {tab === "address" && (
+              <View style={styles.modalSection}>
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Mailing Address</Text>
+                <Field label="Street Address" value={form.mailingAddress} onChange={(v) => update("mailingAddress", v)} placeholder="123 Main St" />
+                <View style={styles.modalRow3}>
+                  <Field label="City" value={form.mailingCity} onChange={(v) => update("mailingCity", v)} placeholder="Winnipeg" />
+                  <Field label="Province" value={form.mailingProvince} onChange={(v) => update("mailingProvince", v)} placeholder="MB" />
+                  <Field label="Postal Code" value={form.mailingPostal} onChange={(v) => update("mailingPostal", v)} placeholder="R3C 1A1" />
+                </View>
+                <View style={[styles.modalSwitchRow, { borderColor: colors.border }]}>
+                  <Text style={[{ color: colors.foreground, fontSize: 14, fontWeight: "600" }] as TextStyle[]}>Physical address same as mailing</Text>
+                  <Switch value={form.sameAddress} onValueChange={(v) => update("sameAddress", v)} trackColor={{ true: NVC_BLUE }} />
+                </View>
+                {!form.sameAddress && (
+                  <>
+                    <Text style={[styles.modalSectionTitle, { color: colors.foreground, marginTop: 12 }] as TextStyle[]}>Physical Address</Text>
+                    <Field label="Street Address" value={form.physicalAddress} onChange={(v) => update("physicalAddress", v)} placeholder="456 Oak Ave" />
+                    <View style={styles.modalRow3}>
+                      <Field label="City" value={form.physicalCity} onChange={(v) => update("physicalCity", v)} placeholder="Winnipeg" />
+                      <Field label="Province" value={form.physicalProvince} onChange={(v) => update("physicalProvince", v)} placeholder="MB" />
+                      <Field label="Postal Code" value={form.physicalPostal} onChange={(v) => update("physicalPostal", v)} placeholder="R3C 1A1" />
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            {tab === "billing" && (
+              <View style={styles.modalSection}>
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Payment Terms</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                  {TERMS_OPTIONS.map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[styles.chipBtn, { backgroundColor: form.terms === t ? NVC_BLUE : colors.surface, borderColor: form.terms === t ? NVC_BLUE : colors.border }] as ViewStyle[]}
+                      onPress={() => update("terms", t)}
+                    >
+                      <Text style={[styles.chipBtnText, { color: form.terms === t ? "#fff" : colors.muted }] as TextStyle[]}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Tags</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {COMMON_TAGS.map((tag) => {
+                    const selected = form.tags.includes(tag);
+                    return (
+                      <Pressable
+                        key={tag}
+                        style={[styles.chipBtn, { backgroundColor: selected ? NVC_ORANGE + "20" : colors.surface, borderColor: selected ? NVC_ORANGE : colors.border }] as ViewStyle[]}
+                        onPress={() => toggleTag(tag)}
+                      >
+                        <Text style={[styles.chipBtnText, { color: selected ? NVC_ORANGE : colors.muted }] as TextStyle[]}>{tag}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {tab === "notes" && (
+              <View style={styles.modalSection}>
+                <Field label="Internal Notes" value={form.notes} onChange={(v) => update("notes", v)} placeholder="Add any internal notes about this customer..." multiline />
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={[styles.modalFooter, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
+            {!isNew && onDelete && (
+              <Pressable
+                style={({ pressed }) => [styles.dangerBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                onPress={onDelete}
+              >
+                <IconSymbol name="trash.fill" size={14} color="#DC2626" />
+                <Text style={styles.dangerBtnText}>Delete</Text>
+              </Pressable>
+            )}
+            <View style={{ flex: 1 }} />
+            <Pressable style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]} onPress={onClose}>
+              <Text style={[styles.cancelBtnText, { color: colors.muted }] as TextStyle[]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+              onPress={() => onSave(form)}
+            >
+              <IconSymbol name="checkmark" size={14} color="#fff" />
+              <Text style={styles.primaryBtnText}>{isNew ? "Create Customer" : "Save Changes"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Customers Section ────────────────────────────────────────────────────────
+
+function CustomersSection() {
+  const colors = useColors();
+  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Customer["status"] | "all">("all");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  const filtered = useMemo(() => customers.filter((c) => {
+    const matchStatus = statusFilter === "all" || c.status === statusFilter;
+    const q = search.toLowerCase();
+    const matchSearch = !q || c.company.toLowerCase().includes(q) || c.contactName.toLowerCase().includes(q) || c.industry.toLowerCase().includes(q);
+    return matchStatus && matchSearch;
+  }), [customers, search, statusFilter]);
+
+  const handleSave = useCallback((data: EditableCustomer) => {
+    if (editingCustomer) {
+      setCustomers((prev) => prev.map((c) => c.id === editingCustomer.id ? {
+        ...c,
+        company: data.company,
+        contactName: data.contactName,
+        email: data.email,
+        phone: data.phone,
+        industry: data.industry,
+        status: data.status,
+        mailingAddress: data.mailingAddress,
+        city: data.mailingCity,
+        province: data.mailingProvince,
+        postalCode: data.mailingPostal,
+        physicalAddress: data.sameAddress ? data.mailingAddress : data.physicalAddress,
+        terms: data.terms,
+        tags: data.tags,
+        notes: data.notes,
+      } : c));
+    } else {
+      const newCustomer: Customer = {
+        id: Date.now(),
+        company: data.company,
+        contactName: data.contactName,
+        email: data.email,
+        phone: data.phone,
+        industry: data.industry,
+        status: data.status,
+        mailingAddress: data.mailingAddress,
+        city: data.mailingCity,
+        province: data.mailingProvince,
+        postalCode: data.mailingPostal,
+        country: "Canada",
+        physicalAddress: data.sameAddress ? data.mailingAddress : data.physicalAddress,
+        terms: data.terms,
+        tags: data.tags,
+        notes: data.notes,
+        totalJobs: 0,
+        totalRevenue: 0,
+        lastJobDate: "",
+        createdAt: new Date().toISOString(),
+      };
+      setCustomers((prev) => [newCustomer, ...prev]);
+    }
+    setModalVisible(false);
+    setEditingCustomer(null);
+  }, [editingCustomer]);
+
+  const handleDelete = useCallback(() => {
+    if (!editingCustomer) return;
+    Alert.alert("Delete Customer", `Remove ${editingCustomer.company}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: () => {
+          setCustomers((prev) => prev.filter((c) => c.id !== editingCustomer.id));
+          setModalVisible(false);
+          setEditingCustomer(null);
+        },
+      },
+    ]);
+  }, [editingCustomer]);
+
+  const statusTabs: { key: Customer["status"] | "all"; label: string; color: string }[] = [
+    { key: "all", label: "All", color: NVC_BLUE },
+    { key: "vip", label: "VIP", color: "#7C3AED" },
+    { key: "active", label: "Active", color: "#16A34A" },
+    { key: "prospect", label: "Prospect", color: "#2563EB" },
+    { key: "inactive", label: "Inactive", color: "#6B7280" },
+  ];
+
+  const totalRevenue = customers.reduce((sum, c) => sum + (c.totalRevenue || 0), 0);
+
+  return (
+    <View style={{ flex: 1, padding: 24 }}>
+      {/* Header */}
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Customers</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
+            {customers.filter((c) => c.status !== "inactive").length} active · {customers.length} total
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+          onPress={() => { setEditingCustomer(null); setModalVisible(true); }}
+        >
+          <IconSymbol name="plus" size={16} color="#fff" />
+          <Text style={styles.primaryBtnText}>Add Customer</Text>
+        </Pressable>
+      </View>
+
+      {/* KPI row */}
+      <View style={styles.kpiRow}>
+        {[
+          { label: "Total Clients", value: customers.length.toString(), color: NVC_BLUE },
+          { label: "Active / VIP", value: customers.filter((c) => c.status === "active" || c.status === "vip").length.toString(), color: "#16A34A" },
+          { label: "Prospects", value: customers.filter((c) => c.status === "prospect").length.toString(), color: "#2563EB" },
+          { label: "Total Revenue", value: `$${(totalRevenue / 1000).toFixed(0)}k`, color: NVC_ORANGE },
+        ].map((kpi) => (
+          <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.kpiValue, { color: kpi.color }] as TextStyle[]}>{kpi.value}</Text>
+            <Text style={[styles.kpiLabel, { color: colors.muted }] as TextStyle[]}>{kpi.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Search + filter */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.foreground }] as TextStyle[]}
+            placeholder="Search company, contact, industry..."
+            placeholderTextColor={colors.muted}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+        {statusTabs.map((t) => {
+          const isActive = statusFilter === t.key;
+          const count = t.key === "all" ? customers.length : customers.filter((c) => c.status === t.key).length;
+          return (
+            <Pressable
+              key={t.key}
+              style={[styles.filterChip, { backgroundColor: isActive ? t.color : colors.surface, borderColor: isActive ? t.color : colors.border }] as ViewStyle[]}
+              onPress={() => setStatusFilter(t.key)}
+            >
+              <Text style={[styles.filterChipText, { color: isActive ? "#fff" : colors.muted }] as TextStyle[]}>{t.label} ({count})</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Table */}
+      <View style={[styles.tableCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.tableHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE + "10" }]}>
+          {["Company", "Contact", "Industry", "City", "Terms", "Status", "Jobs", "Revenue", "Actions"].map((col) => (
+            <Text key={col} style={[styles.tableHeaderCell, { color: NVC_BLUE }] as TextStyle[]}>{col}</Text>
+          ))}
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {filtered.length === 0 ? (
+            <View style={styles.emptyState}>
+              <IconSymbol name="person.2.fill" size={32} color={colors.muted} />
+              <Text style={[styles.emptyText, { color: colors.muted }] as TextStyle[]}>No customers match your search.</Text>
+              <Pressable
+                style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, marginTop: 12, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                onPress={() => { setEditingCustomer(null); setModalVisible(true); }}
+              >
+                <IconSymbol name="plus" size={14} color="#fff" />
+                <Text style={styles.primaryBtnText}>Add First Customer</Text>
+              </Pressable>
+            </View>
+          ) : (
+            filtered.map((customer) => {
+              const statusInfo = CUSTOMER_STATUS_OPTIONS.find((s) => s.key === customer.status);
+              return (
+                <Pressable
+                  key={customer.id}
+                  style={({ pressed }) => [
+                    styles.tableRow,
+                    { borderBottomColor: colors.border, backgroundColor: pressed ? NVC_BLUE + "08" : "transparent" },
+                  ] as ViewStyle[]}
+                  onPress={() => { setEditingCustomer(customer); setModalVisible(true); }}
+                >
+                  <View style={[styles.tableCell, { flexDirection: "row", alignItems: "center", gap: 8 }] as any}>
+                    <View style={[styles.customerAvatar, { backgroundColor: NVC_BLUE + "20" }]}>
+                      <Text style={[styles.customerAvatarText, { color: NVC_BLUE }] as TextStyle[]}>
+                        {customer.company.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={[{ color: colors.foreground, fontSize: 13, fontWeight: "600" }] as TextStyle[]} numberOfLines={1}>
+                      {customer.company}
+                    </Text>
+                  </View>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{customer.contactName}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{customer.industry}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{customer.city ?? "—"}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>{customer.terms}</Text>
+                  <View style={styles.tableCell as any}>
+                    <View style={[styles.statusPill, { backgroundColor: (statusInfo?.color ?? "#6B7280") + "20" }]}>
+                      <Text style={[styles.statusPillText, { color: statusInfo?.color ?? "#6B7280" }] as TextStyle[]}>
+                        {statusInfo?.label ?? customer.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.tableCell, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]}>{customer.totalJobs ?? 0}</Text>
+                  <Text style={[styles.tableCell, { color: "#16A34A", fontWeight: "600" }] as TextStyle[]}>
+                    ${((customer.totalRevenue ?? 0) / 1000).toFixed(1)}k
+                  </Text>
+                  <View style={[styles.tableCell, { flexDirection: "row", gap: 6 }] as any}>
+                    <Pressable
+                      style={({ pressed }) => [styles.actionIconBtn, { backgroundColor: NVC_BLUE + "15", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                      onPress={() => { setEditingCustomer(customer); setModalVisible(true); }}
+                    >
+                      <IconSymbol name="pencil" size={13} color={NVC_BLUE} />
+                    </Pressable>
+                  </View>
+                </Pressable>
+              );
+            })
+          )}
+        </ScrollView>
+      </View>
+
+      <CustomerModal
+        visible={modalVisible}
+        customer={editingCustomer}
+        onClose={() => { setModalVisible(false); setEditingCustomer(null); }}
+        onSave={handleSave}
+        onDelete={editingCustomer ? handleDelete : undefined}
+      />
+    </View>
+  );
+}
+
+// ─── Technician Add/Edit Modal ────────────────────────────────────────────────
+
+function TechnicianModal({ visible, technician, onClose, onSave, onDelete }: {
+  visible: boolean;
+  technician: Technician | null;
+  onClose: () => void;
+  onSave: (data: EditableTechnician) => void;
+  onDelete?: () => void;
+}) {
+  const colors = useColors();
+  const isNew = !technician;
+  const [form, setForm] = useState<EditableTechnician>(BLANK_TECH);
+  const [tab, setTab] = useState<"personal" | "admin" | "skills" | "safety">("personal");
+
+  React.useEffect(() => {
+    if (visible) {
+      if (technician) {
+        const nameParts = technician.name.split(" ");
+        setForm({
+          firstName: nameParts[0] ?? "",
+          lastName: nameParts.slice(1).join(" ") ?? "",
+          phone: technician.phone,
+          email: technician.email,
+          status: technician.status,
+          transportType: technician.transportType,
+          skills: technician.skills ?? [],
+          certifications: [],
+          employeeId: `EMP-${technician.id}`,
+          hireDate: "",
+          employmentType: "Full-Time",
+          department: "Field Operations",
+          hourlyRate: "",
+          overtimeRate: "",
+          homeAddress: "",
+          city: "",
+          province: "",
+          emergencyContact: "",
+          emergencyPhone: "",
+          notes: "",
+        });
+      } else {
+        setForm(BLANK_TECH);
+      }
+      setTab("personal");
+    }
+  }, [visible, technician]);
+
+  const update = (key: keyof EditableTechnician, val: any) => setForm((f) => ({ ...f, [key]: val }));
+  const toggleSkill = (skill: string) => setForm((f) => ({
+    ...f, skills: f.skills.includes(skill) ? f.skills.filter((s) => s !== skill) : [...f.skills, skill],
+  }));
+  const toggleCert = (cert: string) => setForm((f) => ({
+    ...f, certifications: f.certifications.includes(cert) ? f.certifications.filter((c) => c !== cert) : [...f.certifications, cert],
+  }));
+
+  const modalTabs = [
+    { id: "personal" as const, label: "Personal" },
+    { id: "admin" as const, label: "Admin & Pay" },
+    { id: "skills" as const, label: "Skills & Certs" },
+    { id: "safety" as const, label: "Safety" },
+  ];
+
+  const Field = ({ label, value, onChange, placeholder, multiline }: {
+    label: string; value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean;
+  }) => (
+    <View style={styles.modalField}>
+      <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>{label}</Text>
+      <TextInput
+        style={[styles.modalFieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, height: multiline ? 80 : 40 }] as TextStyle[]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+      />
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          {/* Header */}
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE }]}>
+            <View>
+              <Text style={styles.modalTitle}>{isNew ? "Add New Technician" : `Edit: ${technician?.name}`}</Text>
+              <Text style={styles.modalSubtitle}>{isNew ? "Create a new field technician profile" : "Update technician information"}</Text>
+            </View>
+            <Pressable style={({ pressed }) => [styles.modalCloseBtn, { opacity: pressed ? 0.7 : 1 }] as ViewStyle[]} onPress={onClose}>
+              <IconSymbol name="xmark" size={18} color="#fff" />
+            </Pressable>
+          </View>
+
+          {/* Tabs */}
+          <View style={[styles.modalTabs, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+            {modalTabs.map((t) => (
+              <Pressable
+                key={t.id}
+                style={[styles.modalTab, tab === t.id && { borderBottomColor: NVC_BLUE, borderBottomWidth: 2 }] as ViewStyle[]}
+                onPress={() => setTab(t.id)}
+              >
+                <Text style={[styles.modalTabText, { color: tab === t.id ? NVC_BLUE : colors.muted, fontWeight: tab === t.id ? "700" : "400" }] as TextStyle[]}>{t.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {tab === "personal" && (
+              <View style={styles.modalSection}>
+                <View style={styles.modalRow2}>
+                  <Field label="First Name *" value={form.firstName} onChange={(v) => update("firstName", v)} placeholder="Marcus" />
+                  <Field label="Last Name *" value={form.lastName} onChange={(v) => update("lastName", v)} placeholder="Johnson" />
+                </View>
+                <View style={styles.modalRow2}>
+                  <Field label="Phone" value={form.phone} onChange={(v) => update("phone", v)} placeholder="+1 (204) 555-0100" />
+                  <Field label="Email" value={form.email} onChange={(v) => update("email", v)} placeholder="tech@company.com" />
+                </View>
+                <Field label="Home Address" value={form.homeAddress} onChange={(v) => update("homeAddress", v)} placeholder="123 Elm St" />
+                <View style={styles.modalRow2}>
+                  <Field label="City" value={form.city} onChange={(v) => update("city", v)} placeholder="Winnipeg" />
+                  <Field label="Province" value={form.province} onChange={(v) => update("province", v)} placeholder="MB" />
+                </View>
+                <View style={styles.modalRow2}>
+                  <Field label="Emergency Contact" value={form.emergencyContact} onChange={(v) => update("emergencyContact", v)} placeholder="Jane Johnson" />
+                  <Field label="Emergency Phone" value={form.emergencyPhone} onChange={(v) => update("emergencyPhone", v)} placeholder="+1 (204) 555-0200" />
+                </View>
+                {/* Status */}
+                <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>Status</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                  {Object.entries(TECH_STATUS_COLORS).map(([key, color]) => (
+                    <Pressable
+                      key={key}
+                      style={[styles.chipBtn, { backgroundColor: form.status === key ? color : colors.surface, borderColor: form.status === key ? color : colors.border }] as ViewStyle[]}
+                      onPress={() => update("status", key)}
+                    >
+                      <Text style={[styles.chipBtnText, { color: form.status === key ? "#fff" : colors.muted }] as TextStyle[]}>
+                        {TECH_STATUS_LABELS[key] ?? key}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {/* Transport */}
+                <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>Transport Type</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                  {TRANSPORT_OPTIONS.map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[styles.chipBtn, { backgroundColor: form.transportType === t ? NVC_BLUE : colors.surface, borderColor: form.transportType === t ? NVC_BLUE : colors.border }] as ViewStyle[]}
+                      onPress={() => update("transportType", t)}
+                    >
+                      <Text style={[styles.chipBtnText, { color: form.transportType === t ? "#fff" : colors.muted }] as TextStyle[]}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {tab === "admin" && (
+              <View style={styles.modalSection}>
+                <View style={styles.modalRow2}>
+                  <Field label="Employee ID" value={form.employeeId} onChange={(v) => update("employeeId", v)} placeholder="EMP-001" />
+                  <Field label="Hire Date" value={form.hireDate} onChange={(v) => update("hireDate", v)} placeholder="2024-01-15" />
+                </View>
+                {/* Employment type */}
+                <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>Employment Type</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                  {EMPLOYMENT_TYPES.map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[styles.chipBtn, { backgroundColor: form.employmentType === t ? NVC_BLUE : colors.surface, borderColor: form.employmentType === t ? NVC_BLUE : colors.border }] as ViewStyle[]}
+                      onPress={() => update("employmentType", t)}
+                    >
+                      <Text style={[styles.chipBtnText, { color: form.employmentType === t ? "#fff" : colors.muted }] as TextStyle[]}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {/* Department */}
+                <Text style={[styles.modalFieldLabel, { color: colors.muted }] as TextStyle[]}>Department</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: "row", gap: 6, paddingVertical: 4 }}>
+                    {DEPARTMENT_OPTIONS.map((d) => (
+                      <Pressable
+                        key={d}
+                        style={[styles.chipBtn, { backgroundColor: form.department === d ? NVC_BLUE : colors.surface, borderColor: form.department === d ? NVC_BLUE : colors.border }] as ViewStyle[]}
+                        onPress={() => update("department", d)}
+                      >
+                        <Text style={[styles.chipBtnText, { color: form.department === d ? "#fff" : colors.muted }] as TextStyle[]}>{d}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+                <View style={styles.modalRow2}>
+                  <Field label="Hourly Rate ($/hr)" value={form.hourlyRate} onChange={(v) => update("hourlyRate", v)} placeholder="35.00" />
+                  <Field label="Overtime Rate ($/hr)" value={form.overtimeRate} onChange={(v) => update("overtimeRate", v)} placeholder="52.50" />
+                </View>
+                <View style={[styles.modalSectionDivider, { backgroundColor: colors.border }]} />
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Notes</Text>
+                <Field label="Admin Notes" value={form.notes} onChange={(v) => update("notes", v)} placeholder="Internal notes..." multiline />
+              </View>
+            )}
+
+            {tab === "skills" && (
+              <View style={styles.modalSection}>
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Trade Skills ({form.skills.length} selected)</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                  {SKILL_OPTIONS.map((skill) => {
+                    const selected = form.skills.includes(skill);
+                    return (
+                      <Pressable
+                        key={skill}
+                        style={[styles.chipBtn, { backgroundColor: selected ? NVC_BLUE + "20" : colors.surface, borderColor: selected ? NVC_BLUE : colors.border }] as ViewStyle[]}
+                        onPress={() => toggleSkill(skill)}
+                      >
+                        {selected && <IconSymbol name="checkmark" size={10} color={NVC_BLUE} />}
+                        <Text style={[styles.chipBtnText, { color: selected ? NVC_BLUE : colors.muted }] as TextStyle[]}>{skill}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Certifications ({form.certifications.length} selected)</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {CERT_OPTIONS.map((cert) => {
+                    const selected = form.certifications.includes(cert);
+                    return (
+                      <Pressable
+                        key={cert}
+                        style={[styles.chipBtn, { backgroundColor: selected ? NVC_ORANGE + "20" : colors.surface, borderColor: selected ? NVC_ORANGE : colors.border }] as ViewStyle[]}
+                        onPress={() => toggleCert(cert)}
+                      >
+                        {selected && <IconSymbol name="checkmark" size={10} color={NVC_ORANGE} />}
+                        <Text style={[styles.chipBtnText, { color: selected ? NVC_ORANGE : colors.muted }] as TextStyle[]}>{cert}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {tab === "safety" && (
+              <View style={styles.modalSection}>
+                <Text style={[styles.modalSectionTitle, { color: colors.foreground }] as TextStyle[]}>Safety Training</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                  {["WHMIS 2018", "Fall Protection", "Confined Space Entry", "Forklift Operator", "First Aid Level 1",
+                    "First Aid Level 2", "CPR Certified", "Fire Safety", "Ladder Safety", "Electrical Safety",
+                    "Chemical Handling", "Workplace Violence", "Ergonomics"].map((course) => {
+                    const selected = form.certifications.includes(course);
+                    return (
+                      <Pressable
+                        key={course}
+                        style={[styles.chipBtn, { backgroundColor: selected ? "#16A34A20" : colors.surface, borderColor: selected ? "#16A34A" : colors.border }] as ViewStyle[]}
+                        onPress={() => toggleCert(course)}
+                      >
+                        {selected && <IconSymbol name="checkmark" size={10} color="#16A34A" />}
+                        <Text style={[styles.chipBtnText, { color: selected ? "#16A34A" : colors.muted }] as TextStyle[]}>{course}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={styles.modalRow2}>
+                  <Field label="First Aid Expiry" value={""} onChange={() => {}} placeholder="2026-06-01" />
+                  <Field label="WHMIS Expiry" value={""} onChange={() => {}} placeholder="2026-12-01" />
+                </View>
+                <Field label="Medical / Accommodation Notes" value={form.notes} onChange={(v) => update("notes", v)} placeholder="Any relevant medical notes..." multiline />
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={[styles.modalFooter, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
+            {!isNew && onDelete && (
+              <Pressable style={({ pressed }) => [styles.dangerBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]} onPress={onDelete}>
+                <IconSymbol name="trash.fill" size={14} color="#DC2626" />
+                <Text style={styles.dangerBtnText}>Delete</Text>
+              </Pressable>
+            )}
+            <View style={{ flex: 1 }} />
+            <Pressable style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]} onPress={onClose}>
+              <Text style={[styles.cancelBtnText, { color: colors.muted }] as TextStyle[]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+              onPress={() => onSave(form)}
+            >
+              <IconSymbol name="checkmark" size={14} color="#fff" />
+              <Text style={styles.primaryBtnText}>{isNew ? "Create Technician" : "Save Changes"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Technicians Section ──────────────────────────────────────────────────────
 
-function TechniciansSection({ technicians }: { technicians: Technician[] }) {
+function TechniciansSection({ technicians: initialTechs }: { technicians: Technician[] }) {
   const colors = useColors();
   const router = useRouter();
-  const sorted = [...technicians].sort(
-    (a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5),
-  );
+  const [technicians, setTechnicians] = useState<Technician[]>(initialTechs);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingTech, setEditingTech] = useState<Technician | null>(null);
+
+  const filtered = useMemo(() => {
+    const sorted = [...technicians].sort((a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5));
+    return sorted.filter((t) => {
+      const matchStatus = statusFilter === "all" || t.status === statusFilter;
+      const q = search.toLowerCase();
+      const matchSearch = !q || t.name.toLowerCase().includes(q) || t.skills.some((s) => s.toLowerCase().includes(q));
+      return matchStatus && matchSearch;
+    });
+  }, [technicians, search, statusFilter]);
+
+  const handleSave = useCallback((data: EditableTechnician) => {
+    const fullName = `${data.firstName} ${data.lastName}`.trim();
+    if (editingTech) {
+      setTechnicians((prev) => prev.map((t) => t.id === editingTech.id ? {
+        ...t,
+        name: fullName,
+        phone: data.phone,
+        email: data.email,
+        status: data.status as any,
+        transportType: data.transportType as any,
+        skills: data.skills,
+      } : t));
+    } else {
+      const newTech: Technician = {
+        id: Date.now(),
+        name: fullName,
+        phone: data.phone,
+        email: data.email,
+        status: data.status as any,
+        latitude: 49.8951,
+        longitude: -97.1384,
+        transportType: data.transportType as any,
+        skills: data.skills,
+        todayJobs: 0,
+        todayDistanceKm: 0,
+      };
+      setTechnicians((prev) => [newTech, ...prev]);
+    }
+    setModalVisible(false);
+    setEditingTech(null);
+  }, [editingTech]);
+
+  const handleDelete = useCallback(() => {
+    if (!editingTech) return;
+    Alert.alert("Delete Technician", `Remove ${editingTech.name}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: () => {
+          setTechnicians((prev) => prev.filter((t) => t.id !== editingTech.id));
+          setModalVisible(false);
+          setEditingTech(null);
+        },
+      },
+    ]);
+  }, [editingTech]);
+
+  const statusTabs = [
+    { key: "all", label: "All", color: NVC_BLUE },
+    { key: "busy", label: "On Job", color: "#F59E0B" },
+    { key: "en_route", label: "En Route", color: "#8B5CF6" },
+    { key: "online", label: "Available", color: "#22C55E" },
+    { key: "on_break", label: "On Break", color: "#3B82F6" },
+    { key: "offline", label: "Offline", color: "#6B7280" },
+  ];
+
+  const onlineCount = technicians.filter((t) => t.status !== "offline").length;
 
   return (
     <View style={{ flex: 1, padding: 24 }}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Field Team</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
-          {technicians.filter((t) => t.status !== "offline").length} active · {technicians.length} total
-        </Text>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Field Team</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
+            {onlineCount} active · {technicians.length} total
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+          onPress={() => { setEditingTech(null); setModalVisible(true); }}
+        >
+          <IconSymbol name="plus" size={16} color="#fff" />
+          <Text style={styles.primaryBtnText}>Add Technician</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.techGrid}>
-        {sorted.map((tech) => {
-          const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
-          const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+      {/* KPI row */}
+      <View style={styles.kpiRow}>
+        {[
+          { label: "Total Team", value: technicians.length.toString(), color: NVC_BLUE },
+          { label: "On Job", value: technicians.filter((t) => t.status === "busy").length.toString(), color: "#F59E0B" },
+          { label: "En Route", value: technicians.filter((t) => (t.status as any) === "en_route").length.toString(), color: "#8B5CF6" },
+          { label: "Available", value: technicians.filter((t) => t.status === "online").length.toString(), color: "#22C55E" },
+        ].map((kpi) => (
+          <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.kpiValue, { color: kpi.color }] as TextStyle[]}>{kpi.value}</Text>
+            <Text style={[styles.kpiLabel, { color: colors.muted }] as TextStyle[]}>{kpi.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Search + filter */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.foreground }] as TextStyle[]}
+            placeholder="Search by name or skill..."
+            placeholderTextColor={colors.muted}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+        {statusTabs.map((t) => {
+          const isActive = statusFilter === t.key;
+          const count = t.key === "all" ? technicians.length : technicians.filter((tech) => tech.status === t.key).length;
           return (
             <Pressable
-              key={tech.id}
-              style={({ pressed }) => [
-                styles.techCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  borderLeftColor: statusColor,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-              onPress={() => router.push(`/agent/${tech.id}` as any)}
+              key={t.key}
+              style={[styles.filterChip, { backgroundColor: isActive ? t.color : colors.surface, borderColor: isActive ? t.color : colors.border }] as ViewStyle[]}
+              onPress={() => setStatusFilter(t.key)}
             >
-              <View style={styles.techCardTop}>
-                <View style={[styles.techCardAvatar, { backgroundColor: statusColor + "20" }]}>
-                  <Text style={[styles.techCardInitials, { color: statusColor }]}>{initials}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.techCardName, { color: colors.foreground }]}>{tech.name}</Text>
-                  <Text style={[styles.techCardSkills, { color: colors.muted }]} numberOfLines={1}>
-                    {tech.skills.join(" · ")}
-                  </Text>
-                </View>
-                <View style={[styles.techCardStatus, { backgroundColor: statusColor + "20" }]}>
-                  <Text style={[styles.techCardStatusText, { color: statusColor }]}>
-                    {TECH_STATUS_LABELS[tech.status] ?? tech.status}
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.techCardDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.techCardStats}>
-                <View style={styles.techCardStat}>
-                  <Text style={[styles.techCardStatValue, { color: colors.foreground }]}>{tech.todayJobs}</Text>
-                  <Text style={[styles.techCardStatLabel, { color: colors.muted }]}>Jobs</Text>
-                </View>
-                <View style={styles.techCardStat}>
-                  <Text style={[styles.techCardStatValue, { color: colors.foreground }]}>{tech.todayDistanceKm}km</Text>
-                  <Text style={[styles.techCardStatLabel, { color: colors.muted }]}>Distance</Text>
-                </View>
-                <View style={styles.techCardStat}>
-                  <Text style={[styles.techCardStatValue, { color: colors.foreground }]}>{tech.transportType}</Text>
-                  <Text style={[styles.techCardStatLabel, { color: colors.muted }]}>Vehicle</Text>
-                </View>
-              </View>
-              {tech.activeTaskAddress && (
-                <Text style={[styles.techCardAddress, { color: NVC_BLUE }]} numberOfLines={1}>
-                  ↳ {tech.activeTaskAddress}
-                </Text>
-              )}
+              <Text style={[styles.filterChipText, { color: isActive ? "#fff" : colors.muted }] as TextStyle[]}>{t.label} ({count})</Text>
             </Pressable>
           );
         })}
+      </ScrollView>
+
+      {/* Table */}
+      <View style={[styles.tableCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.tableHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE + "10" }]}>
+          {["Technician", "Phone", "Skills", "Transport", "Jobs Today", "Distance", "Status", "Actions"].map((col) => (
+            <Text key={col} style={[styles.tableHeaderCell, { color: NVC_BLUE }] as TextStyle[]}>{col}</Text>
+          ))}
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {filtered.length === 0 ? (
+            <View style={styles.emptyState}>
+              <IconSymbol name="person.2.fill" size={32} color={colors.muted} />
+              <Text style={[styles.emptyText, { color: colors.muted }] as TextStyle[]}>No technicians match your search.</Text>
+            </View>
+          ) : (
+            filtered.map((tech) => {
+              const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
+              const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+              return (
+                <Pressable
+                  key={tech.id}
+                  style={({ pressed }) => [
+                    styles.tableRow,
+                    { borderBottomColor: colors.border, backgroundColor: pressed ? NVC_BLUE + "08" : "transparent", borderLeftWidth: 3, borderLeftColor: statusColor },
+                  ] as ViewStyle[]}
+                  onPress={() => router.push(`/agent/${tech.id}` as any)}
+                >
+                  <View style={[styles.tableCell, { flexDirection: "row", alignItems: "center", gap: 8 }] as any}>
+                    <View style={[styles.techTableAvatar, { backgroundColor: statusColor + "25" }]}>
+                      <Text style={[styles.techTableAvatarText, { color: statusColor }] as TextStyle[]}>{initials}</Text>
+                    </View>
+                    <View>
+                      <Text style={[{ color: colors.foreground, fontSize: 13, fontWeight: "600" }] as TextStyle[]}>{tech.name}</Text>
+                      <Text style={[{ color: colors.muted, fontSize: 11 }] as TextStyle[]} numberOfLines={1}>{tech.email}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>{tech.phone}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>
+                    {tech.skills.slice(0, 2).join(", ")}{tech.skills.length > 2 ? ` +${tech.skills.length - 2}` : ""}
+                  </Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>{tech.transportType}</Text>
+                  <Text style={[styles.tableCell, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]}>{tech.todayJobs}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>{tech.todayDistanceKm} km</Text>
+                  <View style={styles.tableCell as any}>
+                    <View style={[styles.statusPill, { backgroundColor: statusColor + "20" }]}>
+                      <Text style={[styles.statusPillText, { color: statusColor }] as TextStyle[]}>
+                        {TECH_STATUS_LABELS[tech.status] ?? tech.status}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.tableCell, { flexDirection: "row", gap: 6 }] as any}>
+                    <Pressable
+                      style={({ pressed }) => [styles.actionIconBtn, { backgroundColor: NVC_BLUE + "15", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                      onPress={(e) => { e.stopPropagation?.(); setEditingTech(tech); setModalVisible(true); }}
+                    >
+                      <IconSymbol name="pencil" size={13} color={NVC_BLUE} />
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.actionIconBtn, { backgroundColor: "#16A34A15", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                      onPress={(e) => { e.stopPropagation?.(); router.push(`/agent/${tech.id}` as any); }}
+                    >
+                      <IconSymbol name="eye.fill" size={13} color="#16A34A" />
+                    </Pressable>
+                  </View>
+                </Pressable>
+              );
+            })
+          )}
+        </ScrollView>
       </View>
+
+      <TechnicianModal
+        visible={modalVisible}
+        technician={editingTech}
+        onClose={() => { setModalVisible(false); setEditingTech(null); }}
+        onSave={handleSave}
+        onDelete={editingTech ? handleDelete : undefined}
+      />
     </View>
   );
 }
@@ -714,7 +1648,6 @@ export default function DesktopDashboard() {
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
 
-  // ── Live tRPC data with 30s auto-refresh ──────────────────────────────────────
   const tasksQuery = trpc.tasks.list.useQuery(
     { tenantId: DEMO_TENANT_ID },
     { refetchInterval: 30_000, staleTime: 15_000 },
@@ -724,23 +1657,15 @@ export default function DesktopDashboard() {
     { refetchInterval: 30_000, staleTime: 15_000 },
   );
 
-  // Map API data to local types, fall back to mock data while loading
   const liveTasks: Task[] = useMemo(() => {
     if (tasksQuery.data && tasksQuery.data.length > 0) {
       return tasksQuery.data.map((t: any) => ({
-        id: t.id,
-        jobHash: t.jobHash ?? `job-${t.id}`,
-        status: (t.status as TaskStatus) ?? "unassigned",
-        priority: t.priority ?? "medium",
-        customerName: t.customerName ?? "—",
-        customerPhone: t.customerPhone ?? "",
-        customerEmail: t.customerEmail ?? "",
-        jobAddress: t.address ?? t.jobAddress ?? "",
-        jobLatitude: t.lat ?? t.jobLatitude ?? 49.8951,
-        jobLongitude: t.lng ?? t.jobLongitude ?? -97.1384,
-        technicianId: t.technicianId ?? undefined,
-        technicianName: t.technicianName ?? undefined,
-        orderRef: t.orderRef ?? `WO-${t.id}`,
+        id: t.id, jobHash: t.jobHash ?? `job-${t.id}`, status: (t.status as TaskStatus) ?? "unassigned",
+        priority: t.priority ?? "medium", customerName: t.customerName ?? "—",
+        customerPhone: t.customerPhone ?? "", customerEmail: t.customerEmail ?? "",
+        jobAddress: t.address ?? t.jobAddress ?? "", jobLatitude: t.lat ?? 49.8951,
+        jobLongitude: t.lng ?? -97.1384, technicianId: t.technicianId ?? undefined,
+        technicianName: t.technicianName ?? undefined, orderRef: t.orderRef ?? `WO-${t.id}`,
         createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
         scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
       }));
@@ -751,26 +1676,16 @@ export default function DesktopDashboard() {
   const liveTechnicians: Technician[] = useMemo(() => {
     if (techniciansQuery.data && techniciansQuery.data.length > 0) {
       return techniciansQuery.data.map((t: any) => ({
-        id: t.id,
-        name: t.name ?? "Technician",
-        phone: t.phone ?? "",
-        email: t.email ?? "",
-        status: (t.status as any) ?? "offline",
-        latitude: t.lat ?? t.latitude ?? 49.8951,
-        longitude: t.lng ?? t.longitude ?? -97.1384,
-        transportType: (t.transportType ?? "car") as any,
-        skills: t.skills ?? [],
-        photoUrl: t.photoUrl ?? undefined,
-        activeTaskId: t.activeTaskId ?? undefined,
-        activeTaskAddress: t.activeTaskAddress ?? undefined,
-        todayJobs: t.todayJobs ?? t.jobsToday ?? 0,
-        todayDistanceKm: t.todayDistanceKm ?? t.distanceKm ?? 0,
+        id: t.id, name: t.name ?? "Technician", phone: t.phone ?? "", email: t.email ?? "",
+        status: (t.status as any) ?? "offline", latitude: t.lat ?? 49.8951,
+        longitude: t.lng ?? -97.1384, transportType: (t.transportType ?? "car") as any,
+        skills: t.skills ?? [], photoUrl: t.photoUrl ?? undefined,
+        activeTaskId: t.activeTaskId ?? undefined, activeTaskAddress: t.activeTaskAddress ?? undefined,
+        todayJobs: t.todayJobs ?? 0, todayDistanceKm: t.todayDistanceKm ?? 0,
       }));
     }
     return MOCK_TECHNICIANS;
   }, [techniciansQuery.data]);
-
-  const isLoading = tasksQuery.isLoading || techniciansQuery.isLoading;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -779,6 +1694,7 @@ export default function DesktopDashboard() {
           <DashboardSection
             tasks={liveTasks}
             technicians={liveTechnicians}
+            customers={MOCK_CUSTOMERS}
             onSelectTech={setSelectedTechId}
             selectedTechId={selectedTechId}
           />
@@ -787,37 +1703,52 @@ export default function DesktopDashboard() {
         return <WorkOrdersSection tasks={liveTasks} />;
       case "technicians":
         return <TechniciansSection technicians={liveTechnicians} />;
+      case "customers":
+        return <CustomersSection />;
       case "map":
         return (
           <View style={{ flex: 1, padding: 24 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 16 }]}>Live Fleet Map</Text>
-            <View style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}>
-              <FleetMapPanel
-                technicians={liveTechnicians}
-                selectedId={selectedTechId}
-                onSelect={setSelectedTechId}
-              />
+            <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 16 }] as TextStyle[]}>Live Fleet Map</Text>
+            <View style={{ flex: 1, borderRadius: 16, overflow: "hidden", minHeight: 500 }}>
+              <FleetMapPanel technicians={liveTechnicians} selectedId={selectedTechId} onSelect={setSelectedTechId} />
             </View>
           </View>
         );
       case "reports":
         return (
-          <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center" }}>
-            <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
-            <Text style={[styles.sectionTitle, { color: colors.muted, marginTop: 16 }]}>Reports coming soon</Text>
-          </View>
-        );
-      case "settings":
-        return (
-          <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center" }}>
-            <IconSymbol name="gear" size={48} color={colors.muted} />
-            <Text style={[styles.sectionTitle, { color: colors.muted, marginTop: 16 }]}>Settings</Text>
-            <Pressable
-              style={({ pressed }) => [styles.newOrderBtn, { backgroundColor: NVC_BLUE, marginTop: 16, opacity: pressed ? 0.8 : 1 }]}
-              onPress={() => router.push("/(tabs)/settings" as any)}
-            >
-              <Text style={styles.newOrderBtnText}>Open App Settings</Text>
-            </Pressable>
+          <View style={{ flex: 1, padding: 24 }}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Reports</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>Analytics and performance insights</Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                onPress={() => router.push("/integrations" as any)}
+              >
+                <IconSymbol name="arrow.up.doc.fill" size={14} color="#fff" />
+                <Text style={styles.primaryBtnText}>Export Data</Text>
+              </Pressable>
+            </View>
+            <View style={styles.statsRow}>
+              <StatCard label="Jobs This Month" value={liveTasks.length * 4} gradient={["#1E6FBF", "#3B8FDF"]} icon="paperplane.fill" sub="↑ 12% vs last month" />
+              <StatCard label="Completion Rate" value="94%" gradient={["#16A34A", "#22C55E"]} icon="checkmark.circle.fill" sub="Target: 90%" />
+              <StatCard label="Avg Response" value="14m" gradient={["#0891B2", "#06B6D4"]} icon="clock.fill" sub="Target: 20m" />
+              <StatCard label="Revenue MTD" value="$42k" gradient={["#E85D04", "#F97316"]} icon="dollarsign.circle.fill" sub="↑ 8% vs last month" />
+            </View>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 20, padding: 32, alignItems: "center" }]}>
+              <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
+              <Text style={[{ color: colors.foreground, fontSize: 18, fontWeight: "700", marginTop: 16 }] as TextStyle[]}>Detailed Reports Coming Soon</Text>
+              <Text style={[{ color: colors.muted, fontSize: 14, marginTop: 8, textAlign: "center" }] as TextStyle[]}>
+                Connect QuickBooks or Xero in Integrations to unlock financial reports.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, marginTop: 20, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                onPress={() => router.push("/integrations" as any)}
+              >
+                <Text style={styles.primaryBtnText}>Go to Integrations</Text>
+              </Pressable>
+            </View>
           </View>
         );
       default:
@@ -829,12 +1760,10 @@ export default function DesktopDashboard() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <Sidebar active={activeSection} onSelect={setActiveSection} />
 
-      {/* Main content */}
       <View style={styles.mainContent}>
-        {/* Top bar — white floating bar */}
+        {/* Top bar */}
         <View style={[styles.topBar, {
           backgroundColor: colors.surface,
-          borderBottomColor: "transparent",
           shadowColor: "#1E3A5F",
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.06,
@@ -842,33 +1771,27 @@ export default function DesktopDashboard() {
           elevation: 2,
         }]}>
           <View>
-            <Text style={[styles.topBarTitle, { color: colors.foreground }]}>
+            <Text style={[styles.topBarTitle, { color: colors.foreground }] as TextStyle[]}>
               {NAV_ITEMS.find((n) => n.id === activeSection)?.label ?? "Dashboard"}
             </Text>
-            <Text style={[styles.topBarSub, { color: colors.muted }]}>
+            <Text style={[styles.topBarSub, { color: colors.muted }] as TextStyle[]}>
               {new Date().toLocaleDateString("en-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
             </Text>
           </View>
           <View style={styles.topBarRight}>
-            <Pressable
-              style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.background, opacity: pressed ? 0.7 : 1 }]}
-            >
+            <Pressable style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.background, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}>
               <IconSymbol name="bell.fill" size={18} color={colors.muted} />
             </Pressable>
             <Pressable
-              style={({ pressed }) => [
-                styles.newOrderBtn,
-                { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 },
-              ]}
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
               onPress={() => router.push("/create-task" as any)}
             >
               <IconSymbol name="plus" size={16} color="#fff" />
-              <Text style={styles.newOrderBtnText}>New Order</Text>
+              <Text style={styles.primaryBtnText}>New Order</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* Section content */}
         {renderContent()}
       </View>
     </View>
@@ -878,669 +1801,265 @@ export default function DesktopDashboard() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    flexDirection: "row",
-  },
+  root: { flex: 1, flexDirection: "row" } as ViewStyle,
 
   // Sidebar
   sidebar: {
-    width: 220,
+    width: 224,
     flexDirection: "column",
+    backgroundColor: NVC_BLUE_DARK,
     borderRightWidth: 1,
-  },
+    borderRightColor: "rgba(255,255,255,0.08)",
+  } as ViewStyle,
   sidebarLogo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.1)",
-  },
-  sidebarLogoImg: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  sidebarBrand: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.5,
-  },
-  sidebarBrandSub: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.6)",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  sidebarNav: {
-    flex: 1,
-    paddingTop: 8,
-  },
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 16, paddingVertical: 20,
+    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)",
+  } as ViewStyle,
+  sidebarLogoImg: { width: 32, height: 32 } as ViewStyle,
+  sidebarBrand: { fontSize: 15, fontWeight: "800", color: "#fff", letterSpacing: 0.3 } as TextStyle,
+  sidebarBrandSub: { fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: "500", letterSpacing: 0.5 } as TextStyle,
+  sidebarNav: { paddingTop: 8, paddingHorizontal: 8 } as ViewStyle,
   sidebarItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    marginHorizontal: 8,
-    marginVertical: 1,
-    borderRadius: 8,
-  },
-  sidebarItemActive: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  sidebarItemLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
-    fontWeight: "500",
-  },
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, marginBottom: 2,
+  } as ViewStyle,
+  sidebarItemActive: { backgroundColor: "rgba(255,255,255,0.15)" } as ViewStyle,
+  sidebarItemLabel: { fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: "500", flex: 1 } as TextStyle,
   sidebarBadge: {
-    backgroundColor: NVC_ORANGE,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  sidebarBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#fff",
-  },
+    backgroundColor: NVC_ORANGE, borderRadius: 10,
+    minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", paddingHorizontal: 4,
+  } as ViewStyle,
+  sidebarBadgeText: { fontSize: 10, color: "#fff", fontWeight: "700" } as TextStyle,
+  sidebarDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.08)", marginHorizontal: 16, marginVertical: 8 } as ViewStyle,
+  sidebarBottomNav: { paddingHorizontal: 8 } as ViewStyle,
   sidebarFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 16,
-    borderTopWidth: 1,
-  },
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 16, paddingVertical: 16, marginTop: "auto",
+    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)",
+  } as ViewStyle,
   sidebarAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sidebarAvatarText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  sidebarUserName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  sidebarUserRole: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.5)",
-  },
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: NVC_ORANGE, alignItems: "center", justifyContent: "center",
+  } as ViewStyle,
+  sidebarAvatarText: { fontSize: 13, fontWeight: "700", color: "#fff" } as TextStyle,
+  sidebarUserName: { fontSize: 12, fontWeight: "700", color: "#fff" } as TextStyle,
+  sidebarUserRole: { fontSize: 10, color: "rgba(255,255,255,0.5)" } as TextStyle,
 
   // Main content
-  mainContent: {
-    flex: 1,
-    flexDirection: "column",
-  },
+  mainContent: { flex: 1, flexDirection: "column" } as ViewStyle,
   topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  topBarTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  topBarSub: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  topBarRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 24, paddingVertical: 14, zIndex: 10,
+  } as ViewStyle,
+  topBarTitle: { fontSize: 18, fontWeight: "800" } as TextStyle,
+  topBarSub: { fontSize: 12, marginTop: 1 } as TextStyle,
+  topBarRight: { flexDirection: "row", alignItems: "center", gap: 10 } as ViewStyle,
   topBarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+  } as ViewStyle,
 
-  // Stats
-  statsRow: {
-    flexDirection: "row",
-    gap: 14,
-    flexWrap: "wrap",
-  },
+  // Stat cards
+  statsRow: { flexDirection: "row", gap: 12 } as ViewStyle,
   statCard: {
-    flex: 1,
-    minWidth: 130,
-    borderRadius: 16,
-    padding: 18,
-    gap: 6,
-    // Shadow for floating effect
-    shadowColor: "#1E3A5F",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 4,
-    // Smooth hover transition on web
-    transitionDuration: Platform.OS === "web" ? "200ms" : undefined,
-    transitionProperty: Platform.OS === "web" ? "transform, box-shadow" : undefined,
-  } as any,
+    flex: 1, borderRadius: 16, padding: 16, minWidth: 120,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 10, elevation: 4,
+  } as ViewStyle,
   statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-    backgroundColor: "rgba(255,255,255,0.25)",
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "rgba(255,255,255,0.85)",
-  },
-  statSub: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 2,
-  },
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 10,
+  } as ViewStyle,
+  statValue: { fontSize: 26, fontWeight: "800", color: "#fff" } as TextStyle,
+  statLabel: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: "600", marginTop: 2 } as TextStyle,
+  statSub: { fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 4 } as TextStyle,
 
   // Two-column layout
-  twoCol: {
-    flexDirection: "row",
-    gap: 16,
-    flex: 1,
-  },
-  leftCol: {
-    flex: 2,
-    gap: 16,
-  },
-  rightCol: {
-    flex: 1,
-    gap: 16,
-    minWidth: 260,
-  },
+  twoCol: { flexDirection: "row", gap: 16 } as ViewStyle,
+  leftCol: { flex: 2, gap: 16 } as ViewStyle,
+  rightCol: { flex: 1, gap: 16 } as ViewStyle,
 
-  // Cards — white floating panels
+  // Cards
   card: {
-    borderRadius: 18,
-    overflow: "hidden",
-    shadowColor: "#1E3A5F",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 3,
-    // No border — shadow provides depth
-  },
+    borderRadius: 16, borderWidth: 1, overflow: "hidden",
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
+  } as ViewStyle,
   cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 18,
-    paddingBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-  },
-  cardSubtitle: {
-    fontSize: 12,
-  },
-  liveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  liveBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  seeAllBtn: {},
-  seeAllText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 14,
+  } as ViewStyle,
+  cardTitle: { fontSize: 14, fontWeight: "700" } as TextStyle,
+  cardSubtitle: { fontSize: 12 } as TextStyle,
+  liveBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 } as ViewStyle,
+  liveDot: { width: 6, height: 6, borderRadius: 3 } as ViewStyle,
+  liveBadgeText: { fontSize: 10, fontWeight: "700" } as TextStyle,
 
   // Map
   mapPanel: {
-    height: 240,
-    position: "relative",
-    overflow: "hidden",
-  },
-  mapGridH: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  mapGridV: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  mapRoad: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    backgroundColor: "#1e3a5f",
-  },
-  mapRoadV: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    backgroundColor: "#1e3a5f",
-  },
-  mapCityLabel: {
-    position: "absolute",
-    top: 8,
-    left: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  mapCityText: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.6)",
-    fontWeight: "600",
-  },
+    height: 220, backgroundColor: "#0d1b2a", position: "relative", overflow: "hidden",
+  } as ViewStyle,
+  mapGridH: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: "rgba(255,255,255,0.05)" } as ViewStyle,
+  mapGridV: { position: "absolute", top: 0, bottom: 0, width: 1, backgroundColor: "rgba(255,255,255,0.05)" } as ViewStyle,
+  mapRoad: { position: "absolute", left: 0, right: 0, backgroundColor: "rgba(255,255,255,0.12)" } as ViewStyle,
+  mapRoadV: { position: "absolute", top: 0, bottom: 0, backgroundColor: "rgba(255,255,255,0.12)" } as ViewStyle,
+  mapCityLabel: { position: "absolute", top: 10, left: 12, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 } as ViewStyle,
+  mapCityText: { fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: "600" } as TextStyle,
   techPin: {
-    position: "absolute",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: -16,
-    marginTop: -16,
-  },
-  techPinDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  techPinInitials: {
-    fontSize: 8,
-    fontWeight: "700",
-    color: "#fff",
-  },
+    position: "absolute", width: 34, height: 34, borderRadius: 17,
+    borderWidth: 2, alignItems: "center", justifyContent: "center",
+    marginLeft: -17, marginTop: -17,
+  } as ViewStyle,
+  techPinDot: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" } as ViewStyle,
+  techPinInitials: { fontSize: 9, fontWeight: "800", color: "#fff" } as TextStyle,
   techPinLabel: {
-    position: "absolute",
-    top: -22,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    left: -10,
-  },
-  techPinLabelText: {
-    fontSize: 9,
-    color: "#fff",
-    fontWeight: "600",
-  },
-  mapAttr: {
-    position: "absolute",
-    bottom: 6,
-    right: 8,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  mapAttrText: {
-    fontSize: 9,
-    color: "rgba(255,255,255,0.5)",
-  },
+    position: "absolute", top: 36, left: "50%", paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 6, zIndex: 20,
+  } as ViewStyle,
+  techPinLabelText: { fontSize: 9, color: "#fff", fontWeight: "700" } as TextStyle,
+  mapAttr: { position: "absolute", bottom: 6, right: 8 } as ViewStyle,
+  mapAttrText: { fontSize: 9, color: "rgba(255,255,255,0.4)" } as TextStyle,
 
-  // Work Order rows
-  woRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingRight: 12,
-    borderBottomWidth: 1,
-  },
-  woStatusBar: {
-    width: 3,
-    alignSelf: "stretch",
-    marginRight: 10,
-  },
-  woMain: {
-    flex: 1,
-    gap: 2,
-  },
-  woTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  woOrderRef: {
-    fontSize: 10,
-    fontWeight: "600",
-    flex: 1,
-  },
-  woPriorityBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  woPriorityText: {
-    fontSize: 9,
-    fontWeight: "700",
-  },
-  woStatusBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  woStatusText: {
-    fontSize: 9,
-    fontWeight: "700",
-  },
-  woCustomer: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  woAddress: {
-    fontSize: 11,
-  },
-  woTech: {
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  woTime: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginLeft: 8,
-  },
-  woTimeText: {
-    fontSize: 11,
-  },
-
-  // Tech rows
-  techRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderLeftWidth: 3,
-    borderBottomWidth: 1,
-  },
-  techAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  techAvatarText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  techStatusDot: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: "#fff",
-  },
-  techName: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  techDetail: {
-    fontSize: 10,
-  },
-  techStatusPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  techStatusPillText: {
-    fontSize: 9,
-    fontWeight: "700",
-  },
+  // Work order rows
+  woRow: { flexDirection: "row", alignItems: "stretch", borderBottomWidth: 1, minHeight: 60 } as ViewStyle,
+  woStatusBar: { width: 4 } as ViewStyle,
+  woMain: { flex: 1, paddingHorizontal: 12, paddingVertical: 8 } as ViewStyle,
+  woTopRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 } as ViewStyle,
+  woOrderRef: { fontSize: 10, fontWeight: "600" } as TextStyle,
+  woPriorityBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 } as ViewStyle,
+  woPriorityText: { fontSize: 9, fontWeight: "700" } as TextStyle,
+  woStatusBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 } as ViewStyle,
+  woStatusText: { fontSize: 9, fontWeight: "600" } as TextStyle,
+  woCustomer: { fontSize: 13, fontWeight: "600" } as TextStyle,
+  woAddress: { fontSize: 11, marginTop: 1 } as TextStyle,
+  woTech: { fontSize: 11, marginTop: 2 } as TextStyle,
+  woTime: { alignItems: "center", justifyContent: "center", paddingHorizontal: 12, gap: 4 } as ViewStyle,
+  woTimeText: { fontSize: 11 } as TextStyle,
 
   // Quick actions
-  quickActionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 } as ViewStyle,
   quickActionBtn: {
-    flex: 1,
-    minWidth: "45%",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  quickActionLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
+    flex: 1, minWidth: 80, alignItems: "center", justifyContent: "center",
+    paddingVertical: 12, borderRadius: 12, borderWidth: 1, gap: 6,
+  } as ViewStyle,
+  quickActionLabel: { fontSize: 11, fontWeight: "600" } as TextStyle,
+
+  // Tech rows (dashboard)
+  techRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderLeftWidth: 3,
+  } as ViewStyle,
+  techAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" } as ViewStyle,
+  techAvatarText: { fontSize: 12, fontWeight: "700" } as TextStyle,
+  techStatusDot: { position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: "#fff" } as ViewStyle,
+  techName: { fontSize: 13, fontWeight: "600" } as TextStyle,
+  techDetail: { fontSize: 11, marginTop: 1 } as TextStyle,
+  techStatusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 } as ViewStyle,
+  techStatusPillText: { fontSize: 10, fontWeight: "600" } as TextStyle,
 
   // Section headers
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-  },
-  newOrderBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  newOrderBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
-  },
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } as ViewStyle,
+  sectionTitle: { fontSize: 20, fontWeight: "800" } as TextStyle,
+  sectionSubtitle: { fontSize: 13, marginTop: 2 } as TextStyle,
+
+  // KPI row
+  kpiRow: { flexDirection: "row", gap: 12, marginBottom: 16 } as ViewStyle,
+  kpiCard: {
+    flex: 1, borderRadius: 12, borderWidth: 1, padding: 14,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  } as ViewStyle,
+  kpiValue: { fontSize: 24, fontWeight: "800" } as TextStyle,
+  kpiLabel: { fontSize: 11, fontWeight: "600", marginTop: 2 } as TextStyle,
 
   // Search
-  searchRow: {
-    marginBottom: 12,
-  },
+  searchRow: { marginBottom: 10 } as ViewStyle,
   searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    // outline removed — not valid in React Native
-  },
-  filterScroll: {
-    marginBottom: 12,
-  },
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+  } as ViewStyle,
+  searchInput: { flex: 1, fontSize: 13, outlineStyle: "none" } as any,
+  filterScroll: { marginBottom: 12 } as ViewStyle,
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1, marginRight: 6,
+  } as ViewStyle,
+  filterChipText: { fontSize: 12, fontWeight: "600" } as TextStyle,
 
   // Table
-  tableCard: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  tableHeader: {
-    flexDirection: "row",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  tableHeaderCell: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  tableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  tableCell: {
-    flex: 1,
-    fontSize: 12,
-  },
-  tableCellRef: {
-    fontWeight: "600",
-  },
-  statusPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-  },
-  statusPillText: {
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: "center",
-  },
-  emptyText: {
-    fontSize: 14,
-  },
+  tableCard: { flex: 1, borderRadius: 16, borderWidth: 1, overflow: "hidden" } as ViewStyle,
+  tableHeader: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 } as ViewStyle,
+  tableHeaderCell: { flex: 1, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 } as TextStyle,
+  tableRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, alignItems: "center" } as ViewStyle,
+  tableCell: { flex: 1, fontSize: 13 } as any,
+  tableCellRef: { fontWeight: "700" } as TextStyle,
+  statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start" } as ViewStyle,
+  statusPillText: { fontSize: 11, fontWeight: "600" } as TextStyle,
+  emptyState: { alignItems: "center", justifyContent: "center", padding: 48 } as ViewStyle,
+  emptyText: { fontSize: 14, marginTop: 12 } as TextStyle,
 
-  // Tech grid cards
-  techGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  techCard: {
-    width: "calc(33.33% - 8px)" as any,
-    minWidth: 240,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    padding: 14,
-    gap: 10,
-  },
-  techCardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  techCardAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  techCardInitials: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  techCardName: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  techCardSkills: {
-    fontSize: 11,
-  },
-  techCardStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  techCardStatusText: {
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  techCardDivider: {
-    height: 1,
-  },
-  techCardStats: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  techCardStat: {
-    alignItems: "center",
-  },
-  techCardStatValue: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  techCardStatLabel: {
-    fontSize: 10,
-  },
-  techCardAddress: {
-    fontSize: 11,
-    fontWeight: "500",
-  },
+  // Customer table extras
+  customerAvatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" } as ViewStyle,
+  customerAvatarText: { fontSize: 12, fontWeight: "700" } as TextStyle,
+
+  // Tech table extras
+  techTableAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" } as ViewStyle,
+  techTableAvatarText: { fontSize: 11, fontWeight: "700" } as TextStyle,
+
+  // Action icon button
+  actionIconBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" } as ViewStyle,
+
+  // Buttons
+  primaryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+  } as ViewStyle,
+  primaryBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" } as TextStyle,
+  cancelBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, borderWidth: 1 } as ViewStyle,
+  cancelBtnText: { fontSize: 13, fontWeight: "600" } as TextStyle,
+  dangerBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 9 } as ViewStyle,
+  dangerBtnText: { fontSize: 13, fontWeight: "600", color: "#DC2626" } as TextStyle,
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center", justifyContent: "center",
+  } as ViewStyle,
+  modalContainer: {
+    width: "90%", maxWidth: 680, maxHeight: "88%",
+    borderRadius: 20, borderWidth: 1, overflow: "hidden",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.3, shadowRadius: 40, elevation: 20,
+  } as ViewStyle,
+  modalHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingVertical: 16,
+  } as ViewStyle,
+  modalTitle: { fontSize: 16, fontWeight: "800", color: "#fff" } as TextStyle,
+  modalSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 } as TextStyle,
+  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" } as ViewStyle,
+  modalTabs: { flexDirection: "row", borderBottomWidth: 1 } as ViewStyle,
+  modalTab: { flex: 1, alignItems: "center", paddingVertical: 12 } as ViewStyle,
+  modalTabText: { fontSize: 12 } as TextStyle,
+  modalBody: { flex: 1, maxHeight: 420 } as ViewStyle,
+  modalSection: { padding: 20, gap: 0 } as ViewStyle,
+  modalSectionTitle: { fontSize: 13, fontWeight: "700", marginBottom: 10, marginTop: 4 } as TextStyle,
+  modalSectionDivider: { height: 1, marginVertical: 16 } as ViewStyle,
+  modalRow2: { flexDirection: "row", gap: 12 } as ViewStyle,
+  modalRow3: { flexDirection: "row", gap: 8 } as ViewStyle,
+  modalField: { flex: 1, marginBottom: 12 } as ViewStyle,
+  modalFieldLabel: { fontSize: 11, fontWeight: "600", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.3 } as TextStyle,
+  modalFieldInput: {
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
+    fontSize: 13, outlineStyle: "none",
+  } as any,
+  modalSwitchRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
+  } as ViewStyle,
+  modalFooter: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1,
+  } as ViewStyle,
+
+  // Chip buttons
+  chipBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 4 } as ViewStyle,
+  chipBtnText: { fontSize: 12, fontWeight: "600" } as TextStyle,
 });
