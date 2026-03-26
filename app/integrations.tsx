@@ -785,15 +785,16 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
   tabTextActive: { color: NVC_BLUE },
 
-  // Stats
-  statsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 14, paddingTop: 14 },
+  // Stats — compact square tiles, not full-width
+  statsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 14, paddingTop: 14 },
   statCard: {
-    flex: 1, borderRadius: 12, padding: 12, alignItems: "center", gap: 3,
+    width: 92, height: 68, borderRadius: 14, padding: 8,
+    alignItems: "center", justifyContent: "center", gap: 2,
     shadowColor: "#0A1929", shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
   },
-  statValue: { fontSize: 20, fontWeight: "800", color: "#fff" },
-  statLabel: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "600" },
+  statValue: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  statLabel: { fontSize: 9, color: "rgba(255,255,255,0.85)", fontWeight: "600", textAlign: "center" },
 
   // Cards
   cardsSection: { paddingHorizontal: 14, paddingTop: 16, gap: 10 },
@@ -819,8 +820,8 @@ const styles = StyleSheet.create({
   featureText: { fontSize: 12, flex: 1, lineHeight: 17 },
   cardActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
   actionBtn: {
-    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center",
-    borderWidth: 1,
+    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, alignItems: "center",
+    borderWidth: 1, minWidth: 100,
   },
   actionBtnText: { fontSize: 13, fontWeight: "700" },
   docsBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 10 },

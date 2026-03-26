@@ -1,10 +1,54 @@
-import { Tabs } from "expo-router";
-import { Platform, View, Text, StyleSheet } from "react-native";
+import { Tabs, useRouter } from "expo-router";
+import { Platform, View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useEffect, useState } from "react";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { NVC_ORANGE } from "@/constants/brand";
+import { NVC_ORANGE, NVC_BLUE } from "@/constants/brand";
+import * as SecureStore from "expo-secure-store";
+
+// ─── Auth Guard ───────────────────────────────────────────────────────────────
+// On web: check for session cookie via the API
+// On native: check for stored token in SecureStore
+// If not authenticated → redirect to /login
+
+function useAuthGuard() {
+  const router = useRouter();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    async function check() {
+      try {
+        if (Platform.OS === "web") {
+          // Web: try to fetch /api/auth/me — if it fails (401/403) go to login
+          const res = await fetch("/api/auth/me", { credentials: "include" });
+          if (!res.ok) {
+            router.replace("/login" as any);
+            return;
+          }
+        } else {
+          // Native: check for stored session token
+          const token = await SecureStore.getItemAsync("nvc360_token");
+          if (!token) {
+            router.replace("/login" as any);
+            return;
+          }
+        }
+      } catch {
+        // Network error or API unavailable — fall through to show dashboard
+        // (demo mode: no backend required)
+      } finally {
+        setChecked(true);
+      }
+    }
+    check();
+  }, [router]);
+
+  return checked;
+}
+
+// ─── Tab Badge ────────────────────────────────────────────────────────────────
 
 function TabBadge({ count }: { count: number }) {
   if (count === 0) return null;
@@ -15,11 +59,23 @@ function TabBadge({ count }: { count: number }) {
   );
 }
 
+// ─── Layout ───────────────────────────────────────────────────────────────────
+
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 60 + bottomPadding;
+  const authChecked = useAuthGuard();
+
+  // Show a brief loading screen while auth check runs
+  if (!authChecked) {
+    return (
+      <View style={[styles.loadingScreen, { backgroundColor: NVC_BLUE }]}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
 
   return (
     <Tabs
@@ -93,6 +149,11 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   badge: {
     position: "absolute",
     top: -4,

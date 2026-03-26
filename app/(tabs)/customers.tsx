@@ -668,11 +668,14 @@ const styles = StyleSheet.create<{
   },
   addBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
 
-  // Stats
-  statsStrip: { flexDirection: "row", paddingHorizontal: 16, paddingBottom: 14 },
-  statItem: { alignItems: "center", flex: 1 },
-  statValue: { fontSize: 20, fontWeight: "800" },
-  statLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "500", marginTop: 2 },
+  // Stats — compact square tiles
+  statsStrip: { flexDirection: "row", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
+  statItem: {
+    width: 96, height: 68, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center", justifyContent: "center", gap: 2,
+  },
+  statValue: { fontSize: 22, fontWeight: "800" },
+  statLabel: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontWeight: "600", textAlign: "center" },
 
   // Search
   searchSection: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },

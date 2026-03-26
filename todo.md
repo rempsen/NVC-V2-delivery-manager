@@ -817,3 +817,9 @@
 - [x] Server: Twilio SMS — wire startTask mutation to send real SMS via Twilio API
 - [x] Server: Twilio SMS — wire arriveTask mutation to send real SMS via Twilio API
 - [x] Server: read Twilio credentials from tenant notification settings (accountSid, authToken, fromPhone)
+
+## Sprint: Compact Stat Cards, Login Screen (v6.1)
+- [x] UI: Integrations page — stat cards (Connected/Available/Categories) compact grid, not full-width
+- [x] UI: Customers page — statsStrip items compact grid, not full-width flex-1
+- [x] UI: All pages — audit and remove any remaining full-width button patterns
+- [x] UI: Add login screen to web dashboard (email + password form, role-based routing)

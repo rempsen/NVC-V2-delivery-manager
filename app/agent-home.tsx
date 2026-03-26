@@ -417,32 +417,34 @@ const styles = StyleSheet.create({
     gap: 14,
   } as ViewStyle,
 
-  // Stats
+  // Stats — compact square tiles
   statsRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   } as ViewStyle,
   statCard: {
-    flex: 1,
+    width: 92,
+    height: 82,
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 10,
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
+    gap: 3,
     borderTopWidth: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
   } as ViewStyle,
   statIconBg: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 2,
+    marginBottom: 1,
   } as ViewStyle,
   statValue: {
     fontSize: 22,
@@ -450,9 +452,10 @@ const styles = StyleSheet.create({
     color: "#111827",
   } as TextStyle,
   statLabel: {
-    fontSize: 11,
+    fontSize: 9,
     color: "#9CA3AF",
-    fontWeight: "500",
+    fontWeight: "600",
+    textAlign: "center",
   } as TextStyle,
 
   // Section label
