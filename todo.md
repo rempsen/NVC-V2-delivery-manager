@@ -772,3 +772,11 @@
 - [x] Map: toggle route overlay on/off
 - [x] Dashboard: save left/right panel collapsed state to localStorage
 - [x] Dashboard: restore panel state from localStorage on mount
+
+## Sprint: Directions API, Push Notifications, Roster Unassign (v5.7)
+- [x] Server: send Expo push notification to technician on tasks.assign mutation
+- [x] Server: store pushToken on technician record; look it up during assign
+- [x] Map: replace straight-line polylines with Google Directions API road-following routes
+- [x] Map: show per-leg drive-time ETA on route polylines
+- [x] Dashboard: "×" unassign button on each active job chip in right panel roster
+- [x] Dashboard: reassign flow — click job chip to open technician picker modal

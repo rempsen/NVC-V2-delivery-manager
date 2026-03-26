@@ -624,6 +624,12 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
   const [assignedOverrides, setAssignedOverrides] = useState<Record<number, number>>({});
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  // Unassign / reassign mutations
+  const unassignMutation = trpc.tasks.unassign.useMutation({
+    onSuccess: () => onAssignTask?.(-1, -1), // trigger refetch via parent
+  });
+  const [reassignModal, setReassignModal] = useState<{ taskId: number; taskLabel: string } | null>(null);
+
   // ETA ticker — re-renders every 30s
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -1062,11 +1068,63 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
                             </View>
                             <Text style={[styles.utilText, { color: colors.muted }] as TextStyle[]}>{utilPct}%</Text>
                           </View>
-                          {/* Active jobs count */}
+                          {/* Active job chips with unassign × and reassign buttons */}
                           {activeTasks.length > 0 && (
-                            <Text style={[{ fontSize: 10, color: NVC_BLUE, fontWeight: "600", marginTop: 2, marginLeft: 40 }] as TextStyle[]}>
-                              {activeTasks.length} active job{activeTasks.length > 1 ? "s" : ""}
-                            </Text>
+                            <View style={{ marginTop: 5, marginLeft: 40, gap: 3 }}>
+                              {activeTasks.slice(0, 3).map((job) => (
+                                <View
+                                  key={job.id}
+                                  style={[{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    backgroundColor: NVC_BLUE + "10",
+                                    borderRadius: 6,
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 3,
+                                    gap: 4,
+                                    borderWidth: 1,
+                                    borderColor: NVC_BLUE + "25",
+                                  }] as ViewStyle[]}
+                                >
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={[{ fontSize: 9, fontWeight: "700", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
+                                      {job.orderRef ?? `#${job.id}`}
+                                    </Text>
+                                    <Text style={[{ fontSize: 9, color: colors.muted }] as TextStyle[]} numberOfLines={1}>
+                                      {job.customerName}
+                                    </Text>
+                                  </View>
+                                  {/* Reassign button */}
+                                  <Pressable
+                                    style={({ pressed }) => ([{
+                                      backgroundColor: pressed ? "#3B82F620" : "#3B82F610",
+                                      borderRadius: 4,
+                                      padding: 3,
+                                    }] as ViewStyle[])}
+                                    onPress={() => setReassignModal({ taskId: job.id, taskLabel: job.orderRef ?? `#${job.id}` })}
+                                  >
+                                    <IconSymbol name="arrow.right" size={8} color="#3B82F6" />
+                                  </Pressable>
+                                  {/* Unassign × button */}
+                                  <Pressable
+                                    style={({ pressed }) => ([{
+                                      backgroundColor: pressed ? "#EF444420" : "#EF444410",
+                                      borderRadius: 4,
+                                      padding: 3,
+                                    }] as ViewStyle[])}
+                                    onPress={() => {
+                                      unassignMutation.mutate({ taskId: job.id });
+                                      showToast(`${job.orderRef ?? `#${job.id}`} unassigned`);
+                                    }}
+                                  >
+                                    <Text style={[{ fontSize: 9, fontWeight: "800", color: "#EF4444", lineHeight: 10 }] as TextStyle[]}>×</Text>
+                                  </Pressable>
+                                </View>
+                              ))}
+                              {activeTasks.length > 3 && (
+                                <Text style={[{ fontSize: 9, color: colors.muted, marginLeft: 2 }] as TextStyle[]}>+{activeTasks.length - 3} more</Text>
+                              )}
+                            </View>
                           )}
                         </Pressable>
                       </View>
@@ -1078,6 +1136,71 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
         </View>
 
       </View>
+
+      {/* ── Reassign Modal ── */}
+      {reassignModal && Platform.OS === "web" && (
+        <View style={{
+          position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.45)",
+          alignItems: "center", justifyContent: "center", zIndex: 200,
+        } as any}>
+          <View style={{
+            backgroundColor: colors.surface, borderRadius: 16, padding: 20,
+            width: 320, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 20,
+            borderWidth: 1, borderColor: colors.border,
+          }}>
+            <Text style={[{ fontSize: 15, fontWeight: "700", color: colors.foreground, marginBottom: 4 }] as TextStyle[]}>
+              Reassign {reassignModal.taskLabel}
+            </Text>
+            <Text style={[{ fontSize: 12, color: colors.muted, marginBottom: 14 }] as TextStyle[]}>
+              Select a technician to reassign this job to:
+            </Text>
+            <ScrollView style={{ maxHeight: 260 }}>
+              {sortedTechs.map((tech) => (
+                <Pressable
+                  key={tech.id}
+                  style={({ pressed }) => ([{
+                    flexDirection: "row", alignItems: "center", gap: 10,
+                    paddingVertical: 10, paddingHorizontal: 12,
+                    borderRadius: 10, marginBottom: 4,
+                    backgroundColor: pressed ? NVC_BLUE + "18" : colors.background,
+                    borderWidth: 1, borderColor: colors.border,
+                  }] as ViewStyle[])}
+                  onPress={() => {
+                    if (onAssignTask) onAssignTask(reassignModal.taskId, tech.id);
+                    showToast(`${reassignModal.taskLabel} reassigned to ${tech.name}`);
+                    setReassignModal(null);
+                  }}
+                >
+                  <View style={{
+                    width: 32, height: 32, borderRadius: 16,
+                    backgroundColor: (TECH_STATUS_COLORS[tech.status] ?? "#6B7280") + "20",
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Text style={[{ fontSize: 11, fontWeight: "700", color: TECH_STATUS_COLORS[tech.status] ?? "#6B7280" }] as TextStyle[]}>
+                      {tech.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[{ fontSize: 13, fontWeight: "600", color: colors.foreground }] as TextStyle[]}>{tech.name}</Text>
+                    <Text style={[{ fontSize: 11, color: colors.muted }] as TextStyle[]}>{TECH_STATUS_LABELS[tech.status] ?? tech.status}</Text>
+                  </View>
+                  <IconSymbol name="chevron.right" size={14} color={colors.muted} />
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              style={({ pressed }) => ([{
+                marginTop: 12, paddingVertical: 10, borderRadius: 10,
+                backgroundColor: pressed ? colors.border : colors.background,
+                alignItems: "center", borderWidth: 1, borderColor: colors.border,
+              }] as ViewStyle[])}
+              onPress={() => setReassignModal(null)}
+            >
+              <Text style={[{ fontSize: 13, fontWeight: "600", color: colors.muted }] as TextStyle[]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {/* ── Assignment Toast ── */}
       {toastMsg && Platform.OS === "web" && (

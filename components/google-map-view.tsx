@@ -11,7 +11,7 @@
  *  - tasks: optional array of task pins { id, lat, lng, status }
  *  - style: optional container style
  */
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { View, Text, ActivityIndicator, Platform } from "react-native";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { useColors } from "@/hooks/use-colors";
@@ -88,8 +88,9 @@ export function GoogleMapView({
   etaData = {},
   routePolylines = [],
 }: GoogleMapViewProps) {
-  const polylinesRef = React.useRef<Map<number, google.maps.Polyline>>(new Map());
-  const { isLoaded, error } = useGoogleMaps();
+  const polylinesRef = React.useRef<Map<number, google.maps.Polyline[]>>(new Map());
+  const etaLabelsRef = React.useRef<Map<number, google.maps.Marker[]>>(new Map());
+  const { isLoaded, error, apiKey } = useGoogleMaps();
   const colors = useColors();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -264,42 +265,112 @@ export function GoogleMapView({
     }
   }, [isLoaded, updateMarkers]);
 
-  // Draw / update route polylines
+  // Draw / update route polylines using Google Directions API for road-following routes
   useEffect(() => {
     if (!isLoaded || !mapInstanceRef.current || Platform.OS !== "web") return;
     const G = (window as any).google.maps;
     const map = mapInstanceRef.current;
 
-    // Remove old polylines for techs no longer in routePolylines
+    // Clear all existing polylines and ETA labels
+    const clearTech = (techId: number) => {
+      polylinesRef.current.get(techId)?.forEach((p) => p.setMap(null));
+      polylinesRef.current.delete(techId);
+      etaLabelsRef.current.get(techId)?.forEach((m) => m.setMap(null));
+      etaLabelsRef.current.delete(techId);
+    };
+
+    // Remove routes for techs no longer active
     const activeIds = new Set(routePolylines.map((r) => r.techId));
-    polylinesRef.current.forEach((poly, techId) => {
-      if (!activeIds.has(techId)) {
-        poly.setMap(null);
-        polylinesRef.current.delete(techId);
-      }
+    polylinesRef.current.forEach((_, techId) => {
+      if (!activeIds.has(techId)) clearTech(techId);
     });
 
-    // Add/update polylines
+    if (routePolylines.length === 0) return;
+
+    const directionsService = new G.DirectionsService();
+
     routePolylines.forEach((route) => {
       if (route.waypoints.length < 2) return;
-      const path = route.waypoints.map((wp) => ({ lat: wp.lat, lng: wp.lng }));
-      if (polylinesRef.current.has(route.techId)) {
-        polylinesRef.current.get(route.techId)!.setPath(path);
-      } else {
-        const poly = new G.Polyline({
-          path,
-          geodesic: true,
-          strokeColor: route.color,
-          strokeOpacity: 0.85,
-          strokeWeight: 4,
-          map,
-          icons: [{
-            icon: { path: G.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: route.color },
-            offset: "50%",
-          }],
-        });
-        polylinesRef.current.set(route.techId, poly);
-      }
+
+      // Clear previous route for this tech
+      clearTech(route.techId);
+
+      const origin = route.waypoints[0];
+      const destination = route.waypoints[route.waypoints.length - 1];
+      const waypts = route.waypoints.slice(1, -1).map((wp: { lat: number; lng: number }) => ({
+        location: new G.LatLng(wp.lat, wp.lng),
+        stopover: true,
+      }));
+
+      directionsService.route(
+        {
+          origin: new G.LatLng(origin.lat, origin.lng),
+          destination: new G.LatLng(destination.lat, destination.lng),
+          waypoints: waypts,
+          optimizeWaypoints: false,
+          travelMode: G.TravelMode.DRIVING,
+        },
+        (result: any, status: string) => {
+          if (status !== "OK" || !result) {
+            // Fallback: draw straight-line polyline
+            const fallbackPoly = new G.Polyline({
+              path: route.waypoints.map((wp: { lat: number; lng: number }) => ({ lat: wp.lat, lng: wp.lng })),
+              geodesic: true,
+              strokeColor: route.color,
+              strokeOpacity: 0.7,
+              strokeWeight: 3,
+              map,
+            });
+            polylinesRef.current.set(route.techId, [fallbackPoly]);
+            return;
+          }
+
+          const legs = result.routes[0].legs as any[];
+          const newPolys: google.maps.Polyline[] = [];
+          const newLabels: google.maps.Marker[] = [];
+
+          legs.forEach((leg: any, legIdx: number) => {
+            // Decode the leg's overview path
+            const decodedPath = G.geometry.encoding.decodePath(leg.steps.flatMap((s: any) => G.geometry.encoding.decodePath(s.polyline.points)));
+
+            const poly = new G.Polyline({
+              path: decodedPath,
+              geodesic: true,
+              strokeColor: route.color,
+              strokeOpacity: 0.88,
+              strokeWeight: 4,
+              map,
+              icons: [{
+                icon: { path: G.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: route.color },
+                offset: "60%",
+              }],
+            });
+            newPolys.push(poly);
+
+            // ETA label at the midpoint of each leg
+            const midIdx = Math.floor(decodedPath.length / 2);
+            const midPoint = decodedPath[midIdx] ?? leg.end_location;
+            const durationText = leg.duration?.text ?? "";
+            const distanceText = leg.distance?.text ?? "";
+            const labelContent = `<div style="background:${route.color};color:#fff;padding:3px 7px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${durationText}${distanceText ? ` · ${distanceText}` : ""}</div>`;
+            const label = new G.Marker({
+              position: midPoint,
+              map,
+              icon: { path: G.SymbolPath.CIRCLE, scale: 0 },
+              label: { text: " ", color: "transparent" },
+              title: `Leg ${legIdx + 1}: ${durationText}`,
+              optimized: false,
+            });
+            // Use InfoWindow as a persistent label
+            const iw = new G.InfoWindow({ content: labelContent, disableAutoPan: true });
+            iw.open(map, label);
+            newLabels.push(label);
+          });
+
+          polylinesRef.current.set(route.techId, newPolys);
+          etaLabelsRef.current.set(route.techId, newLabels);
+        },
+      );
     });
   }, [isLoaded, routePolylines]);
 

@@ -7,6 +7,28 @@ import * as db from "./db";
 import { adminRouter } from "./adminRouter";
 import crypto from "crypto";
 import * as gemini from "./gemini";
+import { Expo } from "expo-server-sdk";
+
+// Expo push client (singleton)
+const expoPush = new Expo();
+
+/** Send a push notification to a single Expo push token, silently ignoring errors */
+async function sendPushToTech(
+  pushToken: string | null | undefined,
+  title: string,
+  body: string,
+  data?: Record<string, unknown>,
+): Promise<void> {
+  if (!pushToken || !Expo.isExpoPushToken(pushToken)) return;
+  try {
+    const chunks = expoPush.chunkPushNotifications([{ to: pushToken, sound: "default", title, body, data: data ?? {} }]);
+    for (const chunk of chunks) {
+      await expoPush.sendPushNotificationsAsync(chunk);
+    }
+  } catch {
+    // Non-fatal: push delivery failure should never block the mutation
+  }
+}
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -262,7 +284,18 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.updateTaskRecord(input.id, { status: "cancelled" } as any)),
 
-    /** Drag-to-assign: atomically set technicianId + status=assigned */
+    /** Unassign: clear technicianId and revert status to unassigned */
+    unassign: protectedProcedure
+      .input(z.object({ taskId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.updateTaskRecord(input.taskId, {
+          technicianId: null,
+          status: "unassigned",
+        } as any);
+        return { success: true, taskId: input.taskId };
+      }),
+
+    /** Drag-to-assign: atomically set technicianId + status=assigned + push notification */
     assign: protectedProcedure
       .input(
         z.object({
@@ -271,11 +304,30 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input }) => {
+        // 1. Fetch task and technician in parallel
+        const [task, tech] = await Promise.all([
+          db.getTaskById_NVC(input.taskId),
+          db.getTechnicianById(input.technicianId),
+        ]);
+
+        // 2. Persist assignment
         await db.updateTaskRecord(input.taskId, {
           technicianId: input.technicianId,
           status: "assigned",
           dispatchedAt: new Date(),
         } as any);
+
+        // 3. Fire-and-forget push notification to technician
+        const customerName = (task as any)?.customerName ?? "a customer";
+        const address = (task as any)?.address ?? (task as any)?.jobAddress ?? "";
+        const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
+        await sendPushToTech(
+          (tech as any)?.pushToken,
+          "New Job Assigned 📋",
+          `${orderRef} — ${customerName}${address ? ` · ${address}` : ""}`,
+          { taskId: input.taskId, screen: "task-detail" },
+        );
+
         return { success: true, taskId: input.taskId, technicianId: input.technicianId };
       }),
 
