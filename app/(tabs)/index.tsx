@@ -569,8 +569,8 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* ── Header — NVC logo below Dynamic Island ── */}
-        {/* paddingTop = insets.top (Dynamic Island clearance) + extra 6px breathing room */}
-        <View style={[styles.header, { paddingTop: insets.top + 6 }] as ViewStyle[]}>
+        {/* paddingTop = insets.top (Dynamic Island clearance) + extra 12px breathing room */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }] as ViewStyle[]}>
           <View style={styles.headerLeft}>
             <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
             <View>

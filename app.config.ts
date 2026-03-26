@@ -93,6 +93,20 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-location",
+      {
+        locationAlwaysAndWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location for arrival detection.",
+        locationWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location for arrival detection.",
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission: "Allow $(PRODUCT_NAME) to access your photos for job documentation.",
+        cameraPermission: "Allow $(PRODUCT_NAME) to access your camera for job documentation.",
+      },
+    ],
+    [
       "react-native-maps",
       {
         androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",

@@ -2826,6 +2826,8 @@ export default function DesktopDashboard() {
 
   // Notification history panel state
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<"all" | "assigned" | "unassigned" | "failed">("all");
+  const [readNotifIds, setReadNotifIds] = useState<Set<number>>(new Set());
   const notifHistoryQuery = trpc.notifications.dispatchHistory.useQuery(
     { tenantId: DEMO_TENANT_ID, limit: 20 },
     { refetchInterval: 30_000, staleTime: 15_000 },
@@ -2833,7 +2835,15 @@ export default function DesktopDashboard() {
   const notifHistory: Array<{ id: number; title: string; body: string | null; createdAt: Date | string; entityId: number | null; pushStatus: string | null }> = useMemo(() => {
     return (notifHistoryQuery.data ?? []) as any[];
   }, [notifHistoryQuery.data]);
-  const unreadNotifCount = notifHistory.filter((n) => !(n as any).readAt).length;
+  const filteredNotifHistory = useMemo(() => {
+    if (notifFilter === "all") return notifHistory;
+    if (notifFilter === "assigned") return notifHistory.filter((n) => n.title?.toLowerCase().includes("assigned") || n.body?.toLowerCase().includes("assigned"));
+    if (notifFilter === "unassigned") return notifHistory.filter((n) => n.pushStatus === null || n.pushStatus === "no_token");
+    if (notifFilter === "failed") return notifHistory.filter((n) => n.pushStatus === "failed");
+    return notifHistory;
+  }, [notifHistory, notifFilter]);
+  const unreadNotifCount = notifHistory.filter((n) => !readNotifIds.has(n.id) && !(n as any).readAt).length;
+  const markAllRead = () => setReadNotifIds(new Set(notifHistory.map((n) => n.id)));
 
   // Drag-to-assign mutation — persists to DB then refetches
   const assignMutation = trpc.tasks.assign.useMutation({
@@ -3057,18 +3067,46 @@ export default function DesktopDashboard() {
             </Pressable>
           </View>
 
+          {/* Filter chips */}
+          <View style={{
+            flexDirection: "row", gap: 6, paddingHorizontal: 14, paddingVertical: 10,
+            borderBottomWidth: 1, borderBottomColor: colors.border, flexWrap: "wrap",
+          }}>
+            {(["all", "assigned", "unassigned", "failed"] as const).map((f) => (
+              <Pressable
+                key={f}
+                style={({ pressed }) => ([{
+                  paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+                  backgroundColor: notifFilter === f ? NVC_BLUE : colors.background,
+                  borderWidth: 1, borderColor: notifFilter === f ? NVC_BLUE : colors.border,
+                  opacity: pressed ? 0.75 : 1,
+                }] as ViewStyle[])}
+                onPress={() => setNotifFilter(f)}
+              >
+                <Text style={{
+                  fontSize: 11, fontWeight: "600", textTransform: "capitalize",
+                  color: notifFilter === f ? "#fff" : colors.muted,
+                } as TextStyle}>
+                  {f === "all" ? `All (${notifHistory.length})` : f.charAt(0).toUpperCase() + f.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           {/* Notification list */}
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12 }}>
-            {notifHistory.length === 0 ? (
+            {filteredNotifHistory.length === 0 ? (
               <View style={{ alignItems: "center", paddingTop: 48 }}>
                 <IconSymbol name="bell.fill" size={32} color={colors.border} />
                 <Text style={{ fontSize: 13, color: colors.muted, marginTop: 12, textAlign: "center" } as TextStyle}>
-                  No dispatch notifications yet.{"\n"}They will appear here after you assign jobs.
+                  {notifHistory.length === 0
+                    ? `No dispatch notifications yet.\nThey will appear here after you assign jobs.`
+                    : `No notifications match the "${notifFilter}" filter.`}
                 </Text>
               </View>
             ) : (
-              notifHistory.map((notif) => {
-                const isRead = !!(notif as any).readAt;
+              filteredNotifHistory.map((notif) => {
+                const isRead = readNotifIds.has(notif.id) || !!(notif as any).readAt;
                 const ts = notif.createdAt ? new Date(notif.createdAt) : null;
                 const timeStr = ts ? ts.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" }) : "";
                 const dateStr = ts ? ts.toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "";
@@ -3083,10 +3121,11 @@ export default function DesktopDashboard() {
                       flexDirection: "row", gap: 12, alignItems: "flex-start",
                     }] as ViewStyle[])}
                     onPress={() => {
+                      setReadNotifIds((prev) => new Set([...prev, notif.id]));
                       if (notif.entityId) router.push(`/task/${notif.entityId}` as any);
                     }}
                   >
-                    {/* Status dot */}
+                    {/* Unread dot */}
                     <View style={{
                       width: 8, height: 8, borderRadius: 4,
                       backgroundColor: isRead ? colors.border : NVC_BLUE,
@@ -3122,23 +3161,34 @@ export default function DesktopDashboard() {
             )}
           </ScrollView>
 
-          {/* Footer: mark all read */}
+          {/* Footer: mark all read + refresh */}
           {notifHistory.length > 0 && (
             <View style={{
               paddingHorizontal: 16, paddingVertical: 12,
               borderTopWidth: 1, borderTopColor: colors.border,
+              flexDirection: "row", gap: 8,
             }}>
               <Pressable
                 style={({ pressed }) => ([{
-                  paddingVertical: 10, borderRadius: 10, alignItems: "center",
+                  flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center",
+                  backgroundColor: pressed ? NVC_BLUE + "18" : NVC_BLUE + "10",
+                  borderWidth: 1, borderColor: NVC_BLUE + "40",
+                }] as ViewStyle[])}
+                onPress={markAllRead}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: NVC_BLUE } as TextStyle}>
+                  ✓ Mark all read
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => ([{
+                  paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignItems: "center",
                   backgroundColor: pressed ? colors.border : colors.background,
                   borderWidth: 1, borderColor: colors.border,
                 }] as ViewStyle[])}
                 onPress={() => notifHistoryQuery.refetch()}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted } as TextStyle}>
-                  Refresh
-                </Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted } as TextStyle}>↻</Text>
               </Pressable>
             </View>
           )}

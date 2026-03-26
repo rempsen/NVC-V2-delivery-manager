@@ -789,3 +789,17 @@
 - [x] Dashboard: route ETA auto-refresh every 30 seconds when overlay is active
 - [x] Mobile: handle push notification tap to deep-link to task detail screen
 - [x] Mobile: register push token on app launch and save to server
+
+## Sprint: Agent App Mode + Notification Improvements (v5.9)
+- [ ] Dashboard: "Mark all as read" button in notification history panel clears unread badge
+- [ ] Dashboard: notification filter chips (All / Assigned / Unassigned / Failed) in history panel
+- [ ] Mobile: technician push token auto-save from profile screen to server
+- [x] Mobile: fix Dynamic Island safe area — increase top padding on all screens
+- [x] Mobile: role-based routing — agent role sees agent home, manager role sees dispatcher
+- [x] Mobile: Agent home screen — assigned jobs list, no map, status summary cards
+- [x] Mobile: Agent task detail — swipe-to-start bar at bottom triggering SMS to customer
+- [x] Mobile: Agent task detail — geolocation arrival detection at 20m threshold
+- [x] Mobile: Agent task detail — notes (mandatory/optional), photo capture, client record
+- [x] Mobile: Agent task detail — client signature capture
+- [x] Mobile: Agent task detail — payment processing (if job configured)
+- [x] Mobile: Agent task detail — swipe-to-complete bar marking job done

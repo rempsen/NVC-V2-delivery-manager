@@ -116,7 +116,7 @@ export default function SettingsScreen() {
   return (
     <ScreenContainer edges={["left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }] as ViewStyle[]}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }] as ViewStyle[]}>
         <View style={styles.headerLeft}>
           <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
           <View>

@@ -82,7 +82,7 @@ export function NVCHeader({
         styles.container,
         {
           backgroundColor: bgColor,
-          paddingTop: insets.top + 4,
+          paddingTop: insets.top + 10,
           borderBottomColor: isDark ? "rgba(255,255,255,0.12)" : colors.border,
         },
       ]}

@@ -272,7 +272,7 @@ export default function AgentsScreen() {
   return (
     <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 6 } as ViewStyle]}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 } as ViewStyle]}>
         <View style={styles.headerLeft}>
           <Image source={NVC_LOGO_DARK as any} style={styles.logo as any} resizeMode="contain" />
           <View>

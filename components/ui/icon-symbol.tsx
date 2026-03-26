@@ -85,6 +85,8 @@ const MAPPING = {
   // Auth & Social
   "apple.logo": "apple",
   "arrow.right.circle.fill": "arrow-circle-right",
+  "arrow.right": "arrow-forward",
+  "square.and.arrow.down.fill": "save-alt",
   "arrow.triangle.2.circlepath": "sync",
   "arrow.up.doc.fill": "upload-file",
   "key.fill": "vpn-key",

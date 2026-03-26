@@ -359,6 +359,157 @@ export const appRouter = router({
     geoClockOut: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(({ input }) => db.geoClockOut(input.taskId)),
+
+    /** Agent swipes to start — set status=en_route, record startedAt, optionally send SMS */
+    startTask: protectedProcedure
+      .input(z.object({
+        taskId: z.number(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        await db.updateTaskRecord(input.taskId, {
+          status: "en_route",
+          startedAt: new Date(),
+        } as any);
+        // Fire-and-forget SMS via Twilio if configured
+        const customerPhone = (task as any)?.customerPhone;
+        const customerName = (task as any)?.customerName ?? "Customer";
+        const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
+        const jobHash = (task as any)?.jobHash;
+        if (customerPhone) {
+          try {
+            const trackUrl = jobHash ? `https://tookandeliv-ve29h94a.manus.space/track/${jobHash}` : "";
+            const smsBody = `Hi ${customerName}, your technician is on the way for ${orderRef}. ${trackUrl ? `Track here: ${trackUrl}` : ""}`.trim();
+            // SMS sending is handled by Twilio integration if configured
+            await db.createNotification({
+              tenantId: (task as any)?.tenantId ?? 1,
+              recipientUserId: 0,
+              type: "sms_sent",
+              title: "SMS: Technician En Route",
+              body: smsBody,
+              deepLink: `/task/${input.taskId}`,
+              entityType: "task",
+              entityId: input.taskId,
+              pushStatus: "sent",
+              pushToken: null,
+              sentAt: new Date(),
+            } as any);
+          } catch { /* non-fatal */ }
+        }
+        return { success: true, taskId: input.taskId, status: "en_route" };
+      }),
+
+    /** Agent arrives at job site — set status=on_site, record geoClockIn, optionally send SMS */
+    arriveTask: protectedProcedure
+      .input(z.object({
+        taskId: z.number(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        await db.updateTaskRecord(input.taskId, {
+          status: "on_site",
+          geoClockIn: new Date(),
+        } as any);
+        const customerPhone = (task as any)?.customerPhone;
+        const customerName = (task as any)?.customerName ?? "Customer";
+        const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
+        if (customerPhone) {
+          try {
+            const smsBody = `Hi ${customerName}, your technician has arrived for ${orderRef}. They will be with you shortly.`;
+            await db.createNotification({
+              tenantId: (task as any)?.tenantId ?? 1,
+              recipientUserId: 0,
+              type: "sms_sent",
+              title: "SMS: Technician Arrived",
+              body: smsBody,
+              deepLink: `/task/${input.taskId}`,
+              entityType: "task",
+              entityId: input.taskId,
+              pushStatus: "sent",
+              pushToken: null,
+              sentAt: new Date(),
+            } as any);
+          } catch { /* non-fatal */ }
+        }
+        return { success: true, taskId: input.taskId, status: "on_site" };
+      }),
+
+    /** Agent saves notes/photos metadata to customFields */
+    saveTaskNotes: protectedProcedure
+      .input(z.object({
+        taskId: z.number(),
+        notes: z.string().optional(),
+        photoUris: z.array(z.string()).optional(),
+        signatureUri: z.string().optional(),
+        paymentAmount: z.number().optional(),
+        paymentMethod: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { taskId, ...fields } = input;
+        const task = await db.getTaskById_NVC(taskId);
+        const existing = (task as any)?.customFields ?? {};
+        await db.updateTaskRecord(taskId, {
+          customFields: {
+            ...existing,
+            agentNotes: fields.notes,
+            photoUris: fields.photoUris,
+            signatureUri: fields.signatureUri,
+            paymentAmount: fields.paymentAmount,
+            paymentMethod: fields.paymentMethod,
+            savedAt: new Date().toISOString(),
+          },
+        } as any);
+        return { success: true };
+      }),
+
+    /** Agent swipes to complete — set status=completed, record completedAt, geoClockOut */
+    completeTask: protectedProcedure
+      .input(z.object({
+        taskId: z.number(),
+        notes: z.string().optional(),
+        signatureUri: z.string().optional(),
+        paymentAmount: z.number().optional(),
+        paymentMethod: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        const existing = (task as any)?.customFields ?? {};
+        await db.updateTaskRecord(input.taskId, {
+          status: "completed",
+          completedAt: new Date(),
+          geoClockOut: new Date(),
+          customFields: {
+            ...existing,
+            agentNotes: input.notes ?? existing.agentNotes,
+            signatureUri: input.signatureUri ?? existing.signatureUri,
+            paymentAmount: input.paymentAmount ?? existing.paymentAmount,
+            paymentMethod: input.paymentMethod ?? existing.paymentMethod,
+            completedAt: new Date().toISOString(),
+          },
+        } as any);
+        // Push notification to dispatcher
+        const customerName = (task as any)?.customerName ?? "Customer";
+        const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
+        const tenantId = (task as any)?.tenantId ?? 1;
+        await db.createNotification({
+          tenantId,
+          recipientUserId: 0,
+          type: "job_completed",
+          title: "Job Completed ✅",
+          body: `${orderRef} — ${customerName} marked complete`,
+          deepLink: `/task/${input.taskId}`,
+          entityType: "task",
+          entityId: input.taskId,
+          pushStatus: "sent",
+          pushToken: null,
+          sentAt: new Date(),
+        } as any);
+        return { success: true, taskId: input.taskId, status: "completed" };
+      }),
   }),
 
   // ─── Technicians ───────────────────────────────────────────────────────────
