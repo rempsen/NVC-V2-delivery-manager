@@ -193,3 +193,13 @@
 - [x] Role editor: toggle permissions per role (granular feature flags)
 - [x] Assign role to user from user management screen
 - [x] Permission enforcement in UI (hide/show features based on role)
+
+## Web Dashboard — Client & User Management (New)
+- [x] NVC Super-Admin: full client list with search, filter by plan/industry/status
+- [x] NVC Super-Admin: Create Client wizard (multi-step: company info → branding → plan → admin user)
+- [x] NVC Super-Admin: Client detail page (overview, settings, users, templates, billing)
+- [x] Client Dashboard: Customer management screen (list, create, edit, view customer record)
+- [x] Client Dashboard: Employee management screen (list, create, edit, assign role/permissions)
+- [x] Client Dashboard: Invite employee via email with role pre-assignment
+- [x] Navigation: Super-Admin → Client drill-down → Customer/Employee management
+- [x] Demo data: seed realistic clients, customers, and employees for testing

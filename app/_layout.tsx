@@ -93,6 +93,7 @@ export default function RootLayout() {
             <Stack.Screen name="integrations" />
             <Stack.Screen name="dispatcher/index" />
             <Stack.Screen name="super-admin/index" />
+            <Stack.Screen name="super-admin/client/[id]" />
             <Stack.Screen name="execute-task/[id]" />
             <Stack.Screen name="task/[id]" />
             <Stack.Screen name="agent/[id]" />

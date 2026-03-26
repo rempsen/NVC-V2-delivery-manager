@@ -505,14 +505,8 @@ export default function SuperAdminDashboard() {
               key={client.id}
               client={client}
               onPress={() => {
-                Alert.alert(
-                  client.name,
-                  `Subdomain: ${client.subdomain}.nvc360.com\nPlan: ${client.plan}\nStatus: ${client.status}\nTechnicians: ${client.technicianCount}\nMRR: $${client.monthlyRevenue}`,
-                  [
-                    { text: "Close", style: "cancel" },
-                    { text: "Open Dashboard", onPress: () => router.push("/dispatcher" as any) },
-                  ],
-                );
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/super-admin/client/${client.id}` as any);
               }}
             />
           ))}

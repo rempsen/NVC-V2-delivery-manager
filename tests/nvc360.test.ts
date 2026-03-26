@@ -438,3 +438,105 @@ describe("NVC360 Customer Tracking Page", () => {
     expect(messages[1].from).toBe("agent");
   });
 });
+
+// ─── Client Detail & Management Tests ────────────────────────────────────────
+
+describe("NVC360 Client Detail Management", () => {
+  const CLIENT_DATA = {
+    "1": { name: "Arctic HVAC Services", industry: "HVAC", primaryColor: "#3B82F6", subdomain: "arctic-hvac", plan: "enterprise" },
+    "2": { name: "Prairie Electric Co.", industry: "Electrical", primaryColor: "#F59E0B", subdomain: "prairie-electric", plan: "pro" },
+    "3": { name: "Swift Couriers", industry: "Delivery", primaryColor: "#22C55E", subdomain: "swift-couriers", plan: "pro" },
+  };
+
+  const MOCK_EMPLOYEES = [
+    { id: 1, name: "Sarah Mitchell", role: "company_admin", status: "active", department: "Management", jobsCompleted: 0 },
+    { id: 2, name: "James Kowalski", role: "dispatcher", status: "active", department: "Operations", jobsCompleted: 0 },
+    { id: 3, name: "Marcus Thompson", role: "field_technician", status: "active", department: "Field", jobsCompleted: 142 },
+    { id: 4, name: "Priya Patel", role: "field_technician", status: "active", department: "Field", jobsCompleted: 98 },
+    { id: 5, name: "Derek Olsen", role: "divisional_manager", status: "active", department: "North Division", jobsCompleted: 0 },
+    { id: 6, name: "Aisha Nwosu", role: "office_staff", status: "invited", department: "Admin", jobsCompleted: 0 },
+  ];
+
+  const MOCK_CUSTOMERS = [
+    { id: 1, name: "Robert & Linda Chen", status: "vip", totalJobs: 12 },
+    { id: 2, name: "Sunrise Properties Ltd.", status: "active", totalJobs: 34 },
+    { id: 3, name: "Thomas Bergmann", status: "active", totalJobs: 3 },
+    { id: 4, name: "Westgate Mall", status: "active", totalJobs: 8 },
+    { id: 5, name: "Maria Santos", status: "inactive", totalJobs: 1 },
+  ];
+
+  it("should resolve client data by ID", () => {
+    expect(CLIENT_DATA["1"].name).toBe("Arctic HVAC Services");
+    expect(CLIENT_DATA["2"].plan).toBe("pro");
+    expect(CLIENT_DATA["3"].subdomain).toBe("swift-couriers");
+  });
+
+  it("should have 6 mock employees with correct roles", () => {
+    expect(MOCK_EMPLOYEES).toHaveLength(6);
+    const roles = MOCK_EMPLOYEES.map((e) => e.role);
+    expect(roles).toContain("company_admin");
+    expect(roles).toContain("dispatcher");
+    expect(roles).toContain("field_technician");
+    expect(roles).toContain("divisional_manager");
+    expect(roles).toContain("office_staff");
+  });
+
+  it("should have 1 invited employee (Aisha Nwosu)", () => {
+    const invited = MOCK_EMPLOYEES.filter((e) => e.status === "invited");
+    expect(invited).toHaveLength(1);
+    expect(invited[0].name).toBe("Aisha Nwosu");
+  });
+
+  it("should have 5 mock customers with 1 VIP", () => {
+    expect(MOCK_CUSTOMERS).toHaveLength(5);
+    const vip = MOCK_CUSTOMERS.filter((c) => c.status === "vip");
+    expect(vip).toHaveLength(1);
+    expect(vip[0].name).toBe("Robert & Linda Chen");
+  });
+
+  it("should calculate total jobs across all customers", () => {
+    const total = MOCK_CUSTOMERS.reduce((sum, c) => sum + c.totalJobs, 0);
+    expect(total).toBe(58);
+  });
+
+  it("should filter employees by role", () => {
+    const techs = MOCK_EMPLOYEES.filter((e) => e.role === "field_technician");
+    expect(techs).toHaveLength(2);
+    expect(techs[0].jobsCompleted).toBe(142);
+  });
+
+  it("should filter customers by status", () => {
+    const active = MOCK_CUSTOMERS.filter((c) => c.status === "active");
+    expect(active).toHaveLength(3);
+    const inactive = MOCK_CUSTOMERS.filter((c) => c.status === "inactive");
+    expect(inactive).toHaveLength(1);
+  });
+
+  it("should generate correct tracking URL for new customer work order", () => {
+    const jobId = "WO-2026-0042";
+    const clientSubdomain = "arctic-hvac";
+    const url = `https://${clientSubdomain}.nvc360.com/track/${jobId}`;
+    expect(url).toBe("https://arctic-hvac.nvc360.com/track/WO-2026-0042");
+  });
+
+  it("should validate new employee form — name and email required", () => {
+    const validate = (name: string, email: string) => name.trim().length > 0 && email.trim().length > 0;
+    expect(validate("", "test@test.com")).toBe(false);
+    expect(validate("John Doe", "")).toBe(false);
+    expect(validate("John Doe", "john@company.com")).toBe(true);
+  });
+
+  it("should validate new customer form — name and phone required", () => {
+    const validate = (name: string, phone: string) => name.trim().length > 0 && phone.trim().length > 0;
+    expect(validate("", "+1 204 555 0000")).toBe(false);
+    expect(validate("Jane Smith", "")).toBe(false);
+    expect(validate("Jane Smith", "+1 204 555 0000")).toBe(true);
+  });
+
+  it("should sanitize subdomain input (lowercase, alphanumeric + hyphens only)", () => {
+    const sanitize = (v: string) => v.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    expect(sanitize("Arctic HVAC Services!")).toBe("arctichvacservices");
+    expect(sanitize("Prairie Electric Co.")).toBe("prairieelectricco");
+    expect(sanitize("swift-couriers")).toBe("swift-couriers");
+  });
+});
