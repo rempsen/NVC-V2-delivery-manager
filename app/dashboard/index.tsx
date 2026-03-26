@@ -2871,14 +2871,30 @@ export default function DesktopDashboard() {
 
   const liveTechnicians: Technician[] = useMemo(() => {
     if (techniciansQuery.data && techniciansQuery.data.length > 0) {
-      return techniciansQuery.data.map((t: any) => ({
-        id: t.id, name: t.name ?? "Technician", phone: t.phone ?? "", email: t.email ?? "",
-        status: (t.status as any) ?? "offline", latitude: t.lat ?? 49.8951,
-        longitude: t.lng ?? -97.1384, transportType: (t.transportType ?? "car") as any,
-        skills: t.skills ?? [], photoUrl: t.photoUrl ?? undefined,
-        activeTaskId: t.activeTaskId ?? undefined, activeTaskAddress: t.activeTaskAddress ?? undefined,
-        todayJobs: t.todayJobs ?? 0, todayDistanceKm: t.todayDistanceKm ?? 0,
-      }));
+      return techniciansQuery.data.map((row: any) => {
+        // getTechniciansByTenant returns { tech: {...}, user: {...} } nested objects
+        const t = row.tech ?? row;
+        const u = row.user ?? {};
+        const firstName = t.firstName ?? u.firstName ?? "";
+        const lastName = t.lastName ?? u.lastName ?? "";
+        const fullName = `${firstName} ${lastName}`.trim() || t.name || "Technician";
+        return {
+          id: t.id,
+          name: fullName,
+          phone: t.phone ?? u.phone ?? "",
+          email: t.email ?? u.email ?? "",
+          status: (t.status as any) ?? "offline",
+          latitude: t.latitude ? parseFloat(t.latitude) : 49.8951,
+          longitude: t.longitude ? parseFloat(t.longitude) : -97.1384,
+          transportType: (t.transportType ?? "car") as any,
+          skills: Array.isArray(t.skills) ? t.skills : [],
+          photoUrl: t.photoUrl ?? undefined,
+          activeTaskId: t.activeTaskId ?? undefined,
+          activeTaskAddress: t.activeTaskAddress ?? undefined,
+          todayJobs: t.todayJobs ?? 0,
+          todayDistanceKm: t.todayDistanceKm ?? 0,
+        };
+      });
     }
     return MOCK_TECHNICIANS;
   }, [techniciansQuery.data]);
@@ -3059,12 +3075,28 @@ export default function DesktopDashboard() {
                 </View>
               )}
             </View>
-            <Pressable
-              style={({ pressed }) => [{ padding: 6, borderRadius: 8, opacity: pressed ? 0.6 : 1, backgroundColor: colors.background }] as ViewStyle[]}
-              onPress={() => setShowNotifPanel(false)}
-            >
-              <Text style={{ fontSize: 16, color: colors.muted, fontWeight: "600" } as TextStyle}>×</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              {unreadNotifCount > 0 && (
+                <Pressable
+                  style={({ pressed }) => [{
+                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+                    backgroundColor: NVC_BLUE + (pressed ? "cc" : "18"),
+                    borderWidth: 1, borderColor: NVC_BLUE + "44",
+                  }] as ViewStyle[]}
+                  onPress={markAllRead}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: NVC_BLUE } as TextStyle}>
+                    Mark all read
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable
+                style={({ pressed }) => [{ padding: 6, borderRadius: 8, opacity: pressed ? 0.6 : 1, backgroundColor: colors.background }] as ViewStyle[]}
+                onPress={() => setShowNotifPanel(false)}
+              >
+                <Text style={{ fontSize: 16, color: colors.muted, fontWeight: "600" } as TextStyle}>×</Text>
+              </Pressable>
+            </View>
           </View>
 
           {/* Filter chips */}

@@ -895,3 +895,24 @@
 - [x] Wire route optimization results back to polylines and ETA badges
 - [x] Mapbox API settings screen pre-populates from server config (shows Configured status)
 - [x] TypeScript: 0 errors, 94/95 tests pass
+
+## Sprint: Routes API v2, Live GPS, Notification Panel (Mar 26)
+
+- [ ] Validate Google Routes API v2 is enabled for AIzaSy... key
+- [ ] Update mapsRouter.optimizeRoutes to use Routes API v2 (computeRoutes endpoint) with traffic awareness
+- [ ] Add fallback: if Routes API returns 403/disabled, fall back to Directions API with waypoint optimization
+- [ ] Wire mobile agent app GPS → location.update tRPC endpoint (real-time polling every 30s)
+- [ ] Fleet map reads live technician locations from DB instead of MOCK_TECHNICIANS
+- [ ] Dispatcher dashboard auto-refreshes technician positions every 30s
+- [ ] Notification history panel: "Mark all as read" button clears unread badge
+- [ ] Notification history panel: filter chips (All / Assigned / Unassigned / Failed)
+
+## Sprint: Routes API v2, Live GPS, Notification Panel — Completed
+
+- [x] Validated Google Routes API v2 computeRoutes + computeRouteMatrix — both live on AIzaSy key
+- [x] mapsRouter already uses Routes API v2 natively with TRAFFIC_AWARE routing and optimizeWaypointOrder
+- [x] Fixed liveTechnicians mapping in dashboard — now reads nested { tech, user } structure correctly
+- [x] Added updateLocation mutation to agent-task screen — GPS pushed to server every 5s/5m while en_route
+- [x] Added pushLocationToServer callback — calls trpc.technicians.updateLocation with live lat/lng
+- [x] Added Mark All As Read button to notification panel header in dashboard
+- [x] TypeScript: 0 errors | Tests: 94 passed, 1 skipped (95 total)

@@ -463,11 +463,12 @@ export default function AgentTaskScreen() {
   const [selectedFailReason, setSelectedFailReason] = useState("");
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
 
-  // ── tRPC mutations ───────────────────────────────────────────────────────────
+  // ── tRPC mutations ─────────────────────────────────────────────────────
   const startTaskMutation = trpc.tasks.startTask.useMutation();
   const arriveTaskMutation = trpc.tasks.arriveTask.useMutation();
   const saveNotesMutation = trpc.tasks.saveTaskNotes.useMutation();
   const completeTaskMutation = trpc.tasks.completeTask.useMutation();
+  const updateLocationMutation = trpc.technicians.updateLocation.useMutation();
 
   // ── Init phase from task status ──────────────────────────────────────────────
   useEffect(() => {
@@ -488,6 +489,16 @@ export default function AgentTaskScreen() {
   }, [task]);
 
   // ── Geolocation tracking ─────────────────────────────────────────────────────
+  // Push GPS coordinates to server so dispatcher map shows live positions
+  const pushLocationToServer = useCallback((lat: number, lng: number) => {
+    if (isDemo || !task?.technicianId) return;
+    updateLocationMutation.mutate({
+      id: task.technicianId,
+      latitude: String(lat),
+      longitude: String(lng),
+    });
+  }, [isDemo, task?.technicianId, updateLocationMutation]);
+
   const startLocationTracking = useCallback(async () => {
     if (Platform.OS === "web") {
       if (!navigator?.geolocation) return;
@@ -497,6 +508,8 @@ export default function AgentTaskScreen() {
           if (!task?.jobLatitude || !task?.jobLongitude) return;
           const dist = haversineDistance(pos.coords.latitude, pos.coords.longitude, task.jobLatitude, task.jobLongitude);
           setDistanceToJob(Math.round(dist));
+          // Push live location to server every GPS update
+          pushLocationToServer(pos.coords.latitude, pos.coords.longitude);
           if (dist <= GEOFENCE_RADIUS_M) triggerAutoArrive(pos.coords.latitude, pos.coords.longitude);
         },
         undefined,
@@ -513,10 +526,12 @@ export default function AgentTaskScreen() {
         if (!task?.jobLatitude || !task?.jobLongitude) return;
         const dist = haversineDistance(loc.coords.latitude, loc.coords.longitude, task.jobLatitude, task.jobLongitude);
         setDistanceToJob(Math.round(dist));
+        // Push live location to server every 5s / 5m movement
+        pushLocationToServer(loc.coords.latitude, loc.coords.longitude);
         if (dist <= GEOFENCE_RADIUS_M) triggerAutoArrive(loc.coords.latitude, loc.coords.longitude);
       },
     );
-  }, [task]);
+  }, [task, pushLocationToServer]);
 
   const stopLocationTracking = useCallback(() => {
     locationWatchRef.current?.remove();
