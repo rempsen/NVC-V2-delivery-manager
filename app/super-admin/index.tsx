@@ -347,6 +347,7 @@ export default function SuperAdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<ClientPlan | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [clientViewMode, setClientViewMode] = useState<"list" | "card">("list");
 
   const filteredClients = clients.filter((c) => {
     const matchesPlan = planFilter === "all" || c.plan === planFilter;
@@ -433,6 +434,40 @@ export default function SuperAdminDashboard() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* Platform Tools — at top */}
+        <View style={[styles.quickActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.quickActionsTitle, { color: colors.foreground }]}>Platform Tools</Text>
+          <View style={styles.quickActionsGrid}>
+            {[
+              { label: "Templates", icon: "doc.text.fill" as const, color: "#3B82F6", route: "/settings/workflow-templates" },
+              { label: "Pricing", icon: "dollarsign.circle.fill" as const, color: "#22C55E", route: "/super-admin/pricing-logic" },
+              { label: "Analytics", icon: "chart.bar.fill" as const, color: "#8B5CF6", route: "/super-admin/analytics" },
+              { label: "API Keys", icon: "key.fill" as const, color: "#F59E0B", route: "/integrations" },
+              { label: "Billing", icon: "creditcard.fill" as const, color: "#EF4444", route: "/super-admin/billing" },
+              { label: "Support", icon: "questionmark.circle.fill" as const, color: "#6B7280", route: "https://nvc360.com/support/" },
+            ].map((action) => (
+              <Pressable
+                key={action.label}
+                style={({ pressed }) => [
+                  styles.quickAction,
+                  { backgroundColor: action.color + "18", borderColor: action.color + "35", opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={() => {
+                  if (action.route?.startsWith("http")) {
+                    const { Linking } = require("react-native");
+                    Linking.openURL(action.route);
+                  } else if (action.route) {
+                    router.push(action.route as any);
+                  }
+                }}
+              >
+                <IconSymbol name={action.icon} size={22} color={action.color} />
+                <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
         {/* Search */}
         <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
@@ -493,55 +528,82 @@ export default function SuperAdminDashboard() {
             <Text style={[styles.clientsListTitle, { color: colors.foreground }]}>
               Client Companies
             </Text>
-            <Text style={[styles.clientsListCount, { color: colors.muted }]}>
-              {filteredClients.length} of {clients.length}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={[styles.clientsListCount, { color: colors.muted }]}>
+                {filteredClients.length} of {clients.length}
+              </Text>
+              {/* List / Card toggle */}
+              <View style={[styles.viewToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Pressable
+                  style={[styles.viewToggleBtn, clientViewMode === "list" && { backgroundColor: colors.primary }]}
+                  onPress={() => setClientViewMode("list")}
+                >
+                  <IconSymbol name="list.bullet" size={14} color={clientViewMode === "list" ? "#fff" : colors.muted} />
+                </Pressable>
+                <Pressable
+                  style={[styles.viewToggleBtn, clientViewMode === "card" && { backgroundColor: colors.primary }]}
+                  onPress={() => setClientViewMode("card")}
+                >
+                  <IconSymbol name="square.grid.3x3.fill" size={14} color={clientViewMode === "card" ? "#fff" : colors.muted} />
+                </Pressable>
+              </View>
+            </View>
           </View>
 
-          {filteredClients.map((client) => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              onPress={() => {
-                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(`/super-admin/client/${client.id}` as any);
-              }}
-            />
-          ))}
-        </View>
-
-        {/* Platform Tools */}
-        <View style={[styles.quickActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.quickActionsTitle, { color: colors.foreground }]}>Platform Tools</Text>
-          <View style={styles.quickActionsGrid}>
-            {[
-              { label: "Templates", icon: "doc.text.fill" as const, color: "#3B82F6", route: "/settings/workflow-templates" },
-              { label: "Pricing", icon: "dollarsign.circle.fill" as const, color: "#22C55E", route: "/super-admin/pricing-logic" },
-              { label: "Analytics", icon: "chart.bar.fill" as const, color: "#8B5CF6", route: "/super-admin/analytics" },
-              { label: "API Keys", icon: "key.fill" as const, color: "#F59E0B", route: "/integrations" },
-              { label: "Billing", icon: "creditcard.fill" as const, color: "#EF4444", route: "/super-admin/billing" },
-              { label: "Support", icon: "questionmark.circle.fill" as const, color: "#6B7280", route: "https://nvc360.com/support/" },
-            ].map((action) => (
-              <Pressable
-                key={action.label}
-                style={({ pressed }) => [
-                  styles.quickAction,
-                  { backgroundColor: action.color + "18", borderColor: action.color + "35", opacity: pressed ? 0.7 : 1 },
-                ]}
+          {clientViewMode === "list" ? (
+            filteredClients.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
                 onPress={() => {
-                  if (action.route?.startsWith("http")) {
-                    const { Linking } = require("react-native");
-                    Linking.openURL(action.route);
-                  } else if (action.route) {
-                    router.push(action.route as any);
-                  }
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/super-admin/client/${client.id}` as any);
                 }}
-              >
-                <IconSymbol name={action.icon} size={22} color={action.color} />
-                <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+              />
+            ))
+          ) : (
+            <View style={styles.clientsCardGrid}>
+              {filteredClients.map((client) => (
+                <Pressable
+                  key={client.id}
+                  style={({ pressed }) => [
+                    styles.clientGridCard,
+                    { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+                  ]}
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/super-admin/client/${client.id}` as any);
+                  }}
+                >
+                  <View style={[styles.clientGridColorBar, { backgroundColor: client.primaryColor }]} />
+                  <View style={[styles.clientGridAvatar, { backgroundColor: client.primaryColor + "20" }]}>
+                    <Text style={[styles.clientGridAvatarText, { color: client.primaryColor }]}>
+                      {client.name.charAt(0)}
+                    </Text>
+                  </View>
+                  <Text style={[styles.clientGridName, { color: colors.foreground }]} numberOfLines={2}>
+                    {client.name}
+                  </Text>
+                  <Text style={[styles.clientGridIndustry, { color: colors.muted }]} numberOfLines={1}>
+                    {client.industry}
+                  </Text>
+                  <View style={[styles.planBadge, { backgroundColor: PLAN_COLORS[client.plan] + "20", alignSelf: "center", marginTop: 4 }]}>
+                    <Text style={[styles.planText, { color: PLAN_COLORS[client.plan] }]}>
+                      {client.plan.toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.clientGridStats}>
+                    <Text style={[styles.clientGridStatVal, { color: colors.foreground }]}>{client.technicianCount}</Text>
+                    <Text style={[styles.clientGridStatLabel, { color: colors.muted }]}>Techs</Text>
+                  </View>
+                  <View style={styles.clientGridStats}>
+                    <Text style={[styles.clientGridStatVal, { color: "#22C55E" }]}>${client.monthlyRevenue.toLocaleString()}</Text>
+                    <Text style={[styles.clientGridStatLabel, { color: colors.muted }]}>MRR</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -747,4 +809,53 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   createBtnText: { fontSize: 15, fontWeight: "800" },
+  // View toggle
+  viewToggle: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  viewToggleBtn: {
+    width: 30,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Card grid for clients
+  clientsCardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  clientGridCard: {
+    width: "47%",
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: 12,
+    alignItems: "center",
+    gap: 4,
+  },
+  clientGridColorBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
+  clientGridAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  clientGridAvatarText: { fontSize: 18, fontWeight: "800" },
+  clientGridName: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  clientGridIndustry: { fontSize: 11, textAlign: "center" },
+  clientGridStats: { flexDirection: "row", alignItems: "center", gap: 4 },
+  clientGridStatVal: { fontSize: 13, fontWeight: "800" },
+  clientGridStatLabel: { fontSize: 10 },
 });

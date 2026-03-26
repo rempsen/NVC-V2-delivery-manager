@@ -293,6 +293,7 @@ export default function CustomersScreen() {
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const { tenantId, isDemo } = useTenant();
   const [exportLoading, setExportLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "card">("card");
 
   const exportCsvQuery = trpc.export.customersCsv.useQuery(
     { tenantId: tenantId ?? 0 },
@@ -405,6 +406,21 @@ export default function CustomersScreen() {
           </View>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {/* List / Card toggle */}
+          <View style={{ flexDirection: "row", borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" }}>
+            <Pressable
+              style={({ pressed }) => [{ width: 32, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "list" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => setViewMode("list")}
+            >
+              <IconSymbol name="list.bullet" size={14} color="#fff" />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [{ width: 32, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "card" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => setViewMode("card")}
+            >
+              <IconSymbol name="square.grid.3x3.fill" size={14} color="#fff" />
+            </Pressable>
+          </View>
           {exportLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
@@ -612,42 +628,86 @@ export default function CustomersScreen() {
         </Pressable>
       </Modal>
 
-      {/* ── Customer Grid ── */}
-      <FlatList
-        key={numColumns}
-        data={filtered}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={numColumns}
-        columnWrapperStyle={numColumns > 1 ? styles.gridRow : undefined}
-        contentContainerStyle={styles.gridContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          !isDemo ? (
-            <RefreshControl
-              refreshing={apiLoading}
-              onRefresh={refetch}
-              tintColor={NVC_BLUE}
-            />
-          ) : undefined
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <IconSymbol name="person.text.rectangle.fill" size={40} color="#C0C8D8" />
-            <Text style={styles.emptyText}>
-              {searchQuery ? `No clients match "${searchQuery}"` : "No clients found"}
-            </Text>
-            {(searchQuery || filter !== "all") && (
+      {/* ── Customer List / Grid ── */}
+      {viewMode === "list" ? (
+        <FlatList
+          key="list"
+          data={filtered}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            !isDemo ? <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} /> : undefined
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <IconSymbol name="person.text.rectangle.fill" size={40} color="#C0C8D8" />
+              <Text style={styles.emptyText}>{searchQuery ? `No clients match "${searchQuery}"` : "No clients found"}</Text>
+            </View>
+          }
+          renderItem={({ item }) => {
+            const statusColors: Record<string, string> = { active: "#22C55E", vip: "#F59E0B", inactive: "#9CA3AF", prospect: "#3B82F6" };
+            const color = statusColors[item.status] ?? "#9CA3AF";
+            return (
               <Pressable
-                style={styles.emptyAction}
-                onPress={() => { setSearchQuery(""); setFilter("all"); }}
+                style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 6, padding: 12, gap: 10, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                onPress={() => router.push(`/customer/${item.id}` as any)}
               >
-                <Text style={styles.emptyActionText}>Clear filters</Text>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: color + "20", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color }}>{item.company.charAt(0)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#111827" }} numberOfLines={1}>{item.company}</Text>
+                  <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 1 }} numberOfLines={1}>{item.contactName} · {item.city}</Text>
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 3 }}>
+                  <View style={{ backgroundColor: color + "20", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 9, fontWeight: "800", color }}>{item.status.toUpperCase()}</Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: "#374151", fontWeight: "600" }}>${(item.totalRevenue / 1000).toFixed(0)}k</Text>
+                </View>
+                <IconSymbol name="chevron.right" size={14} color="#9CA3AF" />
               </Pressable>
-            )}
-          </View>
-        }
-        renderItem={renderItem}
-      />
+            );
+          }}
+        />
+      ) : (
+        <FlatList
+          key={numColumns}
+          data={filtered}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? styles.gridRow : undefined}
+          contentContainerStyle={styles.gridContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            !isDemo ? (
+              <RefreshControl
+                refreshing={apiLoading}
+                onRefresh={refetch}
+                tintColor={NVC_BLUE}
+              />
+            ) : undefined
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <IconSymbol name="person.text.rectangle.fill" size={40} color="#C0C8D8" />
+              <Text style={styles.emptyText}>
+                {searchQuery ? `No clients match "${searchQuery}"` : "No clients found"}
+              </Text>
+              {(searchQuery || filter !== "all") && (
+                <Pressable
+                  style={styles.emptyAction}
+                  onPress={() => { setSearchQuery(""); setFilter("all"); }}
+                >
+                  <Text style={styles.emptyActionText}>Clear filters</Text>
+                </Pressable>
+              )}
+            </View>
+          }
+          renderItem={renderItem}
+        />
+      )}
     </ScreenContainer>
   );
 }

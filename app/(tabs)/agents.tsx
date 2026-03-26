@@ -269,6 +269,7 @@ export default function AgentsScreen() {
     />
   ), [cardWidth, router, handleCall, handleMessage]);
 
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [leftOpen, setLeftOpen] = useState(true);
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
   const selectedTech = selectedTechId ? allTechs.find((t) => t.id === selectedTechId) ?? null : null;
@@ -288,6 +289,21 @@ export default function AgentsScreen() {
           <Text style={styles.headerTitle}>Field Team</Text>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {/* List / Card view toggle */}
+          <View style={{ flexDirection: "row", borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" }}>
+            <Pressable
+              style={({ pressed }) => [{ width: 32, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "list" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => setViewMode("list")}
+            >
+              <IconSymbol name="list.bullet" size={14} color="#fff" />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [{ width: 32, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "card" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => setViewMode("card")}
+            >
+              <IconSymbol name="square.grid.3x3.fill" size={14} color="#fff" />
+            </Pressable>
+          </View>
           <View style={[styles.filterCount, { backgroundColor: "rgba(255,255,255,0.2)" }] as ViewStyle[]}>
             <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>{activeCount} active</Text>
           </View>
@@ -302,6 +318,71 @@ export default function AgentsScreen() {
       </View>
 
       {/* ── Body: Map + Panels ── */}
+      {viewMode === "card" ? (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={numColumns}
+          key={numColumns}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: HORIZONTAL_PADDING, gap: CARD_GAP }}
+          columnWrapperStyle={numColumns > 1 ? { gap: CARD_GAP } : undefined}
+          refreshControl={
+            !isDemo ? <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} /> : undefined
+          }
+          ListHeaderComponent={
+            <View style={{ marginBottom: 8 }}>
+              <View style={[styles.searchBar, searchFocused && styles.searchBarFocused, { marginBottom: 8 }] as ViewStyle[]}>
+                <IconSymbol name="magnifyingglass" size={14} color="#9CA3AF" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search technicians..."
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <IconSymbol name="xmark" size={12} color="#9CA3AF" />
+                  </Pressable>
+                )}
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterList] as ViewStyle[]}>
+                {(STATUS_FILTERS as unknown as StatusFilter[]).map((item) => {
+                  const isActive = statusFilter === item;
+                  const dotColor = item === "all" ? NVC_BLUE : (STATUS_COLOR[item] ?? NVC_BLUE);
+                  const count = counts[item] ?? 0;
+                  return (
+                    <Pressable
+                      key={item}
+                      style={[styles.filterTab, { backgroundColor: isActive ? NVC_BLUE : "#F1F5F9", borderColor: isActive ? NVC_BLUE : "#E2E8F0" }] as ViewStyle[]}
+                      onPress={() => setStatusFilter(item)}
+                    >
+                      {item !== "all" && <View style={[styles.filterDot, { backgroundColor: dotColor }] as ViewStyle[]} />}
+                      <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "#374151" }] as TextStyle[]}>{FILTER_LABELS[item]}</Text>
+                      {count > 0 && (
+                        <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "#E2E8F0" }] as ViewStyle[]}>
+                          <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "#374151" }] as TextStyle[]}>{count}</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <IconSymbol name="person.2.fill" size={28} color="#C0C8D8" />
+              <Text style={styles.emptyTitle}>No technicians found</Text>
+            </View>
+          }
+          renderItem={renderItem}
+        />
+      ) : (
       <View style={{ flex: 1, flexDirection: "row" }}>
         {/* Left Panel */}
         {leftOpen && (
@@ -457,6 +538,7 @@ export default function AgentsScreen() {
           </View>
         )}
       </View>
+      )}
     </View>
   );
 }

@@ -961,3 +961,12 @@
 - [x] Billing: dedicated /super-admin/billing screen (plans + invoice settings + payment methods)
 - [x] Pricing Logic: dedicated /super-admin/pricing-logic screen (billing rules + pricing models + travel/distance)
 - [x] TypeScript: 0 errors | Tests: 105 passed, 1 skipped (106 total)
+
+## Sprint: SMTP, Platform Tools Position, List/Card Toggle (Mar 26)
+
+- [x] Set SMTP secrets: smtp.gmail.com:587, dan@nvc360.com, app-specific password (verified 324ms)
+- [x] Super-Admin dashboard: Platform Tools moved to top of ScrollView (above search/filter/clients)
+- [x] Super-Admin clients list: list/card toggle — list=compact rows, card=2-col grid with avatar+plan+MRR
+- [x] Technicians screen: list/card toggle — card=full TechGridCard FlatList, list=map+panel layout
+- [x] Customer management screen: list/card toggle — list=compact rows with status+revenue, card=responsive grid
+- [x] TypeScript: 0 errors | Tests: 106 passed, 1 skipped (107 total)
