@@ -86,7 +86,7 @@ const DEPARTMENT_OPTIONS = ["Field Operations", "HVAC", "Plumbing", "Electrical"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SidebarSection = "dashboard" | "workorders" | "technicians" | "customers" | "map" | "reports";
+type SidebarSection = "dashboard" | "workorders" | "technicians" | "customers" | "calendar" | "map" | "reports";
 
 interface EditableCustomer {
   company: string;
@@ -154,6 +154,7 @@ const NAV_ITEMS: { id: SidebarSection; label: string; icon: any; badge?: number 
   { id: "workorders", label: "Work Orders", icon: "paperplane.fill", badge: 2 },
   { id: "technicians", label: "Technicians", icon: "person.2.fill" },
   { id: "customers", label: "Customers", icon: "building.2.fill" },
+  { id: "calendar", label: "Calendar", icon: "calendar" },
   { id: "map", label: "Live Map", icon: "map.fill" },
   { id: "reports", label: "Reports", icon: "chart.bar.fill" },
 ];
@@ -1966,6 +1967,462 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
   );
 }
 
+// ─── Calendar Section ────────────────────────────────────────────────────────
+
+const CALENDAR_EVENT_COLORS = [
+  "#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6",
+  "#06B6D4", "#E85D04", "#EC4899", "#14B8A6",
+];
+
+const EVENT_TYPE_OPTIONS = [
+  { key: "work_order" as const, label: "Work Order", color: "#3B82F6" },
+  { key: "event" as const, label: "Event", color: "#22C55E" },
+  { key: "task" as const, label: "Task", color: "#F59E0B" },
+  { key: "note" as const, label: "Note", color: "#8B5CF6" },
+];
+
+const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+interface CalendarEvent {
+  id: number;
+  type: "note" | "task" | "event" | "work_order";
+  title: string;
+  description?: string;
+  date: string; // YYYY-MM-DD
+  time?: string;
+  endTime?: string;
+  color?: string;
+  isCompleted?: boolean;
+  taskId?: number;
+}
+
+function CalendarSection() {
+  const colors = useColors();
+  const today = new Date();
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = useState<string>(
+    today.toISOString().split("T")[0]
+  );
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [newEvent, setNewEvent] = useState({
+    type: "event" as CalendarEvent["type"],
+    title: "",
+    description: "",
+    time: "",
+    endTime: "",
+    color: CALENDAR_EVENT_COLORS[0],
+  });
+
+  // Date range for the visible month
+  const monthStart = new Date(currentYear, currentMonth, 1);
+  const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+  const dateFrom = monthStart.toISOString().split("T")[0];
+  const dateTo = monthEnd.toISOString().split("T")[0];
+
+  const { data: rawEvents, refetch } = trpc.calendar.list.useQuery(
+    { tenantId: DEMO_TENANT_ID, dateFrom, dateTo },
+    { staleTime: 30_000 }
+  );
+
+  const createMutation = trpc.calendar.create.useMutation({
+    onSuccess: () => { refetch(); setShowEventForm(false); resetForm(); },
+  });
+  const updateMutation = trpc.calendar.update.useMutation({
+    onSuccess: () => { refetch(); setEditingEvent(null); },
+  });
+  const deleteMutation = trpc.calendar.delete.useMutation({
+    onSuccess: () => { refetch(); setEditingEvent(null); },
+  });
+
+  const events: CalendarEvent[] = useMemo(() => {
+    if (!rawEvents) return [];
+    return (rawEvents as any[]).map((e) => ({
+      id: e.id,
+      type: e.type as CalendarEvent["type"],
+      title: e.title,
+      description: e.description,
+      date: e.date ? new Date(e.date).toISOString().split("T")[0] : "",
+      time: e.time,
+      endTime: e.endTime,
+      color: e.color ?? "#3B82F6",
+      isCompleted: e.isCompleted ?? false,
+      taskId: e.taskId,
+    }));
+  }, [rawEvents]);
+
+  const resetForm = () => setNewEvent({
+    type: "event", title: "", description: "", time: "", endTime: "",
+    color: CALENDAR_EVENT_COLORS[0],
+  });
+
+  // Build calendar grid
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const totalCells = Math.ceil((firstDayOfMonth + daysInMonth) / 7) * 7;
+  const calendarCells: (number | null)[] = Array.from({ length: totalCells }, (_, i) => {
+    const day = i - firstDayOfMonth + 1;
+    return day >= 1 && day <= daysInMonth ? day : null;
+  });
+
+  const eventsOnDate = (dateStr: string) =>
+    events.filter((e) => e.date === dateStr);
+
+  const selectedEvents = eventsOnDate(selectedDate);
+
+  const monthName = new Date(currentYear, currentMonth).toLocaleDateString("en-CA", {
+    month: "long", year: "numeric",
+  });
+
+  const handleSaveEvent = () => {
+    if (!newEvent.title.trim()) return;
+    if (editingEvent) {
+      updateMutation.mutate({
+        id: editingEvent.id,
+        tenantId: DEMO_TENANT_ID,
+        title: newEvent.title,
+        description: newEvent.description || undefined,
+        time: newEvent.time || undefined,
+        endTime: newEvent.endTime || undefined,
+        color: newEvent.color,
+      });
+    } else {
+      createMutation.mutate({
+        tenantId: DEMO_TENANT_ID,
+        type: newEvent.type,
+        title: newEvent.title,
+        description: newEvent.description || undefined,
+        date: selectedDate,
+        time: newEvent.time || undefined,
+        endTime: newEvent.endTime || undefined,
+        color: newEvent.color,
+      });
+    }
+  };
+
+  const handleEditEvent = (ev: CalendarEvent) => {
+    setEditingEvent(ev);
+    setNewEvent({
+      type: ev.type,
+      title: ev.title,
+      description: ev.description ?? "",
+      time: ev.time ?? "",
+      endTime: ev.endTime ?? "",
+      color: ev.color ?? CALENDAR_EVENT_COLORS[0],
+    });
+    setShowEventForm(true);
+  };
+
+  const handleDeleteEvent = (ev: CalendarEvent) => {
+    deleteMutation.mutate({ id: ev.id, tenantId: DEMO_TENANT_ID });
+  };
+
+  const handleToggleComplete = (ev: CalendarEvent) => {
+    updateMutation.mutate({
+      id: ev.id,
+      tenantId: DEMO_TENANT_ID,
+      isCompleted: !ev.isCompleted,
+    });
+  };
+
+  return (
+    <View style={{ flex: 1, padding: 24, flexDirection: "row", gap: 20 }}>
+      {/* ── Left: Calendar Grid ── */}
+      <View style={{ flex: 1, minWidth: 360 }}>
+        {/* Month Navigation */}
+        <View style={[styles.sectionHeader, { marginBottom: 16 }]}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>
+              {monthName}
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
+              {events.length} event{events.length !== 1 ? "s" : ""} this month
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Pressable
+              style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => {
+                if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+                else setCurrentMonth(m => m - 1);
+              }}
+            >
+              <IconSymbol name="chevron.left" size={16} color={colors.muted} />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => {
+                setCurrentYear(today.getFullYear());
+                setCurrentMonth(today.getMonth());
+                setSelectedDate(today.toISOString().split("T")[0]);
+              }}
+            >
+              <Text style={{ fontSize: 12, color: NVC_BLUE, fontWeight: "600" }}>Today</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => {
+                if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+                else setCurrentMonth(m => m + 1);
+              }}
+            >
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Day-of-week headers */}
+        <View style={{ flexDirection: "row", marginBottom: 4 }}>
+          {DAYS_OF_WEEK.map((d) => (
+            <View key={d} style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>{d}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Calendar cells */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {calendarCells.map((day, idx) => {
+            if (!day) return <View key={`empty-${idx}`} style={{ width: "14.28%", aspectRatio: 1 }} />;
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dayEvents = eventsOnDate(dateStr);
+            const isToday = dateStr === today.toISOString().split("T")[0];
+            const isSelected = dateStr === selectedDate;
+            return (
+              <Pressable
+                key={dateStr}
+                style={({ pressed }) => [{
+                  width: "14.28%",
+                  aspectRatio: 1,
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  paddingTop: 6,
+                  borderRadius: 10,
+                  backgroundColor: isSelected ? NVC_BLUE + "18" : isToday ? NVC_ORANGE + "12" : "transparent",
+                  borderWidth: isSelected ? 1.5 : isToday ? 1 : 0,
+                  borderColor: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : "transparent",
+                  opacity: pressed ? 0.75 : 1,
+                }] as ViewStyle[]}
+                onPress={() => setSelectedDate(dateStr)}
+              >
+                <Text style={[{
+                  fontSize: 13,
+                  fontWeight: isToday || isSelected ? "700" : "400",
+                  color: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : colors.foreground,
+                }] as TextStyle[]}>{day}</Text>
+                {/* Event dots */}
+                <View style={{ flexDirection: "row", gap: 2, marginTop: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                  {dayEvents.slice(0, 3).map((ev, i) => (
+                    <View key={i} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ev.color ?? NVC_BLUE }} />
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <Text style={{ fontSize: 8, color: colors.muted }}>+{dayEvents.length - 3}</Text>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* ── Right: Day Detail + Event Form ── */}
+      <View style={{ width: 320, gap: 16 }}>
+        {/* Selected day header */}
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, padding: 16 }]}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <Text style={[{ fontSize: 15, fontWeight: "700", color: colors.foreground }] as TextStyle[]}>
+              {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+              onPress={() => { setEditingEvent(null); resetForm(); setShowEventForm(true); }}
+            >
+              <IconSymbol name="plus" size={14} color="#fff" />
+              <Text style={styles.primaryBtnText}>Add</Text>
+            </Pressable>
+          </View>
+
+          {/* Event list for selected day */}
+          {selectedEvents.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 24 }}>
+              <IconSymbol name="calendar" size={28} color={colors.border} />
+              <Text style={[{ color: colors.muted, fontSize: 13, marginTop: 8 }] as TextStyle[]}>No events on this day</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {selectedEvents.map((ev) => (
+                <View
+                  key={ev.id}
+                  style={[{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    padding: 10,
+                    borderRadius: 10,
+                    backgroundColor: (ev.color ?? NVC_BLUE) + "10",
+                    borderLeftWidth: 3,
+                    borderLeftColor: ev.color ?? NVC_BLUE,
+                    opacity: ev.isCompleted ? 0.6 : 1,
+                  }] as ViewStyle[]}
+                >
+                  <Pressable
+                    style={[{
+                      width: 18, height: 18, borderRadius: 9,
+                      borderWidth: 1.5, borderColor: ev.color ?? NVC_BLUE,
+                      backgroundColor: ev.isCompleted ? (ev.color ?? NVC_BLUE) : "transparent",
+                      alignItems: "center", justifyContent: "center",
+                      marginTop: 2,
+                    }] as ViewStyle[]}
+                    onPress={() => handleToggleComplete(ev)}
+                  >
+                    {ev.isCompleted && <IconSymbol name="checkmark" size={10} color="#fff" />}
+                  </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[{
+                      fontSize: 13, fontWeight: "600",
+                      color: colors.foreground,
+                      textDecorationLine: ev.isCompleted ? "line-through" : "none",
+                    }] as TextStyle[]}>{ev.title}</Text>
+                    {ev.time && (
+                      <Text style={[{ fontSize: 11, color: colors.muted, marginTop: 2 }] as TextStyle[]}>
+                        {ev.time}{ev.endTime ? ` – ${ev.endTime}` : ""}
+                      </Text>
+                    )}
+                    {ev.description && (
+                      <Text style={[{ fontSize: 11, color: colors.muted, marginTop: 2 }] as TextStyle[]} numberOfLines={2}>
+                        {ev.description}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 4 }}>
+                    <Pressable
+                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }] as ViewStyle[]}
+                      onPress={() => handleEditEvent(ev)}
+                    >
+                      <IconSymbol name="pencil" size={14} color={colors.muted} />
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }] as ViewStyle[]}
+                      onPress={() => handleDeleteEvent(ev)}
+                    >
+                      <IconSymbol name="trash" size={14} color="#EF4444" />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Event creation / editing form */}
+        {showEventForm && (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, padding: 16 }]}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <Text style={[{ fontSize: 14, fontWeight: "700", color: colors.foreground }] as TextStyle[]}>
+                {editingEvent ? "Edit Event" : "New Event"}
+              </Text>
+              <Pressable
+                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }] as ViewStyle[]}
+                onPress={() => { setShowEventForm(false); setEditingEvent(null); resetForm(); }}
+              >
+                <IconSymbol name="xmark" size={16} color={colors.muted} />
+              </Pressable>
+            </View>
+
+            {/* Type selector */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+              {EVENT_TYPE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  style={[styles.chipBtn, {
+                    backgroundColor: newEvent.type === opt.key ? opt.color : colors.background,
+                    borderColor: newEvent.type === opt.key ? opt.color : colors.border,
+                  }] as ViewStyle[]}
+                  onPress={() => setNewEvent((f) => ({ ...f, type: opt.key }))}
+                >
+                  <Text style={[styles.chipBtnText, { color: newEvent.type === opt.key ? "#fff" : colors.muted }] as TextStyle[]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Title */}
+            <TextInput
+              style={[styles.modalFieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, marginBottom: 8 }] as TextStyle[]}
+              placeholder="Title *"
+              placeholderTextColor={colors.muted}
+              value={newEvent.title}
+              onChangeText={(v) => setNewEvent((f) => ({ ...f, title: v }))}
+              returnKeyType="done"
+            />
+
+            {/* Time row */}
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+              <TextInput
+                style={[styles.modalFieldInput, { flex: 1, backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }] as TextStyle[]}
+                placeholder="Start time (e.g. 09:00)"
+                placeholderTextColor={colors.muted}
+                value={newEvent.time}
+                onChangeText={(v) => setNewEvent((f) => ({ ...f, time: v }))}
+                returnKeyType="done"
+              />
+              <TextInput
+                style={[styles.modalFieldInput, { flex: 1, backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }] as TextStyle[]}
+                placeholder="End time (e.g. 10:00)"
+                placeholderTextColor={colors.muted}
+                value={newEvent.endTime}
+                onChangeText={(v) => setNewEvent((f) => ({ ...f, endTime: v }))}
+                returnKeyType="done"
+              />
+            </View>
+
+            {/* Description */}
+            <TextInput
+              style={[styles.modalFieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, height: 64, marginBottom: 10 }] as TextStyle[]}
+              placeholder="Description (optional)"
+              placeholderTextColor={colors.muted}
+              value={newEvent.description}
+              onChangeText={(v) => setNewEvent((f) => ({ ...f, description: v }))}
+              multiline
+              textAlignVertical="top"
+            />
+
+            {/* Color picker */}
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              {CALENDAR_EVENT_COLORS.map((c) => (
+                <Pressable
+                  key={c}
+                  style={[{
+                    width: 24, height: 24, borderRadius: 12,
+                    backgroundColor: c,
+                    borderWidth: newEvent.color === c ? 2.5 : 0,
+                    borderColor: "#fff",
+                    shadowColor: newEvent.color === c ? c : "transparent",
+                    shadowOpacity: 0.5, shadowRadius: 4, elevation: 2,
+                  }] as ViewStyle[]}
+                  onPress={() => setNewEvent((f) => ({ ...f, color: c }))}
+                />
+              ))}
+            </View>
+
+            {/* Save button */}
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1, justifyContent: "center" }] as ViewStyle[]}
+              onPress={handleSaveEvent}
+            >
+              <Text style={styles.primaryBtnText}>
+                {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingEvent ? "Update Event" : "Save Event"}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function DesktopDashboard() {
@@ -2031,6 +2488,8 @@ export default function DesktopDashboard() {
         return <TechniciansSection technicians={liveTechnicians} />;
       case "customers":
         return <CustomersSection />;
+      case "calendar":
+        return <CalendarSection />;
       case "map":
         return (
           <View style={{ flex: 1, padding: 24 }}>

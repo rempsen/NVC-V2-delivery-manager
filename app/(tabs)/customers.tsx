@@ -11,6 +11,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK } from "@/constants/brand";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -184,7 +186,42 @@ export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Customer["status"] | "all">("all");
-  const [customers, setCustomers] = useState(MOCK_CUSTOMERS);
+  const { tenantId, isDemo } = useTenant();
+
+  // ── Real API query ───────────────────────────────────────────────────────────────
+  const { data: apiCustomers, isLoading: apiLoading, refetch } = trpc.customers.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: !isDemo && tenantId !== null, staleTime: 60_000 },
+  );
+
+  // ── Normalize API customers to local Customer shape ───────────────────────────
+  const normalizedApiCustomers: Customer[] = useMemo(() => {
+    if (!apiCustomers) return [];
+    return (apiCustomers as any[]).map((c) => ({
+      id: c.id,
+      company: c.company ?? "",
+      contactName: c.contactName ?? "",
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+      mailingAddress: c.mailingStreet ?? "",
+      physicalAddress: c.physicalStreet ?? c.mailingStreet ?? "",
+      city: c.mailingCity ?? "",
+      province: c.mailingProvince ?? "",
+      postalCode: c.mailingPostalCode ?? "",
+      country: c.mailingCountry ?? "Canada",
+      industry: c.industry ?? "",
+      status: (c.status ?? "prospect") as Customer["status"],
+      terms: c.paymentTerms ?? "net_30",
+      notes: c.notes ?? "",
+      totalJobs: c.totalJobs ?? 0,
+      totalRevenue: c.totalRevenueCents ? c.totalRevenueCents / 100 : 0,
+      lastJobDate: c.lastJobDate ? new Date(c.lastJobDate).toISOString().split("T")[0] : "",
+      createdAt: c.createdAt ? new Date(c.createdAt).toISOString().split("T")[0] : "",
+      tags: c.tags ? c.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+    }));
+  }, [apiCustomers]);
+
+  const customers = isDemo ? MOCK_CUSTOMERS : normalizedApiCustomers;
 
   const filtered = useMemo(() => {
     return customers.filter((c) => {

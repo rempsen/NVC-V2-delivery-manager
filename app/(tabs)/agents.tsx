@@ -21,7 +21,9 @@ import {
   TECH_STATUS_LABELS,
   type Technician,
 } from "@/lib/nvc-types";
-import { Image } from "react-native";
+import { Image, ActivityIndicator, RefreshControl } from "react-native";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
@@ -130,23 +132,53 @@ export default function AgentsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const { tenantId, isDemo } = useTenant();
+
+  // ── Real API query ───────────────────────────────────────────────────────────────
+  const { data: apiTechs, isLoading: apiLoading, refetch } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: !isDemo && tenantId !== null, staleTime: 30_000 },
+  );
+
+  // ── Normalize API technicians to local Technician shape ─────────────────────────
+  const normalizedApiTechs: Technician[] = useMemo(() => {
+    if (!apiTechs) return [];
+    return (apiTechs as any[]).map((t) => ({
+      id: t.id,
+      name: `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim(),
+      phone: t.phone ?? "",
+      email: t.email ?? "",
+      status: (t.status ?? "offline") as Technician["status"],
+      latitude: parseFloat(t.lastLatitude ?? "0"),
+      longitude: parseFloat(t.lastLongitude ?? "0"),
+      transportType: "car" as const,
+      skills: Array.isArray(t.skills) ? t.skills : [],
+      photoUrl: t.photoUrl,
+      activeTaskId: t.activeTaskId,
+      activeTaskAddress: t.activeTaskAddress,
+      todayJobs: t.todayJobs ?? 0,
+      todayDistanceKm: t.todayDistanceKm ?? 0,
+    }));
+  }, [apiTechs]);
+
+  const allTechs = isDemo ? MOCK_TECHNICIANS : normalizedApiTechs;
 
   const sorted = useMemo(() =>
-    [...MOCK_TECHNICIANS].sort((a, b) => {
+    [...allTechs].sort((a, b) => {
       const oa = STATUS_SORT[a.status as string] ?? 99;
       const ob = STATUS_SORT[b.status as string] ?? 99;
       return oa !== ob ? oa - ob : a.name.localeCompare(b.name);
-    }), []);
+    }), [allTechs]);
 
   const filtered = useMemo(() =>
     statusFilter === "all" ? sorted : sorted.filter((t) => t.status === statusFilter),
     [statusFilter, sorted]);
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: MOCK_TECHNICIANS.length };
-    STATUS_FILTERS.forEach((s) => { if (s !== "all") c[s] = MOCK_TECHNICIANS.filter((t) => t.status === s).length; });
+    const c: Record<string, number> = { all: allTechs.length };
+    STATUS_FILTERS.forEach((s) => { if (s !== "all") c[s] = allTechs.filter((t) => t.status === s).length; });
     return c;
-  }, []);
+  }, [allTechs]);
 
   const activeCount = (counts.busy ?? 0) + (counts.en_route ?? 0);
 
@@ -236,6 +268,15 @@ export default function AgentsScreen() {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          !isDemo ? (
+            <RefreshControl
+              refreshing={apiLoading}
+              onRefresh={() => refetch()}
+              tintColor={NVC_BLUE}
+            />
+          ) : undefined
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>

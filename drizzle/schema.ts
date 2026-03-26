@@ -286,3 +286,136 @@ export const taskAuditLog = mysqlTable("taskAuditLog", {
 });
 
 export type TaskAuditLog = typeof taskAuditLog.$inferSelect;
+
+// ─── Customers (CRM) ──────────────────────────────────────────────────────────
+export const customers = mysqlTable("customers", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  company: varchar("company", { length: 255 }).notNull(),
+  contactName: varchar("contactName", { length: 255 }),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 32 }),
+  mailingStreet: varchar("mailingStreet", { length: 255 }),
+  mailingCity: varchar("mailingCity", { length: 128 }),
+  mailingProvince: varchar("mailingProvince", { length: 64 }),
+  mailingPostalCode: varchar("mailingPostalCode", { length: 20 }),
+  mailingCountry: varchar("mailingCountry", { length: 64 }).default("Canada"),
+  physicalStreet: varchar("physicalStreet", { length: 255 }),
+  physicalCity: varchar("physicalCity", { length: 128 }),
+  physicalProvince: varchar("physicalProvince", { length: 64 }),
+  physicalPostalCode: varchar("physicalPostalCode", { length: 20 }),
+  physicalCountry: varchar("physicalCountry", { length: 64 }).default("Canada"),
+  sameAsMailing: boolean("sameAsMailing").default(false),
+  industry: varchar("industry", { length: 64 }),
+  status: mysqlEnum("status", ["active", "prospect", "inactive", "vip"]).default("prospect").notNull(),
+  paymentTerms: varchar("paymentTerms", { length: 64 }).default("net_30"),
+  creditLimit: int("creditLimit").default(0),
+  taxExempt: boolean("taxExempt").default(false),
+  taxNumber: varchar("taxNumber", { length: 64 }),
+  tags: text("tags"),
+  notes: text("notes"),
+  totalRevenueCents: int("totalRevenueCents").default(0),
+  jobCount: int("jobCount").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = typeof customers.$inferInsert;
+
+// ─── Calendar Items ───────────────────────────────────────────────────────────
+export const calendarItems = mysqlTable("calendarItems", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  createdByUserId: int("createdByUserId"),
+  type: mysqlEnum("type", ["note", "task", "event", "work_order"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  date: varchar("date", { length: 10 }).notNull(),
+  time: varchar("time", { length: 5 }),
+  endTime: varchar("endTime", { length: 5 }),
+  taskId: int("taskId"),
+  color: varchar("color", { length: 7 }),
+  isCompleted: boolean("isCompleted").default(false),
+  externalEventId: varchar("externalEventId", { length: 255 }),
+  externalCalendarType: mysqlEnum("externalCalendarType", ["google", "microsoft"]),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CalendarItem = typeof calendarItems.$inferSelect;
+export type InsertCalendarItem = typeof calendarItems.$inferInsert;
+
+// ─── Integration Configs ──────────────────────────────────────────────────────
+export const integrationConfigs = mysqlTable("integrationConfigs", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  integrationKey: varchar("integrationKey", { length: 64 }).notNull(),
+  isConnected: boolean("isConnected").default(false).notNull(),
+  accessToken: text("accessToken"),
+  refreshToken: text("refreshToken"),
+  tokenExpiresAt: timestamp("tokenExpiresAt"),
+  config: json("config"),
+  lastSyncAt: timestamp("lastSyncAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type IntegrationConfig = typeof integrationConfigs.$inferSelect;
+export type InsertIntegrationConfig = typeof integrationConfigs.$inferInsert;
+
+// ─── File Attachments ─────────────────────────────────────────────────────────
+export const fileAttachments = mysqlTable("fileAttachments", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  uploadedByUserId: int("uploadedByUserId"),
+  entityType: mysqlEnum("entityType", ["task", "customer", "technician", "message"]).notNull(),
+  entityId: int("entityId").notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileSize: int("fileSize"),
+  mimeType: varchar("mimeType", { length: 128 }),
+  url: varchar("url", { length: 1000 }).notNull(),
+  storageProvider: varchar("storageProvider", { length: 32 }).default("s3"),
+  externalFileId: varchar("externalFileId", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FileAttachment = typeof fileAttachments.$inferSelect;
+export type InsertFileAttachment = typeof fileAttachments.$inferInsert;
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  recipientUserId: int("recipientUserId").notNull(),
+  type: mysqlEnum("type", [
+    "job_assigned",
+    "job_updated",
+    "job_completed",
+    "message_received",
+    "alert",
+    "system",
+  ]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  deepLink: varchar("deepLink", { length: 500 }),
+  entityType: mysqlEnum("entityType", ["task", "message", "technician", "customer"]),
+  entityId: int("entityId"),
+  pushStatus: mysqlEnum("pushStatus", ["pending", "sent", "failed", "not_applicable"]).default("pending"),
+  pushToken: varchar("pushToken", { length: 255 }),
+  readAt: timestamp("readAt"),
+  sentAt: timestamp("sentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+
+// ─── Consent Records (PIPEDA compliance) ─────────────────────────────────────
+export const consentRecords = mysqlTable("consentRecords", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  userId: int("userId").notNull(),
+  policyVersion: varchar("policyVersion", { length: 16 }).notNull(),
+  consentGiven: boolean("consentGiven").default(false).notNull(),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  consentAt: timestamp("consentAt").defaultNow().notNull(),
+});
+export type ConsentRecord = typeof consentRecords.$inferSelect;
+export type InsertConsentRecord = typeof consentRecords.$inferInsert;

@@ -17,6 +17,7 @@ function generateJobHash(): string {
 export const appRouter = router({
   system: systemRouter,
 
+  // ─── Auth ─────────────────────────────────────────────────────────────────
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -27,7 +28,6 @@ export const appRouter = router({
   }),
 
   // ─── Tenants (NVC360 Super-Admin) ──────────────────────────────────────────
-
   tenants: router({
     list: protectedProcedure.query(() => db.getAllTenants()),
 
@@ -35,6 +35,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getTenantById(input.id)),
 
+    /** Public — needed for slug-based tenant resolution on login page */
     getBySlug: publicProcedure
       .input(z.object({ slug: z.string() }))
       .query(({ input }) => db.getTenantBySlug(input.slug)),
@@ -76,9 +77,8 @@ export const appRouter = router({
   }),
 
   // ─── Workflow Templates ────────────────────────────────────────────────────
-
   templates: router({
-    list: publicProcedure
+    list: protectedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getTemplatesByTenant(input.tenantId)),
 
@@ -123,9 +123,8 @@ export const appRouter = router({
   }),
 
   // ─── Pricing Rules ─────────────────────────────────────────────────────────
-
   pricing: router({
-    list: publicProcedure
+    list: protectedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getPricingRulesByTenant(input.tenantId)),
 
@@ -164,6 +163,7 @@ export const appRouter = router({
         return db.updatePricingRule(id, data as any);
       }),
 
+    /** Public — pricing calculator can be used on public-facing booking forms */
     calculate: publicProcedure
       .input(
         z.object({
@@ -185,22 +185,21 @@ export const appRouter = router({
   }),
 
   // ─── Tasks / Work Orders ───────────────────────────────────────────────────
-
   tasks: router({
-    list: publicProcedure
+    list: protectedProcedure
       .input(z.object({ tenantId: z.number(), status: z.string().optional() }))
       .query(({ input }) => db.getTasksByTenant(input.tenantId, input.status)),
 
-    getById: publicProcedure
+    getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getTaskById_NVC(input.id)),
 
-    /** Public endpoint for customer SMS tracking — no auth required */
+    /** Public endpoint — customer SMS tracking link, no auth required */
     getByHash: publicProcedure
       .input(z.object({ jobHash: z.string() }))
       .query(({ input }) => db.getTaskByHash(input.jobHash)),
 
-    create: publicProcedure
+    create: protectedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -232,7 +231,7 @@ export const appRouter = router({
         } as any);
       }),
 
-    updateStatus: publicProcedure
+    updateStatus: protectedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -241,7 +240,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.updateTaskStatusRecord(input.id, input.status)),
 
-    update: publicProcedure
+    update: protectedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -257,27 +256,80 @@ export const appRouter = router({
         return db.updateTaskRecord(id, data as any);
       }),
 
-    geoClockIn: publicProcedure
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.updateTaskRecord(input.id, { status: "cancelled" } as any)),
+
+    geoClockIn: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(({ input }) => db.geoClockIn(input.taskId)),
 
-    geoClockOut: publicProcedure
+    geoClockOut: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(({ input }) => db.geoClockOut(input.taskId)),
   }),
 
   // ─── Technicians ───────────────────────────────────────────────────────────
-
   technicians: router({
-    list: publicProcedure
+    list: protectedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getTechniciansByTenant(input.tenantId)),
 
-    getById: publicProcedure
+    getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getTechnicianById(input.id)),
 
-    updateLocation: publicProcedure
+    create: protectedProcedure
+      .input(
+        z.object({
+          tenantId: z.number(),
+          tenantUserId: z.number().optional(),
+          employeeId: z.string().optional(),
+          firstName: z.string().min(1),
+          lastName: z.string().min(1),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          skills: z.array(z.string()).optional(),
+          certifications: z.array(z.string()).optional(),
+          departments: z.array(z.string()).optional(),
+          industries: z.array(z.string()).optional(),
+          hourlyRate: z.string().optional(),
+          overtimeRate: z.string().optional(),
+          employmentType: z.enum(["full_time", "part_time", "contract", "seasonal"]).optional(),
+          hireDate: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => db.createTechnician(input as any) as any),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          tenantId: z.number(),
+          firstName: z.string().optional(),
+          lastName: z.string().optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          skills: z.array(z.string()).optional(),
+          certifications: z.array(z.string()).optional(),
+          departments: z.array(z.string()).optional(),
+          industries: z.array(z.string()).optional(),
+          hourlyRate: z.string().optional(),
+          overtimeRate: z.string().optional(),
+          status: z.enum(["online", "busy", "on_break", "offline"]).optional(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .mutation(({ input }) => {
+        const { id, tenantId, ...data } = input;
+        return db.updateTechnician(id, tenantId, data as any);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .mutation(({ input }) => db.deleteTechnician(input.id, input.tenantId)),
+
+    updateLocation: protectedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -291,7 +343,7 @@ export const appRouter = router({
         db.updateTechnicianLocation(input.id, input.latitude, input.longitude),
       ),
 
-    updateStatus: publicProcedure
+    updateStatus: protectedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -301,14 +353,215 @@ export const appRouter = router({
       .mutation(({ input }) => db.updateTechnicianStatus(input.id, input.status)),
   }),
 
-  // ─── Messages ──────────────────────────────────────────────────────────────
+  // ─── Customers (CRM) ───────────────────────────────────────────────────────
+  customers: router({
+    list: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .query(({ input }) => db.getCustomersByTenant(input.tenantId)),
 
+    getById: protectedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .query(({ input }) => db.getCustomerById(input.id, input.tenantId)),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          tenantId: z.number(),
+          company: z.string().min(1),
+          contactName: z.string().optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          mailingStreet: z.string().optional(),
+          mailingCity: z.string().optional(),
+          mailingProvince: z.string().optional(),
+          mailingPostalCode: z.string().optional(),
+          mailingCountry: z.string().default("Canada"),
+          physicalStreet: z.string().optional(),
+          physicalCity: z.string().optional(),
+          physicalProvince: z.string().optional(),
+          physicalPostalCode: z.string().optional(),
+          physicalCountry: z.string().default("Canada"),
+          sameAsMailing: z.boolean().default(false),
+          industry: z.string().optional(),
+          status: z.enum(["active", "prospect", "inactive", "vip"]).default("prospect"),
+          paymentTerms: z.string().default("net_30"),
+          creditLimit: z.number().default(0),
+          taxExempt: z.boolean().default(false),
+          taxNumber: z.string().optional(),
+          tags: z.string().optional(),
+          notes: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => db.createCustomer(input as any) as any),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          tenantId: z.number(),
+          company: z.string().optional(),
+          contactName: z.string().optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          mailingStreet: z.string().optional(),
+          mailingCity: z.string().optional(),
+          mailingProvince: z.string().optional(),
+          mailingPostalCode: z.string().optional(),
+          mailingCountry: z.string().optional(),
+          physicalStreet: z.string().optional(),
+          physicalCity: z.string().optional(),
+          physicalProvince: z.string().optional(),
+          physicalPostalCode: z.string().optional(),
+          physicalCountry: z.string().optional(),
+          sameAsMailing: z.boolean().optional(),
+          industry: z.string().optional(),
+          status: z.enum(["active", "prospect", "inactive", "vip"]).optional(),
+          paymentTerms: z.string().optional(),
+          creditLimit: z.number().optional(),
+          taxExempt: z.boolean().optional(),
+          taxNumber: z.string().optional(),
+          tags: z.string().optional(),
+          notes: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => {
+        const { id, tenantId, ...data } = input;
+        return db.updateCustomer(id, tenantId, data as any);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .mutation(({ input }) => db.deleteCustomer(input.id, input.tenantId)),
+  }),
+
+  // ─── Calendar Items ────────────────────────────────────────────────────────
+  calendar: router({
+    list: protectedProcedure
+      .input(z.object({ tenantId: z.number(), dateFrom: z.string().optional(), dateTo: z.string().optional() }))
+      .query(({ input }) => db.getCalendarItemsByTenant(input.tenantId, input.dateFrom, input.dateTo)),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          tenantId: z.number(),
+          createdByUserId: z.number().optional(),
+          type: z.enum(["note", "task", "event", "work_order"]),
+          title: z.string().min(1),
+          description: z.string().optional(),
+          date: z.string(),
+          time: z.string().optional(),
+          endTime: z.string().optional(),
+          taskId: z.number().optional(),
+          color: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => db.createCalendarItem(input as any) as any),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          tenantId: z.number(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          date: z.string().optional(),
+          time: z.string().optional(),
+          endTime: z.string().optional(),
+          isCompleted: z.boolean().optional(),
+          color: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => {
+        const { id, tenantId, ...data } = input;
+        return db.updateCalendarItem(id, tenantId, data as any);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .mutation(({ input }) => db.deleteCalendarItem(input.id, input.tenantId)),
+  }),
+
+  // ─── Integrations ──────────────────────────────────────────────────────────
+  integrations: router({
+    list: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .query(({ input }) => db.getIntegrationsByTenant(input.tenantId)),
+
+    upsert: protectedProcedure
+      .input(
+        z.object({
+          tenantId: z.number(),
+          integrationKey: z.string(),
+          isConnected: z.boolean().optional(),
+          accessToken: z.string().optional(),
+          refreshToken: z.string().optional(),
+          tokenExpiresAt: z.string().optional(),
+          config: z.record(z.string(), z.unknown()).optional(),
+        }),
+      )
+      .mutation(({ input }) => {
+        const { tenantId, integrationKey, ...data } = input;
+        return db.upsertIntegration(tenantId, integrationKey, data as any);
+      }),
+
+    disconnect: protectedProcedure
+      .input(z.object({ tenantId: z.number(), integrationKey: z.string() }))
+      .mutation(({ input }) => db.disconnectIntegration(input.tenantId, input.integrationKey)),
+  }),
+
+  // ─── Notifications ─────────────────────────────────────────────────────────
+  notifications: router({
+    list: protectedProcedure
+      .input(z.object({ tenantId: z.number(), userId: z.number(), limit: z.number().default(50) }))
+      .query(({ input }) => db.getNotificationsForUser(input.tenantId, input.userId, input.limit)),
+
+    markRead: protectedProcedure
+      .input(z.object({ id: z.number(), userId: z.number() }))
+      .mutation(({ input }) => db.markNotificationRead(input.id, input.userId)),
+
+    markAllRead: protectedProcedure
+      .input(z.object({ tenantId: z.number(), userId: z.number() }))
+      .mutation(({ input }) => db.markAllNotificationsRead(input.tenantId, input.userId)),
+  }),
+
+  // ─── File Attachments ──────────────────────────────────────────────────────
+  attachments: router({
+    list: protectedProcedure
+      .input(z.object({ tenantId: z.number(), entityType: z.string(), entityId: z.number() }))
+      .query(({ input }) => db.getAttachmentsByEntity(input.tenantId, input.entityType, input.entityId)),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .mutation(({ input }) => db.deleteFileAttachment(input.id, input.tenantId)),
+  }),
+
+  // ─── Consent (PIPEDA) ──────────────────────────────────────────────────────
+  consent: router({
+    record: publicProcedure
+      .input(
+        z.object({
+          tenantId: z.number(),
+          userId: z.number(),
+          policyVersion: z.string(),
+          consentGiven: z.boolean(),
+          ipAddress: z.string().optional(),
+          userAgent: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => db.recordConsent(input as any)),
+
+    getByUser: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(({ input }) => db.getConsentByUser(input.userId)),
+  }),
+
+  // ─── Messages ──────────────────────────────────────────────────────────────
   messages: router({
-    list: publicProcedure
+    list: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .query(({ input }) => db.getMessagesByTask(input.taskId)),
 
-    send: publicProcedure
+    send: protectedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -323,15 +576,14 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.sendMessage(input as any) as any),
 
-    markRead: publicProcedure
+    markRead: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(({ input }) => db.markMessagesRead(input.taskId)),
   }),
 
   // ─── Location ──────────────────────────────────────────────────────────────
-
   location: router({
-    record: publicProcedure
+    record: protectedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -346,7 +598,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.recordLocation(input as any)),
 
-    history: publicProcedure
+    history: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .query(({ input }) => db.getLocationHistoryForTask(input.taskId)),
   }),

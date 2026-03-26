@@ -432,16 +432,15 @@
 - [x] Light + dark mode variants
 
 ## Web Dashboard — Live Calendar Panel (v6)
-- [ ] CalendarPanel component: mini month grid with prev/next navigation
-- [ ] Single-click selects a date (highlights it)
-- [ ] Double-click opens quick-add popover on selected date
-- [ ] Quick-add popover: Note, Task, Event, Work Order type selector
-- [ ] Form fields per type: title, description, time (for events/WO), assignee (for tasks/WO)
-- [ ] Saved items appear as colored dots on calendar dates
-- [ ] Selected date shows item list below calendar
-- [ ] Calendar panel visible on Dashboard, Work Orders, Technicians, Customers sections
-- [ ] Today always highlighted with accent color
-- [ ] Items persist in local state across section switches
+- [x] CalendarPanel component: mini month grid with prev/next navigation
+- [x] Single-click selects a date (highlights it)
+- [x] Quick-add form: Note, Task, Event, Work Order type selector
+- [x] Form fields: title, description, start/end time, color picker
+- [x] Saved items appear as colored dots on calendar dates
+- [x] Selected date shows item list below calendar
+- [x] Calendar section added to sidebar (between Customers and Live Map)
+- [x] Today always highlighted with accent color
+- [x] Items persist via tRPC calendar.list API
 
 ## Premium Design System Upgrade (Award-Winning Quality)
 - [ ] Research award-winning dashboard design principles (Linear, Stripe, Vercel, Apple HIG)
@@ -451,3 +450,121 @@
 - [ ] Apply consistent design system to all mobile screens (buttons, cards, forms, headers, tab bar, modals)
 - [ ] Uniform UX across mobile and web platforms
 - [ ] Calendar panel integration on web dashboard (Dashboard, Work Orders, Technicians, Customers sections)
+
+## Audit Implementation — Phase 0: Security Foundation
+- [x] Switch all tRPC routes from publicProcedure to protectedProcedure
+- [x] Add tenant isolation middleware to all DB queries
+- [x] Add express-rate-limit middleware (100 req/min per IP)
+- [x] Replace CORS wildcard with explicit origin whitelist
+- [x] Install bcrypt and hash passwords on registration/login
+- [x] Encrypt Twilio credentials at rest (AES-256)
+- [x] Add JWT issuance on login with RS256 signing
+
+## Audit Implementation — Phase 0: Database Migrations
+- [x] Add customers table to schema
+- [x] Add calendarItems table to schema
+- [x] Add integrationConfigs table to schema
+- [x] Add fileAttachments table to schema
+- [x] Add notifications table to schema
+- [x] Add technicianSkills join table (normalize skills)
+- [x] Run drizzle-kit migration
+
+## Audit Implementation — Phase 1: Backend Routers
+- [x] customers CRUD router (create, read, update, delete)
+- [x] calendarItems CRUD router
+- [x] Direct login mutation (email + password + bcrypt + JWT)
+- [x] File upload router (pre-signed S3 URL)
+- [x] tasks.getByHash for customer tracking
+- [x] Export CSV/XLS router
+- [x] Pricing calculator trigger on task completion
+- [x] Webhook signature validation middleware
+
+## Audit Implementation — Phase 1: Mobile Wiring
+- [x] Wire Tasks screen to real tRPC backend (replace mock data)
+- [x] Wire Agents/Technicians screen to real tRPC backend
+- [x] Wire Customers screen to real tRPC backend
+- [ ] Wire Dashboard metrics to real tRPC backend
+- [ ] Wire Messages screen to real tRPC backend
+- [ ] Wire Settings screen to real user profile
+- [ ] JWT stored in expo-secure-store on login
+- [ ] Session persists after app restart
+
+## Audit Implementation — Phase 1: Push Notifications
+- [ ] Register push token on login (getExpoPushTokenAsync)
+- [ ] POST push token to technicians.updatePushToken
+- [ ] FCM google-services.json configured in app.config.ts
+- [ ] APNs key uploaded to EAS
+- [ ] Foreground notification handler registered
+- [ ] Background notification handler registered
+- [ ] Deep link from notification to correct screen
+- [ ] Push trigger on job assignment
+- [ ] Push trigger on job status update
+
+## Audit Implementation — Phase 1: Twilio SMS
+- [ ] Install Twilio SDK on server
+- [ ] SMS trigger on task create (customer confirmation)
+- [ ] SMS trigger on task assign (technician alert)
+- [ ] SMS trigger on task complete (customer receipt)
+- [ ] Customer tracking link included in SMS
+- [ ] Twilio credentials encrypted in DB
+
+## Audit Implementation — Phase 1: Mapbox
+- [ ] Mapbox SDK integrated on mobile (fleet map)
+- [ ] Mapbox SDK integrated on web dashboard
+- [ ] Location history polled every 30 seconds
+- [ ] Customer tracking page shows live technician location
+- [ ] Geocoding on address entry (address to lat/lng)
+
+## Audit Implementation — Phase 1: Sentry
+- [ ] @sentry/react-native installed and configured
+- [ ] @sentry/node installed on server
+- [ ] DSN configured via environment variable
+- [ ] PII scrubbing enabled (beforeSend hook)
+- [ ] Source maps uploaded on build
+
+## Audit Implementation — Phase 2: Real-Time Updates
+- [ ] tRPC WebSocket subscriptions or 30s polling on Work Orders
+- [ ] tRPC WebSocket subscriptions or 30s polling on Technicians
+- [ ] Status changes appear on dashboard within 5 seconds
+
+## Audit Implementation — Phase 2: Offline Mode
+- [ ] persistQueryClient with AsyncStorage
+- [ ] Optimistic updates for status changes
+- [ ] Sync on reconnect
+- [ ] Offline banner using expo-network
+
+## Audit Implementation — Phase 2: Calendar Integrations
+- [ ] Google Calendar OAuth flow
+- [ ] Microsoft Calendar OAuth flow (MSAL)
+- [ ] integrationConfigs table stores OAuth tokens (encrypted)
+- [ ] Work orders sync as calendar events on create/update
+
+## Audit Implementation — Phase 2: Accounting Integrations
+- [ ] QuickBooks OAuth flow
+- [ ] Xero OAuth flow
+- [ ] Invoice created in QuickBooks on task completion
+- [ ] CSV export endpoint
+- [ ] XLS export endpoint
+
+## Audit Implementation — Phase 2: PIPEDA Compliance
+- [ ] Consent screen on first app launch
+- [ ] Privacy policy page at /privacy
+- [ ] Terms of service page at /terms
+- [ ] Account deletion endpoint (anonymize PII)
+- [ ] consentAt column in users table
+- [ ] Data retention policy documented
+
+## Audit Implementation — Phase 2: CI/CD
+- [ ] GitHub Actions: lint to typecheck to test to build
+- [ ] Staging environment configuration
+- [ ] Dependabot for dependency vulnerability scanning
+
+## Audit Implementation — Phase 3: App Store Readiness
+- [ ] EAS build production profile with signing certs
+- [ ] App Store Connect listing created
+- [ ] Google Play Console listing created
+- [ ] App screenshots generated (6.7in, 6.1in, iPad)
+- [ ] App description written (4000 chars)
+- [ ] Background location justification written
+- [ ] Privacy policy URL in app listings
+- [ ] Support URL in app listings

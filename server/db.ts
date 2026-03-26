@@ -1,6 +1,23 @@
-import { eq } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import {
+  InsertUser, users,
+  tenants, InsertTenant,
+  tenantUsers, InsertTenantUser,
+  technicians, InsertTechnician,
+  workflowTemplates, InsertWorkflowTemplate,
+  pricingRules, InsertPricingRule,
+  tasks, InsertTask,
+  messages, InsertMessage,
+  locationHistory, InsertLocationHistory,
+  taskAuditLog,
+  customers, InsertCustomer,
+  calendarItems, InsertCalendarItem,
+  integrationConfigs, InsertIntegrationConfig,
+  fileAttachments, InsertFileAttachment,
+  notifications, InsertNotification,
+  consentRecords, InsertConsentRecord,
+} from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,29 +106,7 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
-
 // ─── NVC360 Multi-Tenant Queries ──────────────────────────────────────────────
-import { and, desc, isNull } from "drizzle-orm";
-import {
-  tenants,
-  tenantUsers,
-  technicians,
-  workflowTemplates,
-  pricingRules,
-  tasks,
-  messages,
-  locationHistory,
-  taskAuditLog,
-  type InsertTenant,
-  type InsertTenantUser,
-  type InsertTechnician,
-  type InsertWorkflowTemplate,
-  type InsertPricingRule,
-  type InsertTask,
-  type InsertMessage,
-  type InsertLocationHistory,
-} from "../drizzle/schema";
 
 // ─── Tenants ──────────────────────────────────────────────────────────────────
 
@@ -421,4 +416,250 @@ export function calculatePrice(
     return { totalCents: kmCharge, breakdown: { distanceKm, freeKm, chargeableKm, kmCharge } };
   }
   return { totalCents: 0, breakdown: {} };
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────────
+
+export async function getCustomersByTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(customers)
+    .where(eq(customers.tenantId, tenantId))
+    .orderBy(desc(customers.createdAt));
+}
+
+export async function getCustomerById(id: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(customers)
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createCustomer(data: InsertCustomer) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(customers).values(data);
+  return result[0].insertId;
+}
+
+export async function updateCustomer(id: number, tenantId: number, data: Partial<InsertCustomer>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(customers)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)));
+}
+
+export async function deleteCustomer(id: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(customers).where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)));
+}
+
+// ─── Calendar Items ───────────────────────────────────────────────────────────
+
+export async function getCalendarItemsByTenant(tenantId: number, dateFrom?: string, dateTo?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(calendarItems.tenantId, tenantId)];
+  return db
+    .select()
+    .from(calendarItems)
+    .where(and(...conditions))
+    .orderBy(calendarItems.date, calendarItems.time);
+}
+
+export async function createCalendarItem(data: InsertCalendarItem) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(calendarItems).values(data);
+  return result[0].insertId;
+}
+
+export async function updateCalendarItem(id: number, tenantId: number, data: Partial<InsertCalendarItem>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(calendarItems)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(calendarItems.id, id), eq(calendarItems.tenantId, tenantId)));
+}
+
+export async function deleteCalendarItem(id: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(calendarItems).where(and(eq(calendarItems.id, id), eq(calendarItems.tenantId, tenantId)));
+}
+
+// ─── Integration Configs ──────────────────────────────────────────────────────
+
+export async function getIntegrationsByTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(integrationConfigs).where(eq(integrationConfigs.tenantId, tenantId));
+}
+
+export async function upsertIntegration(tenantId: number, integrationKey: string, data: Partial<InsertIntegrationConfig>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await db
+    .select()
+    .from(integrationConfigs)
+    .where(and(eq(integrationConfigs.tenantId, tenantId), eq(integrationConfigs.integrationKey, integrationKey)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db
+      .update(integrationConfigs)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(integrationConfigs.tenantId, tenantId), eq(integrationConfigs.integrationKey, integrationKey)));
+  } else {
+    await db.insert(integrationConfigs).values({ tenantId, integrationKey, ...data } as InsertIntegrationConfig);
+  }
+}
+
+export async function disconnectIntegration(tenantId: number, integrationKey: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(integrationConfigs)
+    .set({ isConnected: false, accessToken: null, refreshToken: null, tokenExpiresAt: null, updatedAt: new Date() })
+    .where(and(eq(integrationConfigs.tenantId, tenantId), eq(integrationConfigs.integrationKey, integrationKey)));
+}
+
+// ─── File Attachments ─────────────────────────────────────────────────────────
+
+export async function getAttachmentsByEntity(tenantId: number, entityType: string, entityId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(fileAttachments)
+    .where(
+      and(
+        eq(fileAttachments.tenantId, tenantId),
+        eq(fileAttachments.entityType, entityType as any),
+        eq(fileAttachments.entityId, entityId),
+      ),
+    )
+    .orderBy(desc(fileAttachments.createdAt));
+}
+
+export async function createFileAttachment(data: InsertFileAttachment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(fileAttachments).values(data);
+  return result[0].insertId;
+}
+
+export async function deleteFileAttachment(id: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(fileAttachments).where(and(eq(fileAttachments.id, id), eq(fileAttachments.tenantId, tenantId)));
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export async function getNotificationsForUser(tenantId: number, userId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(notifications)
+    .where(and(eq(notifications.tenantId, tenantId), eq(notifications.recipientUserId, userId)))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
+}
+
+export async function createNotification(data: InsertNotification) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(notifications).values(data);
+}
+
+export async function markNotificationRead(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(and(eq(notifications.id, id), eq(notifications.recipientUserId, userId)));
+}
+
+export async function markAllNotificationsRead(tenantId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(and(eq(notifications.tenantId, tenantId), eq(notifications.recipientUserId, userId), isNull(notifications.readAt)));
+}
+
+// ─── Consent Records (PIPEDA) ─────────────────────────────────────────────────
+
+export async function recordConsent(data: InsertConsentRecord) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(consentRecords).values(data);
+}
+
+export async function getConsentByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(consentRecords)
+    .where(eq(consentRecords.userId, userId))
+    .orderBy(desc(consentRecords.consentAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// ─── Direct Login (email/password for tenant users) ───────────────────────────
+
+export async function getTenantUserForLogin(email: string, tenantId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(tenantUsers)
+    .where(and(eq(tenantUsers.email, email), eq(tenantUsers.tenantId, tenantId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function updateTenantUserLastLogin(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tenantUsers).set({ updatedAt: new Date() }).where(eq(tenantUsers.id, id));
+}
+
+// ─── Technician CRUD (full profile) ──────────────────────────────────────────
+
+export async function createTechnician(data: InsertTechnician) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(technicians).values(data);
+  return result[0].insertId;
+}
+
+export async function updateTechnician(id: number, tenantId: number, data: Partial<InsertTechnician>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(technicians)
+    .set(data)
+    .where(and(eq(technicians.id, id), eq(technicians.tenantId, tenantId)));
+}
+
+export async function deleteTechnician(id: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(technicians).where(and(eq(technicians.id, id), eq(technicians.tenantId, tenantId)));
 }

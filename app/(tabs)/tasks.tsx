@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TextInput,
   StyleSheet,
   Image,
+  ActivityIndicator,
+  RefreshControl,
   ViewStyle,
   TextStyle,
 } from "react-native";
@@ -29,6 +31,8 @@ import {
   type Task,
   type TaskStatus,
 } from "@/lib/nvc-types";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 const FILTERS: { key: "all" | TaskStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -134,10 +138,47 @@ export default function TasksScreen() {
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [search, setSearch] = useState("");
+  const { tenantId, isDemo } = useTenant();
+
+  // ── Real API query (skipped in demo mode) ──────────────────────────────────
+  const { data: apiTasks, isLoading: apiLoading, refetch } = trpc.tasks.list.useQuery(
+    { tenantId: tenantId ?? 0, status: filter === "all" ? undefined : filter },
+    { enabled: !isDemo && tenantId !== null, staleTime: 30_000 },
+  );
+
+  // ── Normalize API tasks to local Task shape ────────────────────────────────
+  const normalizedApiTasks: Task[] = useMemo(() => {
+    if (!apiTasks) return [];
+    return (apiTasks as any[]).map((t) => ({
+      id: t.id,
+      jobHash: t.jobHash ?? "",
+      status: t.status as TaskStatus,
+      priority: t.priority ?? "normal",
+      customerName: t.customerName ?? "",
+      customerPhone: t.customerPhone ?? "",
+      customerEmail: t.customerEmail,
+      jobAddress: t.jobAddress ?? "",
+      jobLatitude: parseFloat(t.jobLatitude ?? "0"),
+      jobLongitude: parseFloat(t.jobLongitude ?? "0"),
+      pickupAddress: t.pickupAddress,
+      description: t.description,
+      orderRef: t.orderRef,
+      technicianId: t.technicianId,
+      technicianName: t.technicianName,
+      technicianPhone: t.technicianPhone,
+      customFields: t.customFields,
+      scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
+      createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+    }));
+  }, [apiTasks]);
+
+  // ── Use real data or fall back to mock data ────────────────────────────────
+  const allTasks = isDemo ? MOCK_TASKS : normalizedApiTasks;
 
   const filtered = useMemo(() => {
-    let list = MOCK_TASKS;
-    if (filter !== "all") list = list.filter((t) => t.status === filter);
+    let list = allTasks;
+    // Filter is already applied server-side for real data; apply locally for mock
+    if (isDemo && filter !== "all") list = list.filter((t) => t.status === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -149,10 +190,11 @@ export default function TasksScreen() {
       );
     }
     return list;
-  }, [filter, search]);
+  }, [allTasks, filter, search, isDemo]);
 
-  const countFor = (key: "all" | TaskStatus) =>
-    key === "all" ? MOCK_TASKS.length : MOCK_TASKS.filter((t) => t.status === key).length;
+  const countFor = useCallback((key: "all" | TaskStatus) =>
+    key === "all" ? allTasks.length : allTasks.filter((t) => t.status === key).length,
+  [allTasks]);
 
   return (
     <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
@@ -231,12 +273,28 @@ export default function TasksScreen() {
         }}
       />
 
+      {/* ── Loading indicator for real API ── */}
+      {!isDemo && apiLoading && (
+        <View style={{ alignItems: "center", paddingVertical: 16 }}>
+          <ActivityIndicator size="small" color={NVC_BLUE} />
+        </View>
+      )}
+
       {/* ── Task List ── */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          !isDemo ? (
+            <RefreshControl
+              refreshing={apiLoading}
+              onRefresh={() => refetch()}
+              tintColor={NVC_BLUE}
+            />
+          ) : undefined
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
