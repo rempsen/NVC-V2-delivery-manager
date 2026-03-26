@@ -20,7 +20,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import {
-  MOCK_TASKS, MOCK_TECHNICIANS, STATUS_COLORS, STATUS_LABELS,
+  STATUS_COLORS, STATUS_LABELS,
   PRIORITY_COLORS,
   type Technician,
   type Task,
@@ -30,6 +30,7 @@ import { GoogleMapView, type RoutePolyline } from "@/components/google-map-view"
 import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 import { useLocationHub } from "@/hooks/use-location-hub";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -103,15 +104,17 @@ function TechMiniCard({
   column,
   isSelected,
   onPress,
+  tasks: allTasks,
 }: {
   tech: Technician;
   column: TeamColumn;
   isSelected: boolean;
   onPress: () => void;
+  tasks: Task[];
 }) {
   const colors = useColors();
   const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  const activeTask = MOCK_TASKS.find(
+  const activeTask = allTasks.find(
     (t) => t.technicianId === tech.id && (t.status === "en_route" || t.status === "on_site"),
   );
 
@@ -155,15 +158,19 @@ function TeamPanel({
   selectedId,
   onSelect,
   sortKey,
+  technicians: allTechs,
+  tasks: allTasks,
 }: {
   selectedId: number | null;
   onSelect: (id: number) => void;
   sortKey: TeamSortKey;
+  technicians: Technician[];
+  tasks: Task[];
 }) {
   const colors = useColors();
 
   const sortedTechs = useMemo(() => {
-    return [...MOCK_TECHNICIANS].sort((a, b) => {
+    return [...allTechs].sort((a, b) => {
       if (sortKey === "name") return a.name.localeCompare(b.name);
       if (sortKey === "jobs") return b.todayJobs - a.todayJobs;
       if (sortKey === "distance") return b.todayDistanceKm - a.todayDistanceKm;
@@ -203,6 +210,7 @@ function TeamPanel({
                     column={col}
                     isSelected={selectedId === tech.id}
                     onPress={() => onSelect(tech.id)}
+                    tasks={allTasks}
                   />
                 ))
               )}
@@ -221,18 +229,20 @@ function TechnicianDetailPanel({
   onClose,
   onMessage,
   onViewTasks,
+  tasks: allTasks,
 }: {
   technician: Technician;
   onClose: () => void;
   onMessage: () => void;
   onViewTasks: () => void;
+  tasks: Task[];
 }) {
   const colors = useColors();
   const STATUS_DOT: Record<string, string> = {
     online: "#22C55E", busy: "#F59E0B", offline: "#94A3B8", on_break: "#3B82F6", en_route: "#8B5CF6",
   };
   const dotColor = STATUS_DOT[technician.status] ?? "#94A3B8";
-  const activeTasks = MOCK_TASKS.filter(
+  const activeTasks = allTasks.filter(
     (t) => t.technicianId === technician.id && (t.status === "en_route" || t.status === "on_site"),
   );
 
@@ -373,10 +383,72 @@ export default function DispatcherDashboard() {
   // Real-time WebSocket position overrides (techId → {lat, lng})
   const [wsPositions, setWsPositions] = useState<Record<number, { lat: number; lng: number }>>({});
 
+  const { tenantId } = useTenant();
+
+  // ── Live DB queries ────────────────────────────────────────────────────────
+  const { data: rawTechs } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 30_000, refetchInterval: 60_000 },
+  );
+  const { data: rawTasks } = trpc.tasks.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 30_000, refetchInterval: 60_000 },
+  );
+
+  // Normalize DB technicians {tech, user} pairs to local Technician type
+  const technicians: Technician[] = useMemo(() => {
+    if (!rawTechs) return [];
+    return (rawTechs as any[]).map((row) => {
+      const t = row.tech ?? row;
+      const u = row.user ?? {};
+      return {
+        id: t.id,
+        name: (u.name ?? t.name ?? "Technician").trim(),
+        phone: u.phone ?? t.phone ?? "",
+        email: u.email ?? t.email ?? "",
+        status: (t.status ?? "offline") as Technician["status"],
+        latitude: parseFloat(t.latitude ?? "49.8951"),
+        longitude: parseFloat(t.longitude ?? "-97.1384"),
+        transportType: (t.transportType ?? "car") as Technician["transportType"],
+        skills: Array.isArray(t.skills) ? t.skills : [],
+        photoUrl: t.photoUrl ?? undefined,
+        activeTaskId: t.activeTaskId ?? undefined,
+        activeTaskAddress: t.activeTaskAddress ?? undefined,
+        todayJobs: t.todayJobs ?? 0,
+        todayDistanceKm: t.todayDistanceKm ?? 0,
+      };
+    });
+  }, [rawTechs]);
+
+  // Normalize DB tasks to local Task type
+  const tasks: Task[] = useMemo(() => {
+    if (!rawTasks) return [];
+    return (rawTasks as any[]).map((t) => ({
+      id: t.id,
+      jobHash: t.jobHash ?? `job-${t.id}`,
+      status: (t.status ?? "unassigned") as TaskStatus,
+      priority: t.priority ?? "normal",
+      customerName: t.customerName ?? "",
+      customerPhone: t.customerPhone ?? "",
+      customerEmail: t.customerEmail ?? "",
+      jobAddress: t.jobAddress ?? "",
+      jobLatitude: parseFloat(t.jobLatitude ?? "49.8951"),
+      jobLongitude: parseFloat(t.jobLongitude ?? "-97.1384"),
+      technicianId: t.technicianId ?? undefined,
+      technicianName: t.technicianName ?? undefined,
+      orderRef: t.orderRef ?? `WO-${t.id}`,
+      description: t.description ?? undefined,
+      templateName: t.templateName ?? undefined,
+      createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+      scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
+      totalCents: t.totalCents ?? undefined,
+    }));
+  }, [rawTasks]);
+
   // Subscribe to real-time location updates via WebSocket
   useLocationHub({
-    tenantId: 1, // TODO: replace with actual tenantId from auth context
-    enabled: Platform.OS === "web",
+    tenantId: tenantId ?? 1,
+    enabled: Platform.OS === "web" && tenantId !== null,
     onLocationUpdate: useCallback((techId: number, lat: number, lng: number) => {
       setWsPositions((prev) => ({ ...prev, [techId]: { lat, lng } }));
     }, []),
@@ -384,20 +456,20 @@ export default function DispatcherDashboard() {
 
   // Active technicians (online/busy/en_route) with their active task locations
   const activeTechs = useMemo(() =>
-    MOCK_TECHNICIANS.filter((t) => t.status === "busy" || (t.status as string) === "en_route" || t.status === "online"),
-  []);
+    technicians.filter((t) => t.status === "busy" || (t.status as string) === "en_route" || t.status === "online"),
+  [technicians]);
 
   const activeTechTasks = useMemo(() => {
     return activeTechs.map((tech) => {
       // Apply real-time WebSocket position override if available
       const wsPos = wsPositions[tech.id];
       const techWithLivePos = wsPos ? { ...tech, latitude: wsPos.lat, longitude: wsPos.lng } : tech;
-      const task = MOCK_TASKS.find(
+      const task = tasks.find(
         (t) => t.technicianId === tech.id && (t.status === "en_route" || t.status === "on_site" || t.status === "assigned"),
       );
       return { tech: techWithLivePos, task };
     }).filter((x) => x.task !== undefined) as Array<{ tech: Technician; task: Task }>;
-  }, [activeTechs, wsPositions]);
+  }, [activeTechs, wsPositions, tasks]);
 
   // tRPC mutations
   const getEtasMutation = trpc.maps.getEtas.useQuery(
@@ -473,7 +545,7 @@ export default function DispatcherDashboard() {
 
       let colorIdx = 0;
       for (const [techId, waypoints] of techTaskGroups) {
-        const tech = MOCK_TECHNICIANS.find((t) => t.id === techId);
+        const tech = technicians.find((t) => t.id === techId);
         if (!tech || waypoints.length === 0) continue;
 
         const result = await optimizeRoutesMutation.mutateAsync({
@@ -512,10 +584,10 @@ export default function DispatcherDashboard() {
   }, [isOptimizing, activeTechTasks, etaData, optimizeRoutesMutation]);
 
   const selectedTech = selectedTechId
-    ? MOCK_TECHNICIANS.find((t) => t.id === selectedTechId) ?? null
+    ? technicians.find((t) => t.id === selectedTechId) ?? null
     : null;
 
-  const filteredTasks = useMemo(() => MOCK_TASKS.filter((t) => {
+  const filteredTasks = useMemo(() => tasks.filter((t) => {
     const matchesStatus = statusFilter === "all" || t.status === statusFilter;
     const matchesSearch =
       !searchQuery ||
@@ -523,12 +595,12 @@ export default function DispatcherDashboard() {
       t.jobAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.technicianName ?? "").toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
-  }), [statusFilter, searchQuery]);
+  }), [tasks, statusFilter, searchQuery]);
 
-  const activeCount = MOCK_TASKS.filter((t) => t.status === "en_route" || t.status === "on_site").length;
-  const unassignedCount = MOCK_TASKS.filter((t) => t.status === "unassigned").length;
-  const completedCount = MOCK_TASKS.filter((t) => t.status === "completed").length;
-  const onlineTechs = MOCK_TECHNICIANS.filter((t) => t.status === "online" || t.status === "busy").length;
+  const activeCount = tasks.filter((t) => t.status === "en_route" || t.status === "on_site").length;
+  const unassignedCount = tasks.filter((t) => t.status === "unassigned").length;
+  const completedCount = tasks.filter((t) => t.status === "completed").length;
+  const onlineTechs = technicians.filter((t) => t.status === "online" || t.status === "busy").length;
 
   // Map height: dominant — 55% of screen height, min 300, max 520
   const mapHeight = Math.min(Math.max(Math.round(SCREEN_HEIGHT * 0.55), 300), 520);
@@ -567,7 +639,7 @@ export default function DispatcherDashboard() {
           <StatCard label="Unassigned"   value={unassignedCount}      color="#EF4444" icon="exclamationmark.circle.fill" />
           <StatCard label="Completed"    value={completedCount}       color="#22C55E" icon="checkmark.circle.fill" />
           <StatCard label="Online Techs" value={onlineTechs}          color="#3B82F6" icon="person.fill" />
-          <StatCard label="Total Today"  value={MOCK_TASKS.length}    color="#8B5CF6" icon="list.bullet" />
+          <StatCard label="Total Today"  value={tasks.length}    color="#8B5CF6" icon="list.bullet" />
         </ScrollView>
 
         {/* ── Live Fleet Map (larger, near-square) ── */}
@@ -615,12 +687,12 @@ export default function DispatcherDashboard() {
           )}
           <View style={[styles.mapContainer, { height: mapHeight }]}>
             <GoogleMapView
-              technicians={MOCK_TECHNICIANS.map((t) => ({
+              technicians={technicians.map((t) => ({
                 id: t.id, name: t.name,
                 latitude: t.latitude, longitude: t.longitude,
                 status: t.status, transportType: t.transportType,
               }))}
-              tasks={MOCK_TASKS.filter((t) => t.status !== "completed" && t.status !== "cancelled").map((t) => ({
+              tasks={tasks.filter((t: Task) => t.status !== "completed" && t.status !== "cancelled").map((t: Task) => ({
                 id: t.id,
                 jobLatitude: t.jobLatitude,
                 jobLongitude: t.jobLongitude,
@@ -659,6 +731,8 @@ export default function DispatcherDashboard() {
             selectedId={selectedTechId}
             onSelect={(id) => setSelectedTechId(selectedTechId === id ? null : id)}
             sortKey={teamSort}
+            technicians={technicians}
+            tasks={tasks}
           />
         </View>
 
@@ -667,8 +741,9 @@ export default function DispatcherDashboard() {
           <TechnicianDetailPanel
             technician={selectedTech}
             onClose={() => setSelectedTechId(null)}
-            onMessage={() => router.push("/messages/1" as any)}
+            onMessage={() => router.push(`/messages/${selectedTech.id}` as any)}
             onViewTasks={() => router.push(`/agent/${selectedTech.id}` as any)}
+            tasks={tasks}
           />
         )}
 

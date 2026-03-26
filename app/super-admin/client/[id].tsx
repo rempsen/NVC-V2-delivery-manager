@@ -61,22 +61,7 @@ const CLIENT_DATA: Record<string, { name: string; industry: string; primaryColor
   "6": { name: "Comfort Home Care", industry: "Home Care", primaryColor: "#E85D04", subdomain: "comfort-homecare", plan: "enterprise" },
 };
 
-const MOCK_EMPLOYEES: Employee[] = [
-  { id: 1, name: "Sarah Mitchell", email: "sarah@client.com", phone: "+1 (204) 555-0101", role: "company_admin", status: "active", department: "Management", jobsCompleted: 0, joinedAt: "2025-01-15", avatarColor: "#3B82F6" },
-  { id: 2, name: "James Kowalski", email: "james@client.com", phone: "+1 (204) 555-0102", role: "dispatcher", status: "active", department: "Operations", jobsCompleted: 0, joinedAt: "2025-02-01", avatarColor: "#22C55E" },
-  { id: 3, name: "Marcus Thompson", email: "marcus@client.com", phone: "+1 (204) 555-0103", role: "field_technician", status: "active", department: "Field", jobsCompleted: 142, joinedAt: "2025-01-20", avatarColor: "#F59E0B" },
-  { id: 4, name: "Priya Patel", email: "priya@client.com", phone: "+1 (204) 555-0104", role: "field_technician", status: "active", department: "Field", jobsCompleted: 98, joinedAt: "2025-03-10", avatarColor: "#8B5CF6" },
-  { id: 5, name: "Derek Olsen", email: "derek@client.com", phone: "+1 (204) 555-0105", role: "divisional_manager", status: "active", department: "North Division", jobsCompleted: 0, joinedAt: "2025-01-18", avatarColor: "#EF4444" },
-  { id: 6, name: "Aisha Nwosu", email: "aisha@client.com", phone: "+1 (204) 555-0106", role: "office_staff", status: "invited", department: "Admin", jobsCompleted: 0, joinedAt: "2026-03-20", avatarColor: "#E85D04" },
-];
-
-const MOCK_CUSTOMERS: Customer[] = [
-  { id: 1, name: "Robert & Linda Chen", email: "rchen@email.com", phone: "+1 (204) 555-1001", address: "142 Maple Ave, Winnipeg MB R3T 2K8", status: "vip", totalJobs: 12, lastJobDate: "2026-03-20", notes: "Prefers morning appointments. Has a dog.", avatarColor: "#3B82F6" },
-  { id: 2, name: "Sunrise Properties Ltd.", email: "mgmt@sunrise.ca", phone: "+1 (204) 555-1002", address: "800 Portage Ave, Winnipeg MB R3G 0N4", status: "active", totalJobs: 34, lastJobDate: "2026-03-18", notes: "Commercial account. Multiple units.", avatarColor: "#22C55E" },
-  { id: 3, name: "Thomas Bergmann", email: "tberg@gmail.com", phone: "+1 (204) 555-1003", address: "55 Osborne St, Winnipeg MB R3L 1Y7", status: "active", totalJobs: 3, lastJobDate: "2026-02-14", notes: "", avatarColor: "#F59E0B" },
-  { id: 4, name: "Westgate Mall", email: "facilities@westgate.ca", phone: "+1 (204) 555-1004", address: "1600 Regent Ave W, Winnipeg MB R2C 3B3", status: "active", totalJobs: 8, lastJobDate: "2026-03-10", notes: "After-hours access only. Contact security desk.", avatarColor: "#8B5CF6" },
-  { id: 5, name: "Maria Santos", email: "msantos@hotmail.com", phone: "+1 (204) 555-1005", address: "22 River Rd, Winnipeg MB R2M 3Z3", status: "inactive", totalJobs: 1, lastJobDate: "2025-11-05", notes: "Moved — address may be outdated.", avatarColor: "#EF4444" },
-];
+// Employees and customers are loaded live from the DB via tRPC in the main component below.
 
 const ROLE_LABELS: Record<EmployeeRole, string> = {
   company_admin: "Admin",

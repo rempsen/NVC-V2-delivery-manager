@@ -17,7 +17,8 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
-import { MOCK_TASKS, MOCK_TECHNICIANS } from "@/lib/nvc-types";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 interface Message {
   id: string;
@@ -88,13 +89,39 @@ export default function MessagesScreen() {
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef<FlatList>(null);
 
-  const task = MOCK_TASKS.find((t) => t.id === Number(taskId));
-  const technician = task?.technicianId
-    ? MOCK_TECHNICIANS.find((t) => t.id === task.technicianId)
+  // ── Live DB queries ────────────────────────────────────────────────────────
+  const { data: rawTask } = trpc.tasks.getById.useQuery(
+    { id: Number(taskId), tenantId: tenantId ?? 0 },
+    { enabled: !!taskId && tenantId !== null, staleTime: 30_000 },
+  );
+  const { data: rawTechs } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 60_000 },
+  );
+
+  const task = rawTask
+    ? {
+        id: (rawTask as any).id,
+        customerName: (rawTask as any).customerName ?? "",
+        technicianId: (rawTask as any).technicianId ?? undefined,
+        technicianName: (rawTask as any).technicianName ?? undefined,
+        orderRef: (rawTask as any).orderRef ?? `WO-${(rawTask as any).id}`,
+      }
+    : undefined;
+
+  const technician = task?.technicianId && rawTechs
+    ? (() => {
+        const row = (rawTechs as any[]).find((r) => (r.tech?.id ?? r.id) === task.technicianId);
+        if (!row) return null;
+        const t = row.tech ?? row;
+        const u = row.user ?? {};
+        return { id: t.id, name: (u.name ?? t.name ?? "Technician").trim(), phone: u.phone ?? t.phone ?? "" };
+      })()
     : null;
 
   const handleSend = () => {

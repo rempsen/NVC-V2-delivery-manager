@@ -26,11 +26,11 @@ import {
   NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT,
 } from "@/constants/brand";
 import {
-  MOCK_TASKS, MOCK_TECHNICIANS,
   STATUS_COLORS, STATUS_LABELS, TECH_STATUS_COLORS, TECH_STATUS_LABELS,
-  type Task, type Technician,
+  type Task, type Technician, type TaskStatus,
 } from "@/lib/nvc-types";
-import { MOCK_CUSTOMERS } from "@/app/(tabs)/customers";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 import { GoogleMapView } from "@/components/google-map-view";
 
 const { width: SW } = Dimensions.get("window");
@@ -146,23 +146,9 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
   const reset = () => { setStep("root"); setSelectedCategory(""); };
   const handleClose = () => { reset(); onClose(); };
 
-  // Derive client list by category (map industry → category)
-  const clientsByCategory = (catId: string) => {
-    const industryMap: Record<string, string[]> = {
-      construction: ["Construction", "Roofing", "Glazing"],
-      mechanical: ["Mechanical", "HVAC", "Plumbing"],
-      property: ["Property Management", "Real Estate"],
-      logistics: ["Logistics", "Transportation"],
-      retail: ["Retail", "Hospitality"],
-    };
-    const industries = industryMap[catId] ?? [];
-    return MOCK_CUSTOMERS.filter((c) =>
-      industries.some((ind) => c.industry.toLowerCase().includes(ind.toLowerCase()))
-    ).slice(0, 8);
-  };
-
   const colleagues = selectedCategory ? (COLLEAGUES_BY_CATEGORY[selectedCategory] ?? []) : [];
-  const clients = selectedCategory ? clientsByCategory(selectedCategory) : [];
+  // Client list is empty until live customer data is wired in per-category
+  const clients: { id: number; company: string; phone: string; industry: string }[] = [];
 
   const callNumber = (phone: string) => Linking.openURL(`tel:${phone}`);
   const smsNumber = (phone: string) => Linking.openURL(`sms:${phone}`);
@@ -350,7 +336,7 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.contactListName, { color: colors.foreground }]}>{cat.label}</Text>
                     <Text style={[styles.contactListSub, { color: colors.muted }]}>
-                      {clientsByCategory(cat.id).length} clients
+                      0 clients
                     </Text>
                   </View>
                   <IconSymbol name="chevron.right" size={14} color={colors.muted} />
@@ -375,7 +361,7 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.contactListName, { color: colors.foreground }]} numberOfLines={1}>{client.company}</Text>
-                    <Text style={[styles.contactListSub, { color: colors.muted }]} numberOfLines={1}>{client.contactName}</Text>
+                    <Text style={[styles.contactListSub, { color: colors.muted }]} numberOfLines={1}>{client.industry}</Text>
                   </View>
                   <View style={styles.contactRowActions}>
                     <Pressable
@@ -474,9 +460,11 @@ type LeftTab = "techs" | "jobs";
 
 function LeftPanel({
   visible, selectedTechId, selectedJobId, onSelectTech, onSelectJob, onClose,
+  technicians: allTechs, tasks: allTasks,
 }: {
   visible: boolean; selectedTechId: number | null; selectedJobId: number | null;
   onSelectTech: (id: number) => void; onSelectJob: (id: number) => void; onClose: () => void;
+  technicians: Technician[]; tasks: Task[];
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -484,14 +472,14 @@ function LeftPanel({
   const [q, setQ] = useState("");
   const filteredTechs = useMemo(() => {
     const lq = q.toLowerCase();
-    return MOCK_TECHNICIANS.filter((t) => t.name.toLowerCase().includes(lq) || t.status.includes(lq));
-  }, [q]);
+    return allTechs.filter((t) => t.name.toLowerCase().includes(lq) || t.status.includes(lq));
+  }, [q, allTechs]);
   const filteredJobs = useMemo(() => {
     const lq = q.toLowerCase();
-    return MOCK_TASKS.filter(
-      (t) => t.customerName.toLowerCase().includes(lq) || t.jobAddress.toLowerCase().includes(lq)
-    ).filter((t) => t.status !== "completed" && t.status !== "cancelled");
-  }, [q]);
+    return allTasks
+      .filter((t) => t.status !== "completed" && t.status !== "cancelled")
+      .filter((t) => t.customerName.toLowerCase().includes(lq) || t.jobAddress.toLowerCase().includes(lq));
+  }, [q, allTasks]);
   if (!visible) return null;
   return (
     <View style={[mapStyles.leftPanel, { width: LEFT_PANEL_W, backgroundColor: IS_WEB ? "rgba(255,255,255,0.97)" : colors.surface, paddingTop: insets.top + 72, borderRightColor: colors.border }]}>
@@ -519,7 +507,7 @@ function LeftPanel({
   );
 }
 
-function RightPanel({ tech, job, onClose }: { tech: Technician | null; job: Task | null; onClose: () => void }) {
+function RightPanel({ tech, job, onClose, tasks: allTasks }: { tech: Technician | null; job: Task | null; onClose: () => void; tasks: Task[] }) {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -535,7 +523,7 @@ function RightPanel({ tech, job, onClose }: { tech: Technician | null; job: Task
             {(() => {
               const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#9CA3AF";
               const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-              const activeJob = MOCK_TASKS.find((t) => t.id === tech.activeTaskId);
+              const activeJob = allTasks.find((t) => t.id === tech.activeTaskId);
               return (
                 <>
                   <View style={mapStyles.detailHeader}>
@@ -716,8 +704,8 @@ function MetricCard({ label, value, color, icon, onPress }: {
 
 // ─── Map Widget ───────────────────────────────────────────────────────────────
 
-function MapWidget({ onPress }: { onPress: () => void }) {
-  const techsOnMap = MOCK_TECHNICIANS.filter((t) => t.status !== "offline");
+function MapWidget({ onPress, technicians: allTechs }: { onPress: () => void; technicians: Technician[] }) {
+  const techsOnMap = allTechs.filter((t: Technician) => t.status !== "offline");
   return (
     <Pressable
       style={({ pressed }) => [styles.mapWidget, pressed && { opacity: 0.92 }] as ViewStyle[]}
@@ -828,14 +816,68 @@ function TechChip({ tech, onPress }: { tech: Technician; onPress: () => void }) 
 export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { tenantId } = useTenant();
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
 
-  const tasks = MOCK_TASKS;
-  const technicians = MOCK_TECHNICIANS;
+  // ── Live DB queries ────────────────────────────────────────────────────────
+  const { data: rawTasks, refetch: refetchTasks } = trpc.tasks.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 30_000, refetchInterval: 60_000 },
+  );
+  const { data: rawTechs, refetch: refetchTechs } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 30_000, refetchInterval: 60_000 },
+  );
+
+  const tasks: Task[] = useMemo(() => {
+    if (!rawTasks) return [];
+    return (rawTasks as any[]).map((t) => ({
+      id: t.id, jobHash: t.jobHash ?? `job-${t.id}`,
+      status: (t.status as TaskStatus) ?? "unassigned",
+      priority: t.priority ?? "normal",
+      customerName: t.customerName ?? "",
+      customerPhone: t.customerPhone ?? "",
+      customerEmail: t.customerEmail ?? "",
+      jobAddress: t.jobAddress ?? "",
+      jobLatitude: parseFloat(t.jobLatitude ?? "49.8951"),
+      jobLongitude: parseFloat(t.jobLongitude ?? "-97.1384"),
+      technicianId: t.technicianId ?? undefined,
+      technicianName: t.technicianName ?? undefined,
+      orderRef: t.orderRef ?? `WO-${t.id}`,
+      description: t.description ?? undefined,
+      createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+      scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
+    }));
+  }, [rawTasks]);
+
+  const technicians: Technician[] = useMemo(() => {
+    if (!rawTechs) return [];
+    return (rawTechs as any[]).map((row) => {
+      const t = row.tech ?? row;
+      const u = row.user ?? {};
+      return {
+        id: t.id,
+        name: (u.name ?? t.name ?? "Technician").trim(),
+        phone: u.phone ?? t.phone ?? "",
+        email: u.email ?? t.email ?? "",
+        status: (t.status ?? "offline") as Technician["status"],
+        latitude: parseFloat(t.latitude ?? "49.8951"),
+        longitude: parseFloat(t.longitude ?? "-97.1384"),
+        transportType: (t.transportType ?? "car") as Technician["transportType"],
+        skills: Array.isArray(t.skills) ? t.skills : [],
+        photoUrl: t.photoUrl ?? undefined,
+        activeTaskId: t.activeTaskId ?? undefined,
+        activeTaskAddress: t.activeTaskAddress ?? undefined,
+        todayJobs: t.todayJobs ?? 0,
+        todayDistanceKm: t.todayDistanceKm ?? 0,
+      };
+    });
+  }, [rawTechs]);
+
   const activeTasks = tasks.filter((t) => ["assigned", "en_route", "on_site"].includes(t.status));
   const completedToday = tasks.filter((t) => t.status === "completed").length;
   const unassigned = tasks.filter((t) => t.status === "unassigned").length;
@@ -940,6 +982,8 @@ export default function DashboardScreen() {
           onSelectTech={handleSelectTech}
           onSelectJob={handleSelectJob}
           onClose={() => setLeftPanelOpen(false)}
+          technicians={technicians}
+          tasks={tasks}
         />
 
         {/* ── Right Detail Panel ── */}
@@ -947,6 +991,7 @@ export default function DashboardScreen() {
           tech={selectedTech ?? null}
           job={selectedJob ?? null}
           onClose={handleCloseRight}
+          tasks={tasks}
         />
       </View>
 

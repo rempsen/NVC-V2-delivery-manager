@@ -17,7 +17,9 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
-import { MOCK_TASKS } from "@/lib/nvc-types";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
+import { type TaskStatus } from "@/lib/nvc-types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -309,8 +311,25 @@ export default function ExecuteTaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
 
-  const task = MOCK_TASKS.find((t) => t.id === Number(id));
+  // ── Live DB query ────────────────────────────────────────────────────────
+  const { data: rawTask } = trpc.tasks.getById.useQuery(
+    { id: Number(id), tenantId: tenantId ?? 0 },
+    { enabled: !!id && tenantId !== null, staleTime: 30_000 },
+  );
+  const task = rawTask
+    ? {
+        id: (rawTask as any).id,
+        customerName: (rawTask as any).customerName ?? "",
+        customerPhone: (rawTask as any).customerPhone ?? "",
+        jobAddress: (rawTask as any).jobAddress ?? "",
+        status: ((rawTask as any).status ?? "unassigned") as TaskStatus,
+        orderRef: (rawTask as any).orderRef ?? `WO-${(rawTask as any).id}`,
+        totalCents: (rawTask as any).totalCents ?? 0,
+        description: (rawTask as any).description ?? "",
+      }
+    : undefined;
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>(MOCK_CHECKLIST);
   const [photos, setPhotos] = useState<PhotoAttachment[]>([]);

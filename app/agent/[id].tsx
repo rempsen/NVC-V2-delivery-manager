@@ -12,9 +12,11 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import {
-  MOCK_TECHNICIANS, MOCK_TASKS, STATUS_COLORS, STATUS_LABELS,
-  PRIORITY_COLORS, type Technician, type TaskStatus,
+  STATUS_COLORS, STATUS_LABELS,
+  PRIORITY_COLORS, type Technician, type Task, type TaskStatus,
 } from "@/lib/nvc-types";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Extended Technician Profile Types ───────────────────────────────────────
 
@@ -179,17 +181,65 @@ export default function AgentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const isNew = id === "new";
 
-  const technician = useMemo(
-    () => (isNew ? null : MOCK_TECHNICIANS.find((t) => t.id === Number(id))),
-    [id, isNew]
+  // ── Live DB queries ────────────────────────────────────────────────────────
+  const { data: rawTechs } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: !isNew && tenantId !== null, staleTime: 60_000 },
+  );
+  const { data: rawTasks } = trpc.tasks.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: !isNew && tenantId !== null, staleTime: 60_000 },
   );
 
-  const techTasks = useMemo(
-    () => MOCK_TASKS.filter((t) => t.technicianId === Number(id)),
-    [id]
-  );
+  const technician: Technician | null = useMemo(() => {
+    if (isNew || !rawTechs) return null;
+    const row = (rawTechs as any[]).find((r) => (r.tech?.id ?? r.id) === Number(id));
+    if (!row) return null;
+    const t = row.tech ?? row;
+    const u = row.user ?? {};
+    return {
+      id: t.id,
+      name: (u.name ?? t.name ?? "Technician").trim(),
+      phone: u.phone ?? t.phone ?? "",
+      email: u.email ?? t.email ?? "",
+      status: (t.status ?? "offline") as Technician["status"],
+      latitude: parseFloat(t.latitude ?? "49.8951"),
+      longitude: parseFloat(t.longitude ?? "-97.1384"),
+      transportType: (t.transportType ?? "car") as Technician["transportType"],
+      skills: Array.isArray(t.skills) ? t.skills : [],
+      photoUrl: t.photoUrl ?? undefined,
+      activeTaskId: t.activeTaskId ?? undefined,
+      activeTaskAddress: t.activeTaskAddress ?? undefined,
+      todayJobs: t.todayJobs ?? 0,
+      todayDistanceKm: t.todayDistanceKm ?? 0,
+    };
+  }, [id, isNew, rawTechs]);
+
+  const techTasks: Task[] = useMemo(() => {
+    if (!rawTasks) return [];
+    return (rawTasks as any[]).filter((t) => t.technicianId === Number(id)).map((t) => ({
+      id: t.id,
+      jobHash: t.jobHash ?? `job-${t.id}`,
+      status: (t.status ?? "unassigned") as TaskStatus,
+      priority: t.priority ?? "normal",
+      customerName: t.customerName ?? "",
+      customerPhone: t.customerPhone ?? "",
+      customerEmail: t.customerEmail ?? "",
+      jobAddress: t.jobAddress ?? "",
+      jobLatitude: parseFloat(t.jobLatitude ?? "49.8951"),
+      jobLongitude: parseFloat(t.jobLongitude ?? "-97.1384"),
+      technicianId: t.technicianId ?? undefined,
+      technicianName: t.technicianName ?? undefined,
+      orderRef: t.orderRef ?? `WO-${t.id}`,
+      description: t.description ?? undefined,
+      templateName: t.templateName ?? undefined,
+      createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+      scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
+    }));
+  }, [id, rawTasks]);
 
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [profile, setProfile] = useState<TechProfile>(BLANK_PROFILE);

@@ -1048,3 +1048,29 @@
 - [ ] Verify: create work order → appears in task list immediately (requires device test)
 - [ ] Verify: create customer → appears in customer list immediately (requires device test)
 - [ ] Verify: create client (super-admin) → appears in client list immediately (requires device test)
+
+## DB Verification Audit (Mar 26)
+
+- [ ] Confirm: tasks.create writes to tasks table in live DB
+- [ ] Confirm: tasks.list reads from live DB (no mock fallback)
+- [ ] Confirm: customers.create writes to customers table in live DB
+- [ ] Confirm: customers.list reads from live DB (no mock fallback)
+- [ ] Confirm: tenants.create writes to tenants table in live DB
+- [ ] Confirm: tenantUsers.list reads from live DB (no mock fallback)
+- [ ] Confirm: auth.inviteEmployee writes to tenantUsers table in live DB
+- [ ] Confirm: technicians.list reads from live DB (no mock fallback)
+- [ ] Confirm: dashboard metrics (active jobs, completed, etc.) query live DB
+- [ ] Fix any remaining mock/demo data paths found
+- [ ] Seed realistic sample records per demo tenant for testing
+
+## Live Database Migration — All Screens
+- [x] (tabs)/index.tsx — replace MOCK_TASKS/MOCK_TECHNICIANS/MOCK_CUSTOMERS with live tRPC queries
+- [x] dispatcher/index.tsx — replace MOCK_TASKS/MOCK_TECHNICIANS with live tRPC queries
+- [x] task/[id].tsx — replace MOCK_TASKS lookup with live tasks.getById tRPC query
+- [x] execute-task/[id].tsx — replace MOCK_TASKS lookup with live tasks.getById tRPC query
+- [x] messages/[taskId].tsx — replace MOCK_TASKS/MOCK_TECHNICIANS with live tRPC queries
+- [x] agent/[id].tsx — replace MOCK_TECHNICIANS/MOCK_TASKS with live tRPC queries
+- [x] customer/[id].tsx — replace MOCK_CUSTOMERS with live customers.getById tRPC query
+- [x] dashboard/index.tsx — remove dead MOCK_TASKS/MOCK_TECHNICIANS/MOCK_CUSTOMERS imports (already using live tRPC)
+- [x] super-admin/client/[id].tsx — remove dead MOCK_EMPLOYEES/MOCK_CUSTOMERS declarations (already using live tRPC)
+- [x] Confirmed 0 TypeScript errors after all migrations

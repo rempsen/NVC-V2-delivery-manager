@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet,
   Alert, Switch, ViewStyle, TextStyle,
@@ -12,7 +12,9 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
-import { MOCK_CUSTOMERS, type Customer } from "@/app/(tabs)/customers";
+import { type Customer } from "@/app/(tabs)/customers";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,30 +108,61 @@ export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const isNew = id === "new";
 
-  const existing = useMemo(() => {
-    if (isNew) return null;
-    return MOCK_CUSTOMERS.find((c) => c.id === Number(id)) ?? null;
-  }, [id, isNew]);
-
-  const [form, setForm] = useState<EditableCustomer>(
-    existing
-      ? {
-          company: existing.company, contactName: existing.contactName,
-          email: existing.email, phone: existing.phone,
-          mailingAddress: existing.mailingAddress, physicalAddress: existing.physicalAddress,
-          city: existing.city, province: existing.province,
-          postalCode: existing.postalCode, country: existing.country,
-          industry: existing.industry, status: existing.status,
-          terms: existing.terms, notes: existing.notes, tags: [...existing.tags],
-        }
-      : BLANK_CUSTOMER
+  // ── Live DB query ─────────────────────────────────────────────────────────────
+  const { data: rawCustomer } = trpc.customers.getById.useQuery(
+    { id: Number(id), tenantId: tenantId ?? 0 },
+    { enabled: !isNew && tenantId !== null && Number(id) > 0, staleTime: 60_000 },
   );
 
-  const [sameAddress, setSameAddress] = useState(
-    existing ? existing.mailingAddress === existing.physicalAddress : false
-  );
+  const existing: Customer | null = useMemo(() => {
+    if (isNew || !rawCustomer) return null;
+    const c = rawCustomer as any;
+    return {
+      id: c.id,
+      company: c.company ?? "",
+      contactName: c.contactName ?? "",
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+      mailingAddress: [c.mailingStreet, c.mailingCity, c.mailingProvince].filter(Boolean).join(", "),
+      physicalAddress: [c.physicalStreet, c.physicalCity, c.physicalProvince].filter(Boolean).join(", "),
+      city: c.mailingCity ?? "Winnipeg",
+      province: c.mailingProvince ?? "MB",
+      postalCode: c.mailingPostalCode ?? "",
+      country: c.mailingCountry ?? "Canada",
+      industry: c.industry ?? "",
+      status: c.status ?? "active",
+      terms: c.paymentTerms ?? "Net 30",
+      notes: c.notes ?? "",
+      tags: c.tags ? (typeof c.tags === "string" ? c.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : c.tags) : [],
+      totalJobs: c.jobCount ?? 0,
+      totalRevenue: (c.totalRevenueCents ?? 0) / 100,
+      lastJobDate: c.updatedAt ? new Date(c.updatedAt).toISOString() : "",
+      createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : "",
+    } as Customer;
+  }, [id, isNew, rawCustomer]);
+
+  const [form, setForm] = useState<EditableCustomer>(BLANK_CUSTOMER);
+
+  // Populate form when existing customer loads
+  useEffect(() => {
+    if (existing) {
+      setForm({
+        company: existing.company, contactName: existing.contactName,
+        email: existing.email, phone: existing.phone,
+        mailingAddress: existing.mailingAddress, physicalAddress: existing.physicalAddress,
+        city: existing.city, province: existing.province,
+        postalCode: existing.postalCode, country: existing.country,
+        industry: existing.industry, status: existing.status,
+        terms: existing.terms, notes: existing.notes, tags: [...existing.tags],
+      });
+      setSameAddress(existing.mailingAddress === existing.physicalAddress);
+    }
+  }, [existing]);
+
+  const [sameAddress, setSameAddress] = useState(false);
 
   const update = (key: keyof EditableCustomer, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));

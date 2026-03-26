@@ -11,9 +11,11 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import {
-  MOCK_TASKS, MOCK_TECHNICIANS, STATUS_COLORS, STATUS_LABELS,
-  PRIORITY_COLORS, formatDuration, getETA, type Task, type TaskStatus,
+  STATUS_COLORS, STATUS_LABELS,
+  PRIORITY_COLORS, formatDuration, getETA, type Task, type Technician, type TaskStatus,
 } from "@/lib/nvc-types";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 // Map view removed from agent-facing task screen (fleet map is dispatcher-only)
 
 const STATUS_FLOW: TaskStatus[] = ["unassigned", "assigned", "en_route", "on_site", "completed"];
@@ -35,13 +37,65 @@ export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [status, setStatus] = useState<TaskStatus | null>(null);
 
-  const task = useMemo(() => MOCK_TASKS.find((t) => t.id === Number(id)), [id]);
-  const technician = useMemo(
-    () => (task?.technicianId ? MOCK_TECHNICIANS.find((t) => t.id === task.technicianId) : null),
-    [task],
+  // ── Live DB queries ────────────────────────────────────────────────────────
+  const { data: rawTask, refetch } = trpc.tasks.getById.useQuery(
+    { id: Number(id), tenantId: tenantId ?? 0 },
+    { enabled: !!id && tenantId !== null, staleTime: 30_000 },
   );
+  const { data: rawTechs } = trpc.technicians.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: tenantId !== null, staleTime: 60_000 },
+  );
+
+  const task: Task | undefined = useMemo(() => {
+    if (!rawTask) return undefined;
+    const t = rawTask as any;
+    return {
+      id: t.id, jobHash: t.jobHash ?? `job-${t.id}`,
+      status: (t.status as TaskStatus) ?? "unassigned",
+      priority: t.priority ?? "normal",
+      customerName: t.customerName ?? "",
+      customerPhone: t.customerPhone ?? "",
+      customerEmail: t.customerEmail ?? "",
+      jobAddress: t.jobAddress ?? "",
+      jobLatitude: parseFloat(t.jobLatitude ?? "49.8951"),
+      jobLongitude: parseFloat(t.jobLongitude ?? "-97.1384"),
+      technicianId: t.technicianId ?? undefined,
+      technicianName: t.technicianName ?? undefined,
+      orderRef: t.orderRef ?? `WO-${t.id}`,
+      description: t.description ?? undefined,
+      templateName: t.templateName ?? undefined,
+      createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
+      scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
+    };
+  }, [rawTask]);
+
+  const technician: Technician | null = useMemo(() => {
+    if (!task?.technicianId || !rawTechs) return null;
+    const row = (rawTechs as any[]).find((r) => (r.tech?.id ?? r.id) === task.technicianId);
+    if (!row) return null;
+    const t = row.tech ?? row;
+    const u = row.user ?? {};
+    return {
+      id: t.id,
+      name: (u.name ?? t.name ?? "Technician").trim(),
+      phone: u.phone ?? t.phone ?? "",
+      email: u.email ?? t.email ?? "",
+      status: (t.status ?? "offline") as Technician["status"],
+      latitude: parseFloat(t.latitude ?? "49.8951"),
+      longitude: parseFloat(t.longitude ?? "-97.1384"),
+      transportType: (t.transportType ?? "car") as Technician["transportType"],
+      skills: Array.isArray(t.skills) ? t.skills : [],
+      photoUrl: t.photoUrl ?? undefined,
+      activeTaskId: t.activeTaskId ?? undefined,
+      activeTaskAddress: t.activeTaskAddress ?? undefined,
+      todayJobs: t.todayJobs ?? 0,
+      todayDistanceKm: t.todayDistanceKm ?? 0,
+    };
+  }, [task, rawTechs]);
 
   const currentStatus = status ?? task?.status ?? "unassigned";
   const eta = useMemo(() => {

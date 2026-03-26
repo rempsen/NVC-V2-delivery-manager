@@ -24,8 +24,6 @@ import { useRouter } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
-  MOCK_TASKS,
-  MOCK_TECHNICIANS,
   STATUS_COLORS,
   STATUS_LABELS,
   TECH_STATUS_COLORS,
@@ -37,7 +35,7 @@ import {
 } from "@/lib/nvc-types";
 import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_SORT_ORDER } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
-import { MOCK_CUSTOMERS, type Customer } from "@/app/(tabs)/customers";
+import { type Customer } from "@/app/(tabs)/customers";
 import { useTenant } from "@/hooks/use-tenant";
 import { GoogleMapView } from "@/components/google-map-view";
 import { useLocationHub } from "@/hooks/use-location-hub";
