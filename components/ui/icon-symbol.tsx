@@ -106,6 +106,9 @@ const MAPPING = {
   "waveform": "graphic-eq",
   "mic.fill": "mic",
   "paperclip": "attach-file",
+  "iphone": "smartphone",
+  "desktopcomputer": "desktop-windows",
+  "globe": "language",
 } as unknown as IconMapping;
 
 export function IconSymbol({

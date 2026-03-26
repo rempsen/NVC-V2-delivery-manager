@@ -250,3 +250,11 @@
 - [x] All primary action buttons across app updated to NVC_BLUE
 - [x] Customer Tracking screen company color updated to NVC blue
 - [x] TypeScript: 0 errors | Tests: 56 passed
+
+## Preview Switcher & Web Dashboard
+- [x] Desktop Dispatcher Dashboard (/dashboard): full-width sidebar layout with map, work orders table, team panel
+- [x] Preview switcher landing page (/preview): cards for Mobile App, Dispatcher Dashboard, Customer Portal
+- [x] Customer-facing web portal (/track/demo-job-hash): public tracking page accessible via direct URL
+- [x] All views accessible via public dev-server URLs
+- [x] eas.json created with development/preview/production build profiles
+- [x] app.config.ts: runtimeVersion policy added, EAS_BUILD_NO_EXPO_GO_WARNING suppressed
