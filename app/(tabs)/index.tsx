@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,9 +12,13 @@ import {
   ViewStyle,
   TextStyle,
   Linking,
+  TextInput,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -27,6 +31,16 @@ import {
   type Task, type Technician,
 } from "@/lib/nvc-types";
 import { MOCK_CUSTOMERS } from "@/app/(tabs)/customers";
+import { GoogleMapView } from "@/components/google-map-view";
+
+const { width: SW } = Dimensions.get("window");
+const IS_WEB = Platform.OS === "web";
+const LEFT_PANEL_W = IS_WEB ? 300 : Math.min(SW * 0.78, 320);
+const RIGHT_PANEL_W = IS_WEB ? 340 : Math.min(SW * 0.82, 360);
+
+const haptic = () => {
+  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+};
 
 // ─── Contact Data ─────────────────────────────────────────────────────────────
 
@@ -393,6 +407,290 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
 
 // ─── Metric Card ──────────────────────────────────────────────────────────────
 
+// ─── Map-First Dashboard Components ─────────────────────────────────────────
+
+function StatusDot({ color, size = 8 }: { color: string; size?: number }) {
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
+}
+
+function StatChip({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <View style={[mapStyles.statChip, { backgroundColor: color + "12", borderColor: color + "30" }]}>
+      <StatusDot color={color} size={7} />
+      <Text style={[mapStyles.statChipValue, { color }]}>{value}</Text>
+      <Text style={[mapStyles.statChipLabel, { color: color + "CC" }]}>{label}</Text>
+    </View>
+  );
+}
+
+function TechListRow({ tech, selected, onPress }: { tech: Technician; selected: boolean; onPress: () => void }) {
+  const colors = useColors();
+  const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#9CA3AF";
+  const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <Pressable
+      style={[mapStyles.listRow, { borderBottomColor: colors.border }, selected && { backgroundColor: NVC_BLUE + "10" }]}
+      onPress={onPress}
+    >
+      <View style={[mapStyles.listAvatar, { backgroundColor: statusColor + "20" }]}>
+        <Text style={[mapStyles.listAvatarText, { color: statusColor }]}>{initials}</Text>
+        <View style={[mapStyles.listAvatarDot, { backgroundColor: statusColor }]} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[mapStyles.listName, { color: colors.foreground }]} numberOfLines={1}>{tech.name}</Text>
+        <Text style={[mapStyles.listSub, { color: statusColor }]} numberOfLines={1}>
+          {TECH_STATUS_LABELS[tech.status]}{tech.activeTaskAddress ? ` · ${tech.activeTaskAddress}` : ""}
+        </Text>
+      </View>
+      <Text style={[mapStyles.listMeta, { color: colors.muted }]}>{tech.todayJobs}j</Text>
+    </Pressable>
+  );
+}
+
+function JobListRow({ job, selected, onPress }: { job: Task; selected: boolean; onPress: () => void }) {
+  const colors = useColors();
+  const statusColor = STATUS_COLORS[job.status] ?? "#9CA3AF";
+  return (
+    <Pressable
+      style={[mapStyles.listRow, { borderBottomColor: colors.border }, selected && { backgroundColor: NVC_ORANGE + "10" }]}
+      onPress={onPress}
+    >
+      <View style={[mapStyles.listStatusBar, { backgroundColor: statusColor }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={[mapStyles.listName, { color: colors.foreground }]} numberOfLines={1}>{job.customerName}</Text>
+        <Text style={[mapStyles.listSub, { color: colors.muted }]} numberOfLines={1}>{job.jobAddress}</Text>
+        {job.technicianName && (
+          <Text style={[mapStyles.listTech, { color: statusColor }]} numberOfLines={1}>● {job.technicianName}</Text>
+        )}
+      </View>
+      <View style={[mapStyles.listBadge, { backgroundColor: statusColor + "20" }]}>
+        <Text style={[mapStyles.listBadgeText, { color: statusColor }]}>{STATUS_LABELS[job.status]}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+type LeftTab = "techs" | "jobs";
+
+function LeftPanel({
+  visible, selectedTechId, selectedJobId, onSelectTech, onSelectJob, onClose,
+}: {
+  visible: boolean; selectedTechId: number | null; selectedJobId: number | null;
+  onSelectTech: (id: number) => void; onSelectJob: (id: number) => void; onClose: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [tab, setTab] = useState<LeftTab>("techs");
+  const [q, setQ] = useState("");
+  const filteredTechs = useMemo(() => {
+    const lq = q.toLowerCase();
+    return MOCK_TECHNICIANS.filter((t) => t.name.toLowerCase().includes(lq) || t.status.includes(lq));
+  }, [q]);
+  const filteredJobs = useMemo(() => {
+    const lq = q.toLowerCase();
+    return MOCK_TASKS.filter(
+      (t) => t.customerName.toLowerCase().includes(lq) || t.jobAddress.toLowerCase().includes(lq)
+    ).filter((t) => t.status !== "completed" && t.status !== "cancelled");
+  }, [q]);
+  if (!visible) return null;
+  return (
+    <View style={[mapStyles.leftPanel, { width: LEFT_PANEL_W, backgroundColor: IS_WEB ? "rgba(255,255,255,0.97)" : colors.surface, paddingTop: insets.top + 72, borderRightColor: colors.border }]}>
+      <View style={[mapStyles.panelSearch, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <IconSymbol name="magnifyingglass" size={14} color={colors.muted} />
+        <TextInput style={[mapStyles.panelSearchInput, { color: colors.foreground }]} placeholder="Search…" placeholderTextColor={colors.muted} value={q} onChangeText={setQ} />
+        {q.length > 0 && <Pressable onPress={() => setQ("")}><IconSymbol name="xmark.circle.fill" size={14} color={colors.muted} /></Pressable>}
+      </View>
+      <View style={[mapStyles.panelTabs, { borderBottomColor: colors.border }]}>
+        {(["techs", "jobs"] as LeftTab[]).map((t) => (
+          <Pressable key={t} style={[mapStyles.panelTab, tab === t && { borderBottomColor: NVC_BLUE }]} onPress={() => setTab(t)}>
+            <Text style={[mapStyles.panelTabText, { color: tab === t ? NVC_BLUE : colors.muted }]}>
+              {t === "techs" ? `Techs (${filteredTechs.length})` : `Jobs (${filteredJobs.length})`}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        {tab === "techs"
+          ? filteredTechs.map((tech) => <TechListRow key={tech.id} tech={tech} selected={selectedTechId === tech.id} onPress={() => { haptic(); onSelectTech(tech.id); }} />)
+          : filteredJobs.map((job) => <JobListRow key={job.id} job={job} selected={selectedJobId === job.id} onPress={() => { haptic(); onSelectJob(job.id); }} />)
+        }
+      </ScrollView>
+    </View>
+  );
+}
+
+function RightPanel({ tech, job, onClose }: { tech: Technician | null; job: Task | null; onClose: () => void }) {
+  const colors = useColors();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  if (!tech && !job) return null;
+  return (
+    <View style={[mapStyles.rightPanel, { width: RIGHT_PANEL_W, backgroundColor: IS_WEB ? "rgba(255,255,255,0.97)" : colors.surface, paddingTop: insets.top + 72, borderLeftColor: colors.border }]}>
+      <Pressable style={({ pressed }) => [mapStyles.rightClose, { opacity: pressed ? 0.7 : 1 }] as ViewStyle[]} onPress={() => { haptic(); onClose(); }}>
+        <IconSymbol name="xmark" size={14} color={colors.muted} />
+      </Pressable>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        {tech && (
+          <View style={mapStyles.detailContent}>
+            {(() => {
+              const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#9CA3AF";
+              const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+              const activeJob = MOCK_TASKS.find((t) => t.id === tech.activeTaskId);
+              return (
+                <>
+                  <View style={mapStyles.detailHeader}>
+                    <View style={[mapStyles.detailAvatar, { backgroundColor: statusColor + "20" }]}>
+                      <Text style={[mapStyles.detailAvatarText, { color: statusColor }]}>{initials}</Text>
+                      <View style={[mapStyles.detailAvatarDot, { backgroundColor: statusColor }]} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[mapStyles.detailName, { color: colors.foreground }]}>{tech.name}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 }}>
+                        <StatusDot color={statusColor} size={8} />
+                        <Text style={[mapStyles.detailStatus, { color: statusColor }]}>{TECH_STATUS_LABELS[tech.status]}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={mapStyles.detailStats}>
+                    {[{ v: String(tech.todayJobs), l: "Jobs Today" }, { v: tech.todayDistanceKm.toFixed(1), l: "km Today" }, { v: tech.transportType, l: "Vehicle" }].map((s) => (
+                      <View key={s.l} style={[mapStyles.detailStat, { backgroundColor: colors.background }]}>
+                        <Text style={[mapStyles.detailStatValue, { color: colors.foreground }]}>{s.v}</Text>
+                        <Text style={[mapStyles.detailStatLabel, { color: colors.muted }]}>{s.l}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {activeJob && (
+                    <View style={[mapStyles.detailCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <Text style={[mapStyles.detailCardTitle, { color: colors.muted }]}>ACTIVE JOB</Text>
+                      <Text style={[mapStyles.detailCardMain, { color: colors.foreground }]}>{activeJob.customerName}</Text>
+                      <Text style={[mapStyles.detailCardSub, { color: colors.muted }]} numberOfLines={2}>{activeJob.jobAddress}</Text>
+                    </View>
+                  )}
+                  {tech.skills.length > 0 && (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                      {tech.skills.map((s) => (
+                        <View key={s} style={[mapStyles.skillChip, { backgroundColor: NVC_BLUE + "12", borderColor: NVC_BLUE + "30" }]}>
+                          <Text style={[mapStyles.skillChipText, { color: NVC_BLUE }]}>{s}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <View style={mapStyles.detailActions}>
+                    <Pressable style={({ pressed }) => [mapStyles.detailBtn, { backgroundColor: "#16A34A", opacity: pressed ? 0.85 : 1 }] as ViewStyle[]} onPress={() => Linking.openURL(`tel:${tech.phone}`)}>
+                      <IconSymbol name="phone.fill" size={14} color="#fff" />
+                      <Text style={mapStyles.detailBtnText}>Call</Text>
+                    </Pressable>
+                    <Pressable style={({ pressed }) => [mapStyles.detailBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]} onPress={() => Linking.openURL(`sms:${tech.phone}`)}>
+                      <IconSymbol name="message.fill" size={14} color="#fff" />
+                      <Text style={mapStyles.detailBtnText}>SMS</Text>
+                    </Pressable>
+                    <Pressable style={({ pressed }) => [mapStyles.detailBtn, { backgroundColor: "#7C3AED", opacity: pressed ? 0.85 : 1 }] as ViewStyle[]} onPress={() => { onClose(); router.push(`/agent/${tech.id}` as any); }}>
+                      <IconSymbol name="person.fill" size={14} color="#fff" />
+                      <Text style={mapStyles.detailBtnText}>Profile</Text>
+                    </Pressable>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        )}
+        {job && !tech && (
+          <View style={mapStyles.detailContent}>
+            {(() => {
+              const statusColor = STATUS_COLORS[job.status] ?? "#9CA3AF";
+              return (
+                <>
+                  <View style={[mapStyles.detailBanner, { backgroundColor: statusColor + "15", borderColor: statusColor + "40" }]}>
+                    <StatusDot color={statusColor} size={9} />
+                    <Text style={[mapStyles.detailBannerText, { color: statusColor }]}>{STATUS_LABELS[job.status]}</Text>
+                    {job.orderRef && <Text style={[mapStyles.detailBannerRef, { color: colors.muted }]}>#{job.orderRef}</Text>}
+                  </View>
+                  {[{ title: "CUSTOMER", main: job.customerName, sub: job.customerPhone }, { title: "JOB ADDRESS", main: job.jobAddress, sub: null }, ...(job.technicianName ? [{ title: "ASSIGNED TECH", main: job.technicianName, sub: null }] : [])].map((c) => (
+                    <View key={c.title} style={[mapStyles.detailCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <Text style={[mapStyles.detailCardTitle, { color: colors.muted }]}>{c.title}</Text>
+                      <Text style={[mapStyles.detailCardMain, { color: colors.foreground }]}>{c.main}</Text>
+                      {c.sub && <Text style={[mapStyles.detailCardSub, { color: colors.muted }]}>{c.sub}</Text>}
+                    </View>
+                  ))}
+                  <View style={mapStyles.detailActions}>
+                    <Pressable style={({ pressed }) => [mapStyles.detailBtn, { backgroundColor: NVC_ORANGE, flex: 1, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]} onPress={() => { onClose(); router.push(`/task/${job.id}` as any); }}>
+                      <IconSymbol name="doc.text.fill" size={14} color="#fff" />
+                      <Text style={mapStyles.detailBtnText}>View Job</Text>
+                    </Pressable>
+                    <Pressable style={({ pressed }) => [mapStyles.detailBtn, { backgroundColor: "#16A34A", opacity: pressed ? 0.85 : 1 }] as ViewStyle[]} onPress={() => Linking.openURL(`tel:${job.customerPhone}`)}>
+                      <IconSymbol name="phone.fill" size={14} color="#fff" />
+                      <Text style={mapStyles.detailBtnText}>Call</Text>
+                    </Pressable>
+                    <Pressable style={({ pressed }) => [mapStyles.detailBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]} onPress={() => Linking.openURL(`sms:${job.customerPhone}`)}>
+                      <IconSymbol name="message.fill" size={14} color="#fff" />
+                      <Text style={mapStyles.detailBtnText}>SMS</Text>
+                    </Pressable>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const mapStyles = StyleSheet.create({
+  statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  statChipValue: { fontSize: 12, fontWeight: "800" },
+  statChipLabel: { fontSize: 10, fontWeight: "600" },
+  leftPanel: { position: "absolute", top: 0, left: 0, bottom: 0, zIndex: 50, borderRightWidth: 1, shadowColor: "#000", shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 6 },
+  panelSearch: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 12, marginBottom: 0, paddingHorizontal: 10, height: 38, borderRadius: 10, borderWidth: 1 },
+  panelSearchInput: { flex: 1, fontSize: 13 },
+  panelTabs: { flexDirection: "row", marginTop: 8, borderBottomWidth: 1 },
+  panelTab: { flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
+  panelTabText: { fontSize: 12, fontWeight: "700" },
+  listRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, gap: 10 },
+  listAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", position: "relative" },
+  listAvatarText: { fontSize: 13, fontWeight: "800" },
+  listAvatarDot: { position: "absolute", bottom: 1, right: 1, width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: "#fff" },
+  listStatusBar: { width: 3, height: 38, borderRadius: 2 },
+  listName: { fontSize: 13, fontWeight: "700" },
+  listSub: { fontSize: 11, marginTop: 1 },
+  listTech: { fontSize: 11, marginTop: 1 },
+  listMeta: { fontSize: 11 },
+  listBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  listBadgeText: { fontSize: 10, fontWeight: "700" },
+  rightPanel: { position: "absolute", top: 0, right: 0, bottom: 0, zIndex: 50, borderLeftWidth: 1, shadowColor: "#000", shadowOffset: { width: -4, height: 0 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 6 },
+  rightClose: { position: "absolute", top: 80, left: -18, width: 36, height: 36, borderRadius: 18, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4, zIndex: 10 },
+  detailContent: { padding: 16, gap: 12 },
+  detailHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  detailAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", position: "relative" },
+  detailAvatarText: { fontSize: 18, fontWeight: "800" },
+  detailAvatarDot: { position: "absolute", bottom: 2, right: 2, width: 13, height: 13, borderRadius: 7, borderWidth: 2, borderColor: "#fff" },
+  detailName: { fontSize: 17, fontWeight: "800" },
+  detailStatus: { fontSize: 12, fontWeight: "600" },
+  detailStats: { flexDirection: "row", gap: 8 },
+  detailStat: { flex: 1, borderRadius: 10, padding: 10, alignItems: "center", gap: 2 },
+  detailStatValue: { fontSize: 15, fontWeight: "800" },
+  detailStatLabel: { fontSize: 10 },
+  detailCard: { borderRadius: 12, padding: 12, borderWidth: 1, gap: 4 },
+  detailCardTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  detailCardMain: { fontSize: 14, fontWeight: "700" },
+  detailCardSub: { fontSize: 12 },
+  skillChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  skillChipText: { fontSize: 11, fontWeight: "600" },
+  detailActions: { flexDirection: "row", gap: 8 },
+  detailBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, gap: 5 },
+  detailBtnText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  detailBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1 },
+  detailBannerText: { fontSize: 13, fontWeight: "700", flex: 1 },
+  detailBannerRef: { fontSize: 11 },
+  mapCtrlWrap: { position: "absolute", bottom: 32, right: 16, borderRadius: 12, borderWidth: 1, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4, zIndex: 60 },
+  mapCtrlBtn: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
+  mapCtrlDivider: { height: 1, marginHorizontal: 8 },
+  liveBadge: { position: "absolute", bottom: 32, left: 16, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, zIndex: 60 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#22C55E" },
+  liveText: { fontSize: 11, fontWeight: "800", color: "#fff", letterSpacing: 1 },
+});
+
+// ─── Legacy helper (kept for MetricCard usage below) ─────────────────────────
 function MetricCard({ label, value, color, icon, onPress }: {
   label: string; value?: number | string; color: string; icon: any; onPress?: () => void;
 }) {
@@ -530,155 +828,133 @@ function TechChip({ tech, onPress }: { tech: Technician; onPress: () => void }) 
 export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false);
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
 
   const tasks = MOCK_TASKS;
   const technicians = MOCK_TECHNICIANS;
-
   const activeTasks = tasks.filter((t) => ["assigned", "en_route", "on_site"].includes(t.status));
   const completedToday = tasks.filter((t) => t.status === "completed").length;
   const unassigned = tasks.filter((t) => t.status === "unassigned").length;
   const onlineTechs = technicians.filter((t) => t.status !== "offline").length;
   const enRoute = tasks.filter((t) => t.status === "en_route").length;
-  const avgResponse = 14;
 
-  const recentTasks = [...tasks]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
-  const onlineTeam = technicians.filter((t) => t.status !== "offline");
+  const selectedTech = selectedTechId ? technicians.find((t) => t.id === selectedTechId) ?? null : null;
+  const selectedJob = selectedJobId ? tasks.find((t) => t.id === selectedJobId) ?? null : null;
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1200);
+  const mapTechs = technicians
+    .filter((t) => t.status !== "offline")
+    .map((t) => ({ id: t.id, name: t.name, latitude: t.latitude, longitude: t.longitude, status: t.status, transportType: t.transportType }));
+  const mapTasks = activeTasks.map((t) => ({ id: t.id, jobLatitude: t.jobLatitude, jobLongitude: t.jobLongitude, status: t.status, customerName: t.customerName }));
+
+  const handleSelectTech = useCallback((id: number) => {
+    setSelectedTechId((prev) => (prev === id ? null : id));
+    setSelectedJobId(null);
   }, []);
-
-  // Contact section: 3 buttons only
-  const CONTACT_ACTIONS = [
-    { label: "Office", icon: "building.2.fill", color: NVC_BLUE, onPress: () => setContactModalVisible(true) },
-    { label: "Colleague", icon: "person.2.fill", color: "#8B5CF6", onPress: () => setContactModalVisible(true) },
-    { label: "Client", icon: "person.text.rectangle.fill", color: "#E85D04", onPress: () => setContactModalVisible(true) },
-  ];
+  const handleSelectJob = useCallback((id: number) => {
+    setSelectedJobId((prev) => (prev === id ? null : id));
+    setSelectedTechId(null);
+  }, []);
+  const handleCloseRight = useCallback(() => { setSelectedTechId(null); setSelectedJobId(null); }, []);
 
   return (
-    <ScreenContainer edges={["left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* ── Header — NVC logo below Dynamic Island ── */}
-        {/* paddingTop = insets.top (Dynamic Island clearance) + extra 12px breathing room */}
-        <View style={[styles.header, { paddingTop: insets.top + 12 }] as ViewStyle[]}>
-          <View style={styles.headerLeft}>
-            <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
-            <View>
-              <Text style={styles.headerGreeting}>Good morning, Dan</Text>
-              <Text style={styles.headerTitle}>NVC360 Dispatch</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <Pressable
-              style={({ pressed }) => [styles.notifBtn, pressed && { opacity: 0.7 }] as ViewStyle[]}
-              onPress={() => router.push("/notification-settings" as any)}
-            >
-              <IconSymbol name="bell.fill" size={17} color="#fff" />
-              <View style={styles.notifBadge} />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.85 }] as ViewStyle[]}
-              onPress={() => setCreateSheetVisible(true)}
-            >
-              <IconSymbol name="plus" size={12} color="#fff" />
-              <Text style={styles.createBtnText}>New</Text>
-            </Pressable>
+    <View style={{ flex: 1, backgroundColor: "#EFF2F7" }}>
+      {/* ── Floating Top Bar ── */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 12, backgroundColor: NVC_BLUE }]}>
+        <View style={styles.topBarLeft}>
+          <Pressable
+            style={({ pressed }) => [styles.topBarIconBtn, { opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+            onPress={() => { haptic(); setLeftPanelOpen((v) => !v); }}
+          >
+            <IconSymbol name={leftPanelOpen ? "sidebar.left" : "sidebar.left"} size={18} color="#fff" />
+          </Pressable>
+          <View style={styles.topBarLogoWrap}>
+            <Text style={styles.topBarLogoText}>NVC</Text>
+            <View style={styles.topBarLogoDot} />
+            <Text style={styles.topBarLogoText}>360</Text>
           </View>
         </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topBarStats}>
+          <StatChip label="Active" value={activeTasks.length} color="#F97316" />
+          <StatChip label="Unassigned" value={unassigned} color="#EF4444" />
+          <StatChip label="Online" value={onlineTechs} color="#22C55E" />
+          <StatChip label="En Route" value={enRoute} color="#A855F7" />
+          <StatChip label="Done" value={completedToday} color="#16A34A" />
+        </ScrollView>
+        <View style={styles.topBarRight}>
+          <Pressable
+            style={({ pressed }) => [styles.topBarIconBtn, { opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+            onPress={() => router.push("/notification-settings" as any)}
+          >
+            <IconSymbol name="bell.fill" size={16} color="#fff" />
+            <View style={styles.notifBadge} />
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.createBtn, { opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+            onPress={() => { haptic(); setCreateSheetVisible(true); }}
+          >
+            <IconSymbol name="plus" size={12} color="#fff" />
+            <Text style={styles.createBtnText}>New</Text>
+          </Pressable>
+        </View>
+      </View>
 
-        {/* ── 6-up Metrics Grid — icons 20% smaller ── */}
-        <View style={styles.metricsSection}>
-          <View style={styles.metricsGrid}>
-            <MetricCard label="Active Jobs" value={activeTasks.length} color="#E85D04" icon="bolt.fill" onPress={() => router.push("/tasks")} />
-            <MetricCard label="Completed" value={completedToday} color="#16A34A" icon="checkmark.circle.fill" onPress={() => router.push("/tasks")} />
-            <MetricCard label="Unassigned" value={unassigned} color="#DC2626" icon="exclamationmark.triangle.fill" onPress={() => router.push("/tasks")} />
-            <MetricCard label="Online Techs" value={onlineTechs} color="#1E6FBF" icon="person.2.fill" onPress={() => router.push("/agents")} />
-            <MetricCard label="En Route" value={enRoute} color="#7C3AED" icon="car.fill" onPress={() => router.push("/tasks")} />
-            <MetricCard label={`${avgResponse}m Avg`} value="⏱" color="#0EA5A0" icon="timer" onPress={() => {}} />
-          </View>
+      {/* ── Full-Bleed Map ── */}
+      <View style={{ flex: 1 }}>
+        <GoogleMapView
+          technicians={mapTechs}
+          tasks={mapTasks}
+          selectedId={selectedTechId}
+          onSelectTech={handleSelectTech}
+          center={{ lat: 49.8951, lng: -97.1384 }}
+          zoom={12}
+          style={{ width: "100%", height: "100%" }}
+        />
+
+        {/* ── Map Controls (bottom-right) ── */}
+        <View style={[mapStyles.mapCtrlWrap, { backgroundColor: "rgba(255,255,255,0.95)", borderColor: "rgba(0,0,0,0.1)" }]}>
+          <Pressable style={mapStyles.mapCtrlBtn} onPress={() => { haptic(); router.push("/dispatcher" as any); }}>
+            <IconSymbol name="arrow.up.left.and.arrow.down.right" size={16} color={NVC_BLUE} />
+          </Pressable>
+          <View style={[mapStyles.mapCtrlDivider, { backgroundColor: "rgba(0,0,0,0.1)" }]} />
+          <Pressable style={mapStyles.mapCtrlBtn} onPress={() => router.push("/tasks" as any)}>
+            <IconSymbol name="list.bullet" size={16} color={NVC_BLUE} />
+          </Pressable>
         </View>
 
-        {/* ── Live Map Widget — taller now that Quick Actions is smaller ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Live Fleet Map</Text>
-            <Pressable onPress={() => router.push("/dispatcher" as any)}>
-              <Text style={styles.seeAll}>Full Map →</Text>
-            </Pressable>
-          </View>
-          <MapWidget onPress={() => router.push("/dispatcher" as any)} />
+        {/* ── Live Badge (bottom-left) ── */}
+        <View style={mapStyles.liveBadge}>
+          <View style={mapStyles.liveDot} />
+          <Text style={mapStyles.liveText}>LIVE</Text>
+          <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginLeft: 2 }}>{onlineTechs} active</Text>
         </View>
 
-        {/* ── Contact — 3 buttons, replaces Quick Actions ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact</Text>
-          <View style={styles.contactGrid}>
-            {CONTACT_ACTIONS.map((action) => (
-              <Pressable
-                key={action.label}
-                style={({ pressed }) => [
-                  styles.contactActionCard,
-                  { backgroundColor: action.color + "12", borderColor: action.color + "30",
-                    opacity: pressed ? 0.78 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
-                ] as ViewStyle[]}
-                onPress={action.onPress}
-              >
-                <View style={[styles.contactActionIconWrap, { backgroundColor: action.color + "20" }] as ViewStyle[]}>
-                  <IconSymbol name={action.icon as any} size={22} color={action.color} />
-                </View>
-                <Text style={[styles.contactActionLabel, { color: action.color }] as TextStyle[]}>{action.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        {/* ── Left Panel ── */}
+        <LeftPanel
+          visible={leftPanelOpen}
+          selectedTechId={selectedTechId}
+          selectedJobId={selectedJobId}
+          onSelectTech={handleSelectTech}
+          onSelectJob={handleSelectJob}
+          onClose={() => setLeftPanelOpen(false)}
+        />
 
-        {/* ── Field Team ── */}
-        {onlineTeam.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Field Team</Text>
-              <Pressable onPress={() => router.push("/agents")}>
-                <Text style={styles.seeAll}>See All →</Text>
-              </Pressable>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.techRow}>
-              {onlineTeam.map((tech) => (
-                <TechChip key={tech.id} tech={tech} onPress={() => router.push(`/agent/${tech.id}` as any)} />
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* ── Recent Work Orders ── */}
-        <View style={[styles.section, styles.lastSection]}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Recent Work Orders</Text>
-            <Pressable onPress={() => router.push("/tasks")}>
-              <Text style={styles.seeAll}>See All →</Text>
-            </Pressable>
-          </View>
-          {recentTasks.map((task) => (
-            <TaskRow key={task.id} task={task} onPress={() => router.push(`/task/${task.id}` as any)} />
-          ))}
-        </View>
-      </ScrollView>
+        {/* ── Right Detail Panel ── */}
+        <RightPanel
+          tech={selectedTech ?? null}
+          job={selectedJob ?? null}
+          onClose={handleCloseRight}
+        />
+      </View>
 
       <CreateNewSheet visible={createSheetVisible} onClose={() => setCreateSheetVisible(false)} />
       <ContactModal visible={contactModalVisible} onClose={() => setContactModalVisible(false)} />
-    </ScreenContainer>
+    </View>
   );
 }
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create<{
@@ -686,6 +962,9 @@ const styles = StyleSheet.create<{
   headerLogo: ViewStyle; headerGreeting: TextStyle; headerTitle: TextStyle;
   headerRight: ViewStyle; notifBtn: ViewStyle; notifBadge: ViewStyle;
   createBtn: ViewStyle; createBtnText: TextStyle;
+  topBar: ViewStyle; topBarLeft: ViewStyle; topBarRight: ViewStyle;
+  topBarStats: ViewStyle; topBarIconBtn: ViewStyle;
+  topBarLogoWrap: ViewStyle; topBarLogoText: TextStyle; topBarLogoDot: ViewStyle;
   metricsSection: ViewStyle; metricsGrid: ViewStyle;
   metricCard: ViewStyle; metricHighlight: ViewStyle; metricIconWrap: ViewStyle;
   metricValue: TextStyle; metricLabel: TextStyle;
@@ -741,6 +1020,15 @@ const styles = StyleSheet.create<{
     minHeight: 36,
   },
   createBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  // Map-first top bar
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingBottom: 10, gap: 8, zIndex: 100 },
+  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topBarRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topBarStats: { gap: 6, paddingHorizontal: 4 },
+  topBarIconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  topBarLogoWrap: { flexDirection: "row", alignItems: "center", gap: 1 },
+  topBarLogoText: { fontSize: 15, fontWeight: "900", color: "#fff", letterSpacing: 0.5 },
+  topBarLogoDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: NVC_ORANGE, marginHorizontal: 1 },
 
   // Metrics — icon wrap 20% smaller (28→22, icon 15→12)
   metricsSection: { paddingHorizontal: 14, paddingTop: 14 },

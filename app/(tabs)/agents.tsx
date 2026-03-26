@@ -16,7 +16,7 @@ import {
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScreenContainer } from "@/components/screen-container";
+import { GoogleMapView } from "@/components/google-map-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 import {
@@ -269,178 +269,208 @@ export default function AgentsScreen() {
     />
   ), [cardWidth, router, handleCall, handleMessage]);
 
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
+  const selectedTech = selectedTechId ? allTechs.find((t) => t.id === selectedTechId) ?? null : null;
+  const mapTechs = allTechs
+    .filter((t) => t.status !== "offline")
+    .map((t) => ({ id: t.id, name: t.name, latitude: t.latitude, longitude: t.longitude, status: t.status, transportType: t.transportType }));
+
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
-      {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 } as ViewStyle]}>
-        <View style={styles.headerLeft}>
+    <View style={{ flex: 1, backgroundColor: "#EFF2F7" }}>
+      {/* ── Top Bar ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 12, backgroundColor: NVC_BLUE }] as ViewStyle[]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Pressable onPress={() => setLeftOpen(!leftOpen)} style={{ padding: 4 }}>
+            <IconSymbol name="sidebar.left" size={20} color="#fff" />
+          </Pressable>
           <Image source={NVC_LOGO_DARK as any} style={styles.logo as any} resizeMode="contain" />
-          <View>
-            <Text style={styles.headerLabel}>NVC360 2.0</Text>
-            <Text style={styles.headerTitle}>Field Team</Text>
-          </View>
+          <Text style={styles.headerTitle}>Field Team</Text>
         </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.headerStat}>{activeCount} active</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View style={[styles.filterCount, { backgroundColor: "rgba(255,255,255,0.2)" }] as ViewStyle[]}>
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>{activeCount} active</Text>
+          </View>
           <Pressable
-            style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/agent/new" as any);
-            }}
+            style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
+            onPress={() => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/agent/new" as any); }}
           >
             <IconSymbol name="plus" size={14} color="#fff" />
             <Text style={styles.headerBtnText}>Add</Text>
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.mapBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
-            onPress={() => router.push("/dispatcher" as any)}
-          >
-            <IconSymbol name="map.fill" size={14} color="#fff" />
-            <Text style={styles.headerBtnText}>Live Map</Text>
-          </Pressable>
         </View>
       </View>
 
-      {/* ── Search Bar ── */}
-      <View style={[styles.searchSection, { backgroundColor: "#1A5FA8" }] as ViewStyle[]}>
-        <View style={[
-          styles.searchBar,
-          searchFocused && styles.searchBarFocused,
-        ] as ViewStyle[]}>
-          <IconSymbol name="magnifyingglass" size={15} color={searchQuery ? NVC_BLUE : "#9CA3AF"} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, skill, address, phone..."
-            placeholderTextColor="#9CA3AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
+      {/* ── Body: Map + Panels ── */}
+      <View style={{ flex: 1, flexDirection: "row" }}>
+        {/* Left Panel */}
+        {leftOpen && (
+          <View style={styles.leftPanel}>
+            {/* Search */}
+            <View style={[styles.searchBar, searchFocused && styles.searchBarFocused, { margin: 8 }] as ViewStyle[]}>
+              <IconSymbol name="magnifyingglass" size={14} color="#9CA3AF" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search technicians..."
+                placeholderTextColor="#9CA3AF"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <IconSymbol name="xmark" size={12} color="#9CA3AF" />
+                </Pressable>
+              )}
+            </View>
+            {/* Filter tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterList, { paddingHorizontal: 8 }] as ViewStyle[]}>
+              {(STATUS_FILTERS as unknown as StatusFilter[]).map((item) => {
+                const isActive = statusFilter === item;
+                const dotColor = item === "all" ? NVC_BLUE : (STATUS_COLOR[item] ?? NVC_BLUE);
+                const count = counts[item] ?? 0;
+                return (
+                  <Pressable
+                    key={item}
+                    style={[styles.filterTab, { backgroundColor: isActive ? NVC_BLUE : "#F1F5F9", borderColor: isActive ? NVC_BLUE : "#E2E8F0" }] as ViewStyle[]}
+                    onPress={() => setStatusFilter(item)}
+                  >
+                    {item !== "all" && <View style={[styles.filterDot, { backgroundColor: dotColor }] as ViewStyle[]} />}
+                    <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "#374151" }] as TextStyle[]}>{FILTER_LABELS[item]}</Text>
+                    {count > 0 && (
+                      <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "#E2E8F0" }] as ViewStyle[]}>
+                        <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "#374151" }] as TextStyle[]}>{count}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {/* Tech list */}
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                !isDemo ? <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} /> : undefined
+              }
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <IconSymbol name="person.2.fill" size={28} color="#C0C8D8" />
+                  <Text style={styles.emptyTitle}>No technicians found</Text>
+                </View>
+              }
+              renderItem={({ item }) => {
+                const color = STATUS_COLOR[item.status as string] ?? "#9CA3AF";
+                const isSelected = selectedTechId === item.id;
+                return (
+                  <Pressable
+                    style={[styles.listRow, isSelected && styles.listRowSelected] as ViewStyle[]}
+                    onPress={() => setSelectedTechId(isSelected ? null : item.id)}
+                  >
+                    <View style={[styles.listDot, { backgroundColor: color }] as ViewStyle[]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={[styles.listSub, { color }] as TextStyle[]} numberOfLines={1}>
+                        {FILTER_LABELS[item.status as string] ?? item.status}
+                        {item.activeTaskAddress ? ` · ${item.activeTaskAddress}` : ""}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => handleCall(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <IconSymbol name="phone.fill" size={14} color="#22C55E" />
+                    </Pressable>
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
+        )}
+
+        {/* Map fills remaining space */}
+        <View style={{ flex: 1, position: "relative" }}>
+          <GoogleMapView
+            technicians={mapTechs as any}
+            tasks={[]}
+            style={{ flex: 1 }}
           />
-          {searchQuery.length > 0 && (
-            <Pressable
-              onPress={() => setSearchQuery("")}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <View style={styles.clearBtn}>
-                <IconSymbol name="xmark" size={10} color="#fff" />
-              </View>
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      {/* ── Status Filter Bar ── */}
-      <View style={styles.filterBar}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterList}
-        >
-          {(STATUS_FILTERS as unknown as StatusFilter[]).map((item) => {
-            const isActive = statusFilter === item;
-            const dotColor = item === "all" ? "#fff" : (STATUS_COLOR[item] ?? "#fff");
-            const count = counts[item] ?? 0;
-            return (
-              <Pressable
-                key={item}
-                style={[
-                  styles.filterTab,
-                  { backgroundColor: isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)",
-                    borderColor: isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)" },
-                ] as ViewStyle[]}
-                onPress={() => setStatusFilter(item)}
-              >
-                {item !== "all" && <View style={[styles.filterDot, { backgroundColor: dotColor }] as ViewStyle[]} />}
-                <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "rgba(255,255,255,0.65)" }] as TextStyle[]}>
-                  {FILTER_LABELS[item]}
-                </Text>
-                {count > 0 && (
-                  <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)" }] as ViewStyle[]}>
-                    <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }] as TextStyle[]}>{count}</Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* ── Results count ── */}
-      <View style={styles.resultsBar}>
-        <Text style={styles.resultsText}>
-          {filtered.length} {filtered.length === 1 ? "technician" : "technicians"}
-          {searchQuery ? ` matching "${searchQuery}"` : ""}
-        </Text>
-        {(searchQuery || statusFilter !== "all") && (
+          {/* FAB: Add technician */}
           <Pressable
-            onPress={() => { setSearchQuery(""); setStatusFilter("all"); }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.fab}
+            onPress={() => router.push("/agent/new" as any)}
           >
-            <Text style={styles.clearFiltersText}>Clear filters</Text>
+            <IconSymbol name="plus" size={20} color="#fff" />
           </Pressable>
+        </View>
+
+        {/* Right detail panel */}
+        {selectedTech && (
+          <View style={styles.rightPanel}>
+            <View style={styles.rightPanelHeader}>
+              <Text style={styles.rightPanelName} numberOfLines={1}>{selectedTech.name}</Text>
+              <Pressable onPress={() => setSelectedTechId(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <IconSymbol name="xmark" size={16} color="#6B7280" />
+              </Pressable>
+            </View>
+            <Text style={{ fontSize: 13, color: STATUS_COLOR[selectedTech.status as string] ?? "#9CA3AF", fontWeight: "600", marginBottom: 12 }}>
+              {FILTER_LABELS[selectedTech.status as string] ?? selectedTech.status}
+            </Text>
+            {selectedTech.activeTaskAddress ? (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 2 }}>CURRENT JOB</Text>
+                <Text style={{ fontSize: 13, color: "#111827", lineHeight: 18 }}>{selectedTech.activeTaskAddress}</Text>
+              </View>
+            ) : null}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>TODAY</Text>
+              <Text style={{ fontSize: 13, color: "#374151" }}>{selectedTech.todayJobs} jobs · {selectedTech.todayDistanceKm.toFixed(0)} km</Text>
+            </View>
+            {selectedTech.skills.length > 0 && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 4 }}>SKILLS</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                  {selectedTech.skills.map((s) => (
+                    <View key={s} style={{ backgroundColor: "#EFF6FF", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 11, color: NVC_BLUE }}>{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+              <Pressable
+                style={{ flex: 1, backgroundColor: "#22C55E", borderRadius: 8, paddingVertical: 10, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 4 }}
+                onPress={() => handleCall(selectedTech)}
+              >
+                <IconSymbol name="phone.fill" size={14} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Call</Text>
+              </Pressable>
+              <Pressable
+                style={{ flex: 1, backgroundColor: NVC_BLUE, borderRadius: 8, paddingVertical: 10, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 4 }}
+                onPress={() => router.push(`/agent/${selectedTech.id}` as any)}
+              >
+                <IconSymbol name="person.fill" size={14} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Profile</Text>
+              </Pressable>
+            </View>
+          </View>
         )}
       </View>
-
-      {/* ── Tech Grid ── */}
-      <FlatList
-        key={numColumns}
-        data={filtered}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={numColumns}
-        columnWrapperStyle={numColumns > 1 ? styles.gridRow : undefined}
-        contentContainerStyle={styles.gridContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          !isDemo ? (
-            <RefreshControl
-              refreshing={apiLoading}
-              onRefresh={refetch}
-              tintColor={NVC_BLUE}
-            />
-          ) : undefined
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <IconSymbol name="person.2.fill" size={32} color="#C0C8D8" />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {searchQuery ? `No technicians match "${searchQuery}"` : "No technicians in this status"}
-            </Text>
-            {(searchQuery || statusFilter !== "all") && (
-              <Pressable
-                style={styles.emptyAction}
-                onPress={() => { setSearchQuery(""); setStatusFilter("all"); }}
-              >
-                <Text style={styles.emptyActionText}>Clear filters</Text>
-              </Pressable>
-            )}
-          </View>
-        }
-        renderItem={renderItem}
-      />
-    </ScreenContainer>
+    </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create<{
   // Header
   header: ViewStyle; headerLeft: ViewStyle; logo: ViewStyle;
-  headerLabel: TextStyle; headerTitle: TextStyle; headerRight: ViewStyle;
-  headerStat: TextStyle; addBtn: ViewStyle; mapBtn: ViewStyle; headerBtnText: TextStyle;
+  headerLabel: TextStyle; headerTitle: TextStyle;
+  headerRight: ViewStyle; headerBtn: ViewStyle; headerBtnText: TextStyle;
   // Search
   searchSection: ViewStyle; searchBar: ViewStyle; searchBarFocused: ViewStyle;
   searchInput: TextStyle; clearBtn: ViewStyle;
   // Filter bar
   filterBar: ViewStyle; filterList: ViewStyle; filterTab: ViewStyle;
-  filterDot: ViewStyle; filterTabText: TextStyle; filterCount: ViewStyle;
-  filterCountText: TextStyle;
+  filterDot: ViewStyle; filterTabText: TextStyle; filterCount: ViewStyle; filterCountText: TextStyle;
   // Results bar
   resultsBar: ViewStyle; resultsText: TextStyle; clearFiltersText: TextStyle;
   // Grid
@@ -448,8 +478,14 @@ const styles = StyleSheet.create<{
   // Grid Card
   gridCard: ViewStyle; gridCardAccent: ViewStyle;
   gridAvatarWrap: ViewStyle; gridAvatar: ViewStyle; gridAvatarText: TextStyle;
-  gridStatusDot: ViewStyle; gridName: TextStyle;
-  gridStatusPill: ViewStyle; gridPillDot: ViewStyle; gridStatusText: TextStyle;
+  gridStatusDot: ViewStyle; gridName: TextStyle; gridStatusPill: ViewStyle;
+  gridPillDot: ViewStyle; gridStatusText: TextStyle;
+  // Map-first layout
+  leftPanel: ViewStyle; leftPanelHeader: ViewStyle; leftPanelTitle: TextStyle;
+  leftPanelToggle: ViewStyle; listRow: ViewStyle; listRowSelected: ViewStyle;
+  listDot: ViewStyle; listName: TextStyle; listSub: TextStyle;
+  rightPanel: ViewStyle; rightPanelHeader: ViewStyle; rightPanelName: TextStyle;
+  fab: ViewStyle;
   gridSkillsRow: ViewStyle; gridSkillChip: ViewStyle; gridSkillText: TextStyle;
   gridAddress: TextStyle; gridAddressMuted: TextStyle;
   gridStats: ViewStyle; gridStat: ViewStyle; gridStatDivider: ViewStyle; gridStatText: TextStyle;
@@ -604,4 +640,54 @@ const styles = StyleSheet.create<{
     backgroundColor: NVC_BLUE, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 4,
   },
   emptyActionText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  // Map-first layout
+  leftPanel: {
+    width: 260, backgroundColor: "#fff",
+    borderRightWidth: 1, borderRightColor: "#E5E7EB",
+    flexDirection: "column",
+  },
+  leftPanelHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+  },
+  leftPanelTitle: { fontSize: 13, fontWeight: "700", color: "#374151" },
+  leftPanelToggle: {
+    width: 28, height: 28, borderRadius: 8, backgroundColor: "#EFF2F7",
+    alignItems: "center", justifyContent: "center",
+  },
+  listRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+  },
+  listRowSelected: { backgroundColor: "#EFF6FF" },
+  listDot: { width: 9, height: 9, borderRadius: 4.5 },
+  listName: { fontSize: 13, fontWeight: "600", color: "#111827" },
+  listSub: { fontSize: 11, marginTop: 1 },
+  rightPanel: {
+    width: 240, backgroundColor: "#fff",
+    borderLeftWidth: 1, borderLeftColor: "#E5E7EB",
+    padding: 16,
+  },
+  rightPanelHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  rightPanelName: { fontSize: 15, fontWeight: "700", color: "#111827", flex: 1 },
+  fab: {
+    position: "absolute", bottom: 20, right: 16,
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: NVC_BLUE,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 8,
+  },
+  headerBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+    minHeight: 36,
+  },
 });

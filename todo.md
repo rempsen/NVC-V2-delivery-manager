@@ -823,3 +823,25 @@
 - [x] UI: Customers page — statsStrip items compact grid, not full-width flex-1
 - [x] UI: All pages — audit and remove any remaining full-width button patterns
 - [x] UI: Add login screen to web dashboard (email + password form, role-based routing)
+
+## Sprint v6.2: Map-First Dashboard Redesign
+
+- [ ] Dashboard: full-bleed map as primary focal point (~70% of screen width on web)
+- [ ] Dashboard: collapsible left panel — technician list with status badges, search, filter
+- [ ] Dashboard: floating map controls — zoom +/-, map style toggle, center-on-fleet button
+- [ ] Dashboard: floating top bar — date/time, quick stats, Create Job button
+- [ ] Dashboard: right detail panel — slides in when technician or job marker is tapped
+- [ ] Dashboard: technician markers on map with color-coded status dots
+- [ ] Dashboard: job site markers on map with task number badges
+- [ ] Technicians tab: same map-first layout with left list panel and right detail panel
+- [ ] Both views: map fills remaining screen height below nav bar
+
+## Sprint v6.3: Workflow Templates, Bottom Nav, Dispatch View
+
+- [ ] Fix: agents.tsx StyleSheet.create detached from component — restore full styles block
+- [ ] Nav: update bottom tab bar to 5 tabs — Dashboard (Dispatch), Work Orders, Technicians, Customers, Settings
+- [ ] Nav: rename Dashboard tab label to "Dispatch" since it is the map-first dispatch view
+- [ ] Work Orders: workflow template selector at top of New Work Order screen (Delivery, Installation, Service Call, Inspection, Pickup, Custom)
+- [ ] Work Orders: each workflow template loads dynamic fields — e.g. Installation adds Equipment Type, Serial Number, Warranty; Service Call adds Issue Description, Priority; Delivery adds Package Count, Vehicle Type
+- [ ] Work Orders: workflow templates stored in Settings and admin-configurable
+- [ ] Work Orders: technician sees template-specific checklist fields inside the agent task screen

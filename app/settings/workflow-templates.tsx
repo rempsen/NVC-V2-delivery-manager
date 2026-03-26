@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet, Alert, Switch,
   FlatList, Modal,
@@ -10,6 +10,7 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
+import { useWorkflowTemplates } from "@/lib/workflow-templates-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1023,7 +1024,15 @@ export default function WorkflowTemplatesScreen() {
   const colors = useColors();
   const router = useRouter();
 
+  const { templates: sharedTemplates, saveTemplates: persistTemplates } = useWorkflowTemplates();
   const [templates, setTemplates] = useState<WorkflowTemplate[]>(INDUSTRY_TEMPLATES);
+
+  // Sync from shared store on mount and when shared templates change
+  useEffect(() => {
+    if (sharedTemplates.length > 0) {
+      setTemplates(sharedTemplates as WorkflowTemplate[]);
+    }
+  }, [sharedTemplates]);
   const [activeTemplate, setActiveTemplate] = useState<WorkflowTemplate | null>(null);
   const [showFieldPicker, setShowFieldPicker] = useState(false);
   const [editingField, setEditingField] = useState<WorkflowField | null>(null);
@@ -1059,7 +1068,11 @@ export default function WorkflowTemplatesScreen() {
       fields: [],
       isCustom: true,
     };
-    setTemplates((prev) => [t, ...prev]);
+    setTemplates((prev) => {
+      const updated = [t, ...prev];
+      persistTemplates(updated as any);
+      return updated;
+    });
     setActiveTemplate(t);
     setView("builder");
   };
@@ -1072,14 +1085,22 @@ export default function WorkflowTemplatesScreen() {
       isCustom: true,
       fields: t.fields.map((f) => ({ ...f, id: `field_${Date.now()}_${Math.random()}` })),
     };
-    setTemplates((prev) => [copy, ...prev]);
+    setTemplates((prev) => {
+      const updated = [copy, ...prev];
+      persistTemplates(updated as any);
+      return updated;
+    });
     Alert.alert("Duplicated", `"${copy.name}" created as a custom template.`);
   };
 
   const deleteTemplate = (id: string) => {
     Alert.alert("Delete Template", "This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => setTemplates((prev) => prev.filter((t) => t.id !== id)) },
+      { text: "Delete", style: "destructive", onPress: () => setTemplates((prev) => {
+        const updated = prev.filter((t) => t.id !== id);
+        persistTemplates(updated as any);
+        return updated;
+      }) },
     ]);
   };
 
@@ -1155,6 +1176,15 @@ export default function WorkflowTemplatesScreen() {
       updated[idx] = activeTemplate;
       return updated;
     });
+    // Persist to shared store (AsyncStorage)
+    const updatedTemplates = (() => {
+      const idx = templates.findIndex((t) => t.id === activeTemplate.id);
+      if (idx === -1) return [activeTemplate, ...templates];
+      const arr = [...templates];
+      arr[idx] = activeTemplate;
+      return arr;
+    })();
+    persistTemplates(updatedTemplates as any);
     Alert.alert("Saved", `"${activeTemplate.name}" has been saved.`);
     setView("list");
   };

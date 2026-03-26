@@ -154,6 +154,23 @@ const MAPPING = {
   "building.fill": "apartment",
   "network": "hub",
   "chart.line.uptrend.xyaxis": "trending-up",
+  // Workflow template icons
+  "barcode.viewfinder": "qr-code-scanner",
+  "thermometer.medium": "thermostat",
+  "square.grid.3x3.fill": "grid-on",
+  "figure.run": "directions-run",
+  "heart.fill": "favorite",
+  "star": "star-outline",
+  "wrench": "build",
+  "gear": "settings",
+  "switch.2": "toggle-on",
+  "checklist": "checklist",
+  "function": "functions",
+  "arrow.triangle.branch": "call-split",
+  "pencil.and.scribble": "draw",
+  "textformat": "text-fields",
+  "number": "tag",
+  "antenna.radiowaves.left.and.right": "cell-tower",
   // Sort & ordering
   "arrow.up.arrow.down": "swap-vert",
   "textformat.abc": "sort-by-alpha",
@@ -162,6 +179,9 @@ const MAPPING = {
   "sparkles": "auto-awesome",
   "wind": "air",
   "shippingbox.fill": "inventory-2",
+  // Map-first dashboard
+  "sidebar.left": "menu",
+  "arrow.up.left.and.arrow.down.right": "open-in-full",
 } as unknown as IconMapping;
 
 export function IconSymbol({
