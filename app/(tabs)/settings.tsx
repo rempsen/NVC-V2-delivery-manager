@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, ScrollView, Pressable, Switch, StyleSheet,
-  Linking, Alert, Image, ViewStyle, TextStyle,
+  Linking, Alert, Image, ViewStyle, TextStyle, useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,34 +10,62 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 
-// ─── Setting Row ──────────────────────────────────────────────────────────────
+// ─── Grid Tile ────────────────────────────────────────────────────────────────
 
-function SettingRow({
-  icon, iconColor, label, value, onPress, rightElement, danger,
+function GridTile({
+  icon,
+  iconColor,
+  label,
+  value,
+  onPress,
+  danger,
+  rightElement,
+  tileWidth,
 }: {
-  icon: any; iconColor: string; label: string; value?: string;
-  onPress?: () => void; rightElement?: React.ReactNode; danger?: boolean;
+  icon: any;
+  iconColor: string;
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  danger?: boolean;
+  rightElement?: React.ReactNode;
+  tileWidth: number;
 }) {
   const colors = useColors();
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: colors.surface, opacity: pressed && onPress ? 0.78 : 1 },
+        styles.tile,
+        { width: tileWidth, backgroundColor: colors.surface, opacity: pressed && onPress ? 0.82 : 1 },
       ] as ViewStyle[]}
       onPress={onPress}
       disabled={!onPress && !rightElement}
     >
-      <View style={[styles.rowIcon, { backgroundColor: iconColor + "18" }] as ViewStyle[]}>
-        <IconSymbol name={icon} size={17} color={iconColor} />
+      {/* Icon */}
+      <View style={[styles.tileIcon, { backgroundColor: (danger ? "#EF4444" : iconColor) + "18" }] as ViewStyle[]}>
+        <IconSymbol name={icon} size={20} color={danger ? "#EF4444" : iconColor} />
       </View>
-      <View style={styles.rowContent}>
-        <Text style={[styles.rowLabel, { color: danger ? "#EF4444" : colors.foreground }] as TextStyle[]}>
-          {label}
+      {/* Label */}
+      <Text
+        style={[styles.tileLabel, { color: danger ? "#EF4444" : colors.foreground }] as TextStyle[]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+      {/* Value or switch */}
+      {rightElement ? (
+        <View style={styles.tileSwitchWrap}>{rightElement}</View>
+      ) : value ? (
+        <Text style={[styles.tileValue, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>
+          {value}
         </Text>
-        {value && <Text style={[styles.rowValue, { color: colors.muted }] as TextStyle[]}>{value}</Text>}
-      </View>
-      {rightElement ?? (onPress && <IconSymbol name="chevron.right" size={14} color={colors.muted} />)}
+      ) : null}
+      {/* Chevron for navigable tiles */}
+      {onPress && !rightElement && (
+        <View style={styles.tileChevron}>
+          <IconSymbol name="chevron.right" size={11} color={colors.muted} />
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -53,22 +81,23 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-// ─── Group Card ───────────────────────────────────────────────────────────────
-
-function Group({ children }: { children: React.ReactNode }) {
-  return <View style={styles.group}>{children}</View>;
-}
-
 // ─── Settings Screen ──────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [geoClockEnabled, setGeoClockEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+
+  // Responsive: 2 cols on narrow, 3 on wide mobile/tablet, 4 on desktop
+  const numCols = width >= 900 ? 4 : width >= 600 ? 3 : 2;
+  const H_PAD = 14;
+  const GAP = 10;
+  const tileWidth = (width - H_PAD * 2 - GAP * (numCols - 1)) / numCols;
 
   const handleLogout = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -77,13 +106,23 @@ export default function SettingsScreen() {
     ]);
   };
 
+  // Helper to render a row of tiles
+  const TileGrid = ({ children }: { children: React.ReactNode }) => (
+    <View style={[styles.tileGrid, { gap: GAP, paddingHorizontal: H_PAD }] as ViewStyle[]}>
+      {children}
+    </View>
+  );
+
   return (
     <ScreenContainer edges={["left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }] as ViewStyle[]}>
         <View style={styles.headerLeft}>
           <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
-          <Text style={styles.headerTitle}>Settings</Text>
+          <View>
+            <Text style={styles.headerLabel}>NVC360 2.0</Text>
+            <Text style={styles.headerTitle}>Settings</Text>
+          </View>
         </View>
       </View>
 
@@ -91,7 +130,10 @@ export default function SettingsScreen() {
 
         {/* ── Profile Card ── */}
         <Pressable
-          style={({ pressed }) => [styles.profileCard, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.92 : 1 }] as ViewStyle[]}
+          style={({ pressed }) => [
+            styles.profileCard,
+            { backgroundColor: NVC_BLUE, opacity: pressed ? 0.92 : 1 },
+          ] as ViewStyle[]}
           onPress={() => {}}
         >
           <View style={styles.profileAvatar}>
@@ -111,97 +153,117 @@ export default function SettingsScreen() {
 
         {/* ── Company ── */}
         <SectionLabel title="Company" />
-        <Group>
-          <SettingRow icon="building.2.fill" iconColor="#3B82F6" label="Company Profile" value="NVC360" onPress={() => {}} />
-          <SettingRow icon="person.badge.plus" iconColor="#8B5CF6" label="Manage Technicians" value="10 active" onPress={() => router.push("/agents")} />
-          <SettingRow icon="doc.text.fill" iconColor="#22C55E" label="Workflow Templates" value="8 templates · 20 field types" onPress={() => router.push("/settings/workflow-templates" as any)} />
-          <SettingRow icon="dollarsign.circle.fill" iconColor="#F59E0B" label="Pricing & Billing Rules" value="4 rules active" onPress={() => router.push("/pricing" as any)} />
-          <SettingRow icon="tag.fill" iconColor={NVC_ORANGE} label="White-Label Branding" value="NVC360 theme" onPress={() => {}} />
-        </Group>
+        <TileGrid>
+          <GridTile tileWidth={tileWidth} icon="building.2.fill" iconColor="#3B82F6" label="Company Profile" value="NVC360" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="person.badge.plus" iconColor="#8B5CF6" label="Manage Technicians" value="10 active" onPress={() => router.push("/agents")} />
+          <GridTile tileWidth={tileWidth} icon="doc.text.fill" iconColor="#22C55E" label="Workflow Templates" value="8 templates" onPress={() => router.push("/settings/workflow-templates" as any)} />
+          <GridTile tileWidth={tileWidth} icon="dollarsign.circle.fill" iconColor="#F59E0B" label="Pricing & Billing" value="4 rules active" onPress={() => router.push("/pricing" as any)} />
+          <GridTile tileWidth={tileWidth} icon="tag.fill" iconColor={NVC_ORANGE} label="White-Label Branding" value="NVC360 theme" onPress={() => {}} />
+        </TileGrid>
 
         {/* ── Integrations ── */}
         <SectionLabel title="Integrations" />
-        <Group>
-          <SettingRow icon="arrow.triangle.2.circlepath" iconColor="#3B82F6" label="All Integrations" value="2 connected" onPress={() => router.push("/integrations" as any)} />
-          <SettingRow icon="location.fill" iconColor={NVC_ORANGE} label="NVC360 Dispatch API" value="Connected" onPress={() => router.push("/integrations" as any)} />
-          <SettingRow icon="message.fill" iconColor="#22C55E" label="SMS Provider (Twilio)" value="Configured" onPress={() => router.push("/integrations" as any)} />
-          <SettingRow icon="envelope.fill" iconColor="#8B5CF6" label="Email (SMTP)" value="nvc360.com" onPress={() => {}} />
-          <SettingRow icon="map.fill" iconColor="#F59E0B" label="Mapbox API Key" value="Configured" onPress={() => {}} />
-        </Group>
+        <TileGrid>
+          <GridTile tileWidth={tileWidth} icon="arrow.triangle.2.circlepath" iconColor="#3B82F6" label="All Integrations" value="2 connected" onPress={() => router.push("/integrations" as any)} />
+          <GridTile tileWidth={tileWidth} icon="location.fill" iconColor={NVC_ORANGE} label="Dispatch API" value="Connected" onPress={() => router.push("/integrations" as any)} />
+          <GridTile tileWidth={tileWidth} icon="message.fill" iconColor="#22C55E" label="SMS (Twilio)" value="Configured" onPress={() => router.push("/integrations" as any)} />
+          <GridTile tileWidth={tileWidth} icon="envelope.fill" iconColor="#8B5CF6" label="Email (SMTP)" value="nvc360.com" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="map.fill" iconColor="#F59E0B" label="Mapbox API" value="Configured" onPress={() => {}} />
+        </TileGrid>
 
         {/* ── Notifications ── */}
         <SectionLabel title="Notifications" />
-        <Group>
-          <SettingRow
+        <TileGrid>
+          <GridTile
+            tileWidth={tileWidth}
             icon="bell.fill" iconColor={NVC_ORANGE} label="Push Notifications"
             rightElement={
-              <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled}
-                trackColor={{ false: colors.border, true: NVC_BLUE }} thumbColor="#fff" />
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={setNotificationsEnabled}
+                trackColor={{ false: colors.border, true: NVC_BLUE }}
+                thumbColor="#fff"
+              />
             }
           />
-          <SettingRow
-            icon="message.fill" iconColor="#22C55E" label="SMS Milestone Alerts"
+          <GridTile
+            tileWidth={tileWidth}
+            icon="message.fill" iconColor="#22C55E" label="SMS Alerts"
             rightElement={
-              <Switch value={smsEnabled} onValueChange={setSmsEnabled}
-                trackColor={{ false: colors.border, true: "#22C55E" }} thumbColor="#fff" />
+              <Switch
+                value={smsEnabled}
+                onValueChange={setSmsEnabled}
+                trackColor={{ false: colors.border, true: "#22C55E" }}
+                thumbColor="#fff"
+              />
             }
           />
-          <SettingRow icon="bell.badge.fill" iconColor="#8B5CF6" label="Notification Settings" value="Configure milestones & templates" onPress={() => router.push("/notification-settings" as any)} />
-        </Group>
+          <GridTile tileWidth={tileWidth} icon="bell.badge.fill" iconColor="#8B5CF6" label="Notification Settings" value="Milestones & templates" onPress={() => router.push("/notification-settings" as any)} />
+        </TileGrid>
 
         {/* ── Security ── */}
         <SectionLabel title="Security & Permissions" />
-        <Group>
-          <SettingRow icon="shield.fill" iconColor={NVC_ORANGE} label="Roles & Permissions" value="7 roles · 31 permissions" onPress={() => router.push("/permissions" as any)} />
-          <SettingRow icon="key.fill" iconColor="#F59E0B" label="Login & Authentication" value="Google · Apple · Email" onPress={() => router.push("/login" as any)} />
-        </Group>
+        <TileGrid>
+          <GridTile tileWidth={tileWidth} icon="shield.fill" iconColor={NVC_ORANGE} label="Roles & Permissions" value="7 roles · 31 perms" onPress={() => router.push("/permissions" as any)} />
+          <GridTile tileWidth={tileWidth} icon="key.fill" iconColor="#F59E0B" label="Authentication" value="Google · Apple · Email" onPress={() => router.push("/login" as any)} />
+        </TileGrid>
 
         {/* ── Tracking ── */}
         <SectionLabel title="Tracking" />
-        <Group>
-          <SettingRow
-            icon="location.fill" iconColor="#3B82F6" label="Geo Clock-In / Clock-Out" value="20m radius"
+        <TileGrid>
+          <GridTile
+            tileWidth={tileWidth}
+            icon="location.fill" iconColor="#3B82F6" label="Geo Clock-In/Out" value="20m radius"
             rightElement={
-              <Switch value={geoClockEnabled} onValueChange={setGeoClockEnabled}
-                trackColor={{ false: colors.border, true: "#3B82F6" }} thumbColor="#fff" />
+              <Switch
+                value={geoClockEnabled}
+                onValueChange={setGeoClockEnabled}
+                trackColor={{ false: colors.border, true: "#3B82F6" }}
+                thumbColor="#fff"
+              />
             }
           />
-          <SettingRow icon="gauge.medium" iconColor="#8B5CF6" label="Distance Tracking" value="Auto (GPS)" onPress={() => {}} />
-          <SettingRow icon="timer" iconColor="#F59E0B" label="Time-on-Site Tracking" value="Enabled" onPress={() => {}} />
-        </Group>
+          <GridTile tileWidth={tileWidth} icon="gauge.medium" iconColor="#8B5CF6" label="Distance Tracking" value="Auto (GPS)" onPress={() => {}} />
+          <GridTile tileWidth={tileWidth} icon="timer" iconColor="#F59E0B" label="Time-on-Site" value="Enabled" onPress={() => {}} />
+        </TileGrid>
 
         {/* ── Appearance ── */}
         <SectionLabel title="Appearance" />
-        <Group>
-          <SettingRow
+        <TileGrid>
+          <GridTile
+            tileWidth={tileWidth}
             icon="moon.fill" iconColor="#6B7280" label="Dark Mode"
             rightElement={
-              <Switch value={darkMode} onValueChange={setDarkMode}
-                trackColor={{ false: colors.border, true: NVC_BLUE }} thumbColor="#fff" />
+              <Switch
+                value={darkMode}
+                onValueChange={setDarkMode}
+                trackColor={{ false: colors.border, true: NVC_BLUE }}
+                thumbColor="#fff"
+              />
             }
           />
-        </Group>
+        </TileGrid>
 
         {/* ── NVC360 Admin ── */}
         <SectionLabel title="NVC360 Admin" />
-        <Group>
-          <SettingRow icon="map.fill" iconColor={NVC_ORANGE} label="Dispatcher Dashboard" value="Live Fleet View" onPress={() => router.push("/dispatcher" as any)} />
-          <SettingRow icon="building.2.fill" iconColor="#8B5CF6" label="Super Admin" value="Manage All Clients" onPress={() => router.push("/super-admin" as any)} />
-          <SettingRow icon="location.fill" iconColor="#3B82F6" label="Customer Tracking Demo" value="SMS Link Preview" onPress={() => router.push("/track/JH-2026-8821" as any)} />
-        </Group>
+        <TileGrid>
+          <GridTile tileWidth={tileWidth} icon="map.fill" iconColor={NVC_ORANGE} label="Dispatcher Dashboard" value="Live Fleet View" onPress={() => router.push("/dispatcher" as any)} />
+          <GridTile tileWidth={tileWidth} icon="building.2.fill" iconColor="#8B5CF6" label="Super Admin" value="Manage All Clients" onPress={() => router.push("/super-admin" as any)} />
+          <GridTile tileWidth={tileWidth} icon="location.fill" iconColor="#3B82F6" label="Customer Tracking" value="SMS Link Preview" onPress={() => router.push("/track/JH-2026-8821" as any)} />
+        </TileGrid>
 
         {/* ── Support ── */}
         <SectionLabel title="Support" />
-        <Group>
-          <SettingRow icon="questionmark.circle.fill" iconColor="#3B82F6" label="Help & Documentation" onPress={() => Linking.openURL("https://www.nvc360.com")} />
-          <SettingRow icon="info.circle.fill" iconColor="#6B7280" label="App Version" value="NVC360 2.0 (Build 1)" />
-        </Group>
+        <TileGrid>
+          <GridTile tileWidth={tileWidth} icon="questionmark.circle.fill" iconColor="#3B82F6" label="Help & Docs" onPress={() => Linking.openURL("https://www.nvc360.com")} />
+          <GridTile tileWidth={tileWidth} icon="info.circle.fill" iconColor="#6B7280" label="App Version" value="NVC360 2.0 (Build 1)" />
+        </TileGrid>
 
         {/* ── Account ── */}
         <SectionLabel title="Account" />
-        <Group>
-          <SettingRow icon="lock.fill" iconColor="#EF4444" label="Sign Out" danger onPress={handleLogout} />
-        </Group>
+        <TileGrid>
+          <GridTile tileWidth={tileWidth} icon="lock.fill" iconColor="#EF4444" label="Sign Out" danger onPress={handleLogout} />
+        </TileGrid>
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.muted }] as TextStyle[]}>NVC360 2.0 · Powered by NVC360.com</Text>
@@ -214,16 +276,7 @@ export default function SettingsScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create<{
-  header: ViewStyle; headerLeft: ViewStyle; headerLogo: ViewStyle; headerTitle: TextStyle;
-  scroll: ViewStyle;
-  profileCard: ViewStyle; profileAvatar: ViewStyle; profileInitial: TextStyle;
-  profileInfo: ViewStyle; profileName: TextStyle; profileRole: TextStyle;
-  profileBadge: ViewStyle; profileBadgeText: TextStyle; profileEdit: ViewStyle;
-  sectionLabel: TextStyle; group: ViewStyle;
-  row: ViewStyle; rowIcon: ViewStyle; rowContent: ViewStyle; rowLabel: TextStyle; rowValue: TextStyle;
-  footer: ViewStyle; footerText: TextStyle;
-}>({
+const styles = StyleSheet.create({
   // Header
   header: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
@@ -231,9 +284,10 @@ const styles = StyleSheet.create<{
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
   headerLogo: { width: 26, height: 26 },
+  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
   headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
 
-  scroll: { paddingBottom: 40 },
+  scroll: { paddingBottom: 48 },
 
   // Profile Card
   profileCard: {
@@ -257,27 +311,41 @@ const styles = StyleSheet.create<{
   profileBadgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
   profileEdit: { padding: 6 },
 
-  // Section
+  // Section label
   sectionLabel: {
     fontSize: 12, fontWeight: "700", letterSpacing: 0.8,
     paddingHorizontal: 20, paddingTop: 22, paddingBottom: 8,
   },
-  group: {
-    marginHorizontal: 14, borderRadius: 16, overflow: "hidden",
-    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
+
+  // Tile grid
+  tileGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
 
-  // Row
-  row: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 15, gap: 14,
-    borderBottomWidth: 0.5, borderBottomColor: "rgba(0,0,0,0.06)",
-    minHeight: 52,
+  // Individual tile
+  tile: {
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    alignItems: "flex-start",
+    gap: 6,
+    minHeight: 100,
+    shadowColor: "#0A1929",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  rowIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  rowContent: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  rowValue: { fontSize: 13, marginTop: 2 },
+  tileIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 2,
+  },
+  tileLabel: { fontSize: 13, fontWeight: "700", lineHeight: 17 },
+  tileValue: { fontSize: 11, lineHeight: 14 },
+  tileSwitchWrap: { marginTop: 2 },
+  tileChevron: { position: "absolute", top: 10, right: 10 },
 
   // Footer
   footer: { alignItems: "center", paddingTop: 20, gap: 4 },

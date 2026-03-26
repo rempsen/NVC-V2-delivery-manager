@@ -4,6 +4,7 @@ import {
   FlatList, Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -1460,6 +1461,7 @@ export default function WorkflowTemplatesScreen() {
       {previewTemplate && (
         <PreviewScreen template={previewTemplate} onClose={() => setPreviewTemplate(null)} />
       )}
+      <BottomNavBar />
     </ScreenContainer>
   );
 }

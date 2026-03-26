@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import {
   View, Text, FlatList, Pressable, TextInput,
   StyleSheet, ViewStyle, TextStyle, Image,
-  Platform, useWindowDimensions, ScrollView,
+  Platform, useWindowDimensions, ScrollView, Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -114,6 +114,32 @@ export const MOCK_CUSTOMERS: Customer[] = [
     tags: ["Roofing", "On Hold"],
   },
 ];
+
+// ─── Sort Config ─────────────────────────────────────────────────────────────
+
+type CustomerSortKey = "name_asc" | "revenue_desc" | "jobs_desc" | "recent_job" | "status";
+
+const SORT_OPTIONS: { key: CustomerSortKey; label: string; icon: string }[] = [
+  { key: "name_asc",     label: "Name A → Z",         icon: "textformat.abc" },
+  { key: "revenue_desc", label: "Revenue: High → Low", icon: "dollarsign.circle.fill" },
+  { key: "jobs_desc",    label: "Most Jobs",           icon: "checkmark.circle.fill" },
+  { key: "recent_job",   label: "Most Recent Job",     icon: "clock.fill" },
+  { key: "status",       label: "Status",              icon: "circle.fill" },
+];
+
+function sortCustomers(list: Customer[], key: CustomerSortKey): Customer[] {
+  const STATUS_ORDER: Record<Customer["status"], number> = { vip: 0, active: 1, prospect: 2, inactive: 3 };
+  return [...list].sort((a, b) => {
+    switch (key) {
+      case "name_asc":     return a.company.localeCompare(b.company);
+      case "revenue_desc": return b.totalRevenue - a.totalRevenue;
+      case "jobs_desc":    return b.totalJobs - a.totalJobs;
+      case "recent_job":   return (b.lastJobDate || "").localeCompare(a.lastJobDate || "");
+      case "status":       return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+      default:             return 0;
+    }
+  });
+}
 
 // ─── Status Config ────────────────────────────────────────────────────────────
 
@@ -262,6 +288,8 @@ export default function CustomersScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [filter, setFilter] = useState<Customer["status"] | "all">("all");
+  const [sortKey, setSortKey] = useState<CustomerSortKey>("name_asc");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const { tenantId, isDemo } = useTenant();
 
   // Responsive columns
@@ -305,10 +333,10 @@ export default function CustomersScreen() {
 
   const customers = isDemo ? MOCK_CUSTOMERS : normalizedApiCustomers;
 
-  // ── Advanced search: name, phone, address ─────────────────────────────────────
+  // ── Advanced search + sort ────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return customers.filter((c) => {
+    const base = customers.filter((c) => {
       // Status filter
       if (filter !== "all" && c.status !== filter) return false;
       // Search filter: company, contact name, phone, address, city
@@ -321,7 +349,8 @@ export default function CustomersScreen() {
       const matchTags = c.tags.some((t) => t.toLowerCase().includes(q));
       return matchCompany || matchContact || matchPhone || matchAddress || matchIndustry || matchTags;
     });
-  }, [customers, searchQuery, filter]);
+    return sortCustomers(base, sortKey);
+  }, [customers, searchQuery, filter, sortKey]);
 
   const totalRevenue = customers.reduce((s, c) => s + c.totalRevenue, 0);
   const activeCount = customers.filter((c) => c.status === "active" || c.status === "vip").length;
@@ -441,21 +470,104 @@ export default function CustomersScreen() {
         </ScrollView>
       </View>
 
-      {/* ── Results count ── */}
+      {/* ── Results + Sort bar ── */}
       <View style={styles.resultsBar}>
         <Text style={styles.resultsText}>
           {filtered.length} {filtered.length === 1 ? "client" : "clients"}
           {searchQuery ? ` matching "${searchQuery}"` : ""}
         </Text>
-        {(searchQuery || filter !== "all") && (
+        <View style={styles.resultsRight}>
+          {(searchQuery || filter !== "all") && (
+            <Pressable
+              onPress={() => { setSearchQuery(""); setFilter("all"); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.clearFiltersText}>Clear</Text>
+            </Pressable>
+          )}
+          {/* Sort button */}
           <Pressable
-            onPress={() => { setSearchQuery(""); setFilter("all"); }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={({ pressed }) => [
+              styles.sortBtn,
+              sortKey !== "name_asc" && styles.sortBtnActive,
+              pressed && { opacity: 0.75 },
+            ] as ViewStyle[]}
+            onPress={() => setSortMenuOpen(true)}
           >
-            <Text style={styles.clearFiltersText}>Clear filters</Text>
+            <IconSymbol
+              name="arrow.up.arrow.down"
+              size={11}
+              color={sortKey !== "name_asc" ? NVC_BLUE : "#6B7280"}
+            />
+            <Text style={[
+              styles.sortBtnText,
+              sortKey !== "name_asc" && styles.sortBtnTextActive,
+            ] as TextStyle[]}>
+              {SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? "Sort"}
+            </Text>
+            <IconSymbol name="chevron.down" size={10} color={sortKey !== "name_asc" ? NVC_BLUE : "#9CA3AF"} />
           </Pressable>
-        )}
+        </View>
       </View>
+
+      {/* ── Sort Menu Modal ── */}
+      <Modal
+        visible={sortMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSortMenuOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSortMenuOpen(false)}>
+          <View style={styles.sortMenu}>
+            <View style={styles.sortMenuHeader}>
+              <Text style={styles.sortMenuTitle}>Sort Clients By</Text>
+              <Pressable
+                onPress={() => setSortMenuOpen(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <View style={styles.sortMenuClose}>
+                  <IconSymbol name="xmark" size={11} color="#6B7280" />
+                </View>
+              </Pressable>
+            </View>
+            {SORT_OPTIONS.map((opt) => {
+              const isSelected = sortKey === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  style={({ pressed }) => [
+                    styles.sortMenuItem,
+                    isSelected && styles.sortMenuItemActive,
+                    pressed && { opacity: 0.7 },
+                  ] as ViewStyle[]}
+                  onPress={() => {
+                    setSortKey(opt.key);
+                    setSortMenuOpen(false);
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <IconSymbol
+                    name={opt.icon as any}
+                    size={16}
+                    color={isSelected ? NVC_BLUE : "#6B7280"}
+                  />
+                  <Text style={[
+                    styles.sortMenuItemText,
+                    isSelected && styles.sortMenuItemTextActive,
+                  ] as TextStyle[]}>
+                    {opt.label}
+                  </Text>
+                  {isSelected && (
+                    <View style={styles.sortMenuCheck}>
+                      <IconSymbol name="checkmark" size={12} color={NVC_BLUE} />
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* ── Customer Grid ── */}
       <FlatList
@@ -514,8 +626,14 @@ const styles = StyleSheet.create<{
   // Filter
   filterBar: ViewStyle; filterList: ViewStyle; filterTab: ViewStyle;
   filterDot: ViewStyle; filterTabText: TextStyle; filterCount: ViewStyle; filterCountText: TextStyle;
-  // Results
-  resultsBar: ViewStyle; resultsText: TextStyle; clearFiltersText: TextStyle;
+  // Results + Sort
+  resultsBar: ViewStyle; resultsRight: ViewStyle; resultsText: TextStyle; clearFiltersText: TextStyle;
+  sortBtn: ViewStyle; sortBtnActive: ViewStyle; sortBtnText: TextStyle; sortBtnTextActive: TextStyle;
+  // Sort modal
+  modalOverlay: ViewStyle; sortMenu: ViewStyle; sortMenuHeader: ViewStyle;
+  sortMenuTitle: TextStyle; sortMenuClose: ViewStyle;
+  sortMenuItem: ViewStyle; sortMenuItemActive: ViewStyle;
+  sortMenuItemText: TextStyle; sortMenuItemTextActive: TextStyle; sortMenuCheck: ViewStyle;
   // Grid
   gridContent: ViewStyle; gridRow: ViewStyle;
   // Grid Card
@@ -586,13 +704,57 @@ const styles = StyleSheet.create<{
   filterCount: { paddingHorizontal: 6, borderRadius: 8, minWidth: 18, alignItems: "center" },
   filterCountText: { fontSize: 11, fontWeight: "700" },
 
-  // Results
+  // Results + Sort
   resultsBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "#EFF2F7",
   },
+  resultsRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   resultsText: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
-  clearFiltersText: { fontSize: 12, color: NVC_BLUE, fontWeight: "700" },
+  clearFiltersText: { fontSize: 12, color: "#EF4444", fontWeight: "700" },
+  sortBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "#fff", borderRadius: 10, borderWidth: 1.5,
+    borderColor: "#E5E7EB", paddingHorizontal: 10, paddingVertical: 6, minHeight: 32,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  sortBtnActive: { borderColor: NVC_BLUE + "60", backgroundColor: NVC_BLUE + "08" },
+  sortBtnText: { fontSize: 11, fontWeight: "600", color: "#6B7280" },
+  sortBtnTextActive: { color: NVC_BLUE },
+  // Sort modal
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+  sortMenu: {
+    backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingBottom: 32, paddingTop: 4,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12, shadowRadius: 16, elevation: 20,
+  },
+  sortMenuHeader: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 0.5, borderBottomColor: "#E5E7EB",
+  },
+  sortMenuTitle: { fontSize: 16, fontWeight: "800", color: "#1A1E2A" },
+  sortMenuClose: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: "#F3F4F6",
+    alignItems: "center", justifyContent: "center",
+  },
+  sortMenuItem: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 0.5, borderBottomColor: "#F3F4F6",
+  },
+  sortMenuItemActive: { backgroundColor: NVC_BLUE + "08" },
+  sortMenuItemText: { fontSize: 15, fontWeight: "500", color: "#374151", flex: 1 },
+  sortMenuItemTextActive: { color: NVC_BLUE, fontWeight: "700" },
+  sortMenuCheck: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: NVC_BLUE + "15", alignItems: "center", justifyContent: "center",
+  },
 
   // Grid
   gridContent: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 40, gap: 10 },

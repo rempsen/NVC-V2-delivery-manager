@@ -70,6 +70,12 @@ export function NVCHeader({
     else router.back();
   };
 
+  const handleLogoPress = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // NVC logo always navigates to the home/dispatcher screen
+    router.push("/" as any);
+  };
+
   return (
     <View
       style={[
@@ -84,11 +90,17 @@ export function NVCHeader({
       {/* Left — logo + back button */}
       <View style={styles.left}>
         {showLogo && (
-          <Image
-            source={logoSource}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <Pressable
+            onPress={handleLogoPress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Image
+              source={logoSource}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </Pressable>
         )}
         {showBack && (
           <Pressable

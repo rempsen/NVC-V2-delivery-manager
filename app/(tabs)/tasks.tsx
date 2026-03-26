@@ -11,12 +11,13 @@ import {
   RefreshControl,
   ViewStyle,
   TextStyle,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useColors } from "@/hooks/use-colors";
 import {
   NVC_BLUE,
   NVC_ORANGE,
@@ -35,31 +36,30 @@ import { trpc } from "@/lib/trpc";
 import { useTenant } from "@/hooks/use-tenant";
 
 const FILTERS: { key: "all" | TaskStatus; label: string }[] = [
-  { key: "all", label: "All" },
+  { key: "all",        label: "All" },
   { key: "unassigned", label: "Unassigned" },
-  { key: "assigned", label: "Assigned" },
-  { key: "en_route", label: "En Route" },
-  { key: "on_site", label: "On Site" },
-  { key: "completed", label: "Done" },
-  { key: "failed", label: "Failed" },
+  { key: "assigned",   label: "Assigned" },
+  { key: "en_route",   label: "En Route" },
+  { key: "on_site",    label: "On Site" },
+  { key: "completed",  label: "Done" },
+  { key: "failed",     label: "Failed" },
 ];
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: "Low",
-  medium: "Med",
-  high: "High",
-  urgent: "Urgent",
+  low: "Low", medium: "Med", high: "High", urgent: "Urgent",
 };
 
-const SHADOW: ViewStyle = {
-  shadowColor: "#1E3A5F",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 3,
-};
+// ─── Task Grid Card ───────────────────────────────────────────────────────────
 
-function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
+function TaskGridCard({
+  task,
+  onPress,
+  cardWidth,
+}: {
+  task: Task;
+  onPress: () => void;
+  cardWidth: number;
+}) {
   const statusColor = STATUS_COLORS[task.status];
   const priorityColor = PRIORITY_COLORS[task.priority];
 
@@ -72,81 +72,97 @@ function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
     return `${Math.floor(hrs / 24)}d ago`;
   }, [task.createdAt]);
 
+  // Customer initials for avatar
+  const initials = task.customerName
+    .split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.82 }] as ViewStyle[]}
+      style={({ pressed }) => [
+        styles.gridCard,
+        { width: cardWidth, opacity: pressed ? 0.88 : 1, transform: pressed ? [{ scale: 0.97 }] : [] },
+      ] as ViewStyle[]}
       onPress={onPress}
     >
-      {/* Colored left accent bar */}
-      <View style={[styles.cardBar, { backgroundColor: statusColor } as ViewStyle]} />
+      {/* Top accent bar */}
+      <View style={[styles.gridCardAccent, { backgroundColor: statusColor }] as ViewStyle[]} />
 
-      <View style={styles.cardBody}>
-        {/* Top row: customer name + priority badge */}
-        <View style={styles.cardRow}>
-          <Text style={styles.cardCustomer} numberOfLines={1}>
-            {task.customerName}
-          </Text>
-          <View style={[styles.priorityBadge, { backgroundColor: priorityColor + "20", borderColor: priorityColor + "40" } as ViewStyle]}>
-            <Text style={[styles.priorityBadgeText, { color: priorityColor } as TextStyle]}>
+      <View style={styles.gridCardBody}>
+        {/* Avatar + priority badge row */}
+        <View style={styles.gridCardTopRow}>
+          <View style={[styles.gridAvatar, { backgroundColor: statusColor + "18" }] as ViewStyle[]}>
+            <Text style={[styles.gridAvatarText, { color: statusColor }] as TextStyle[]}>{initials}</Text>
+          </View>
+          <View style={[styles.priorityBadge, { backgroundColor: priorityColor + "20", borderColor: priorityColor + "40" }] as ViewStyle[]}>
+            <Text style={[styles.priorityBadgeText, { color: priorityColor }] as TextStyle[]}>
               {PRIORITY_LABELS[task.priority] ?? task.priority}
             </Text>
           </View>
         </View>
 
-        {/* Address */}
-        <Text style={styles.cardAddress} numberOfLines={1}>
-          {task.jobAddress}
-        </Text>
+        {/* Customer name */}
+        <Text style={styles.gridCustomer} numberOfLines={2}>{task.customerName}</Text>
 
-        {/* Status pill + technician */}
-        <View style={styles.cardRow}>
-          <View style={[styles.statusPill, { backgroundColor: statusColor + "18" } as ViewStyle]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor } as ViewStyle]} />
-            <Text style={[styles.statusPillText, { color: statusColor } as TextStyle]}>
-              {STATUS_LABELS[task.status]}
-            </Text>
-          </View>
-          {task.technicianName ? (
-            <Text style={styles.cardTech} numberOfLines={1}>
-              {task.technicianName}
-            </Text>
-          ) : (
-            <Text style={styles.cardTechUnassigned}>Unassigned</Text>
-          )}
+        {/* Address */}
+        <View style={styles.gridAddressRow}>
+          <IconSymbol name="location.fill" size={10} color="#9CA3AF" />
+          <Text style={styles.gridAddress} numberOfLines={2}>{task.jobAddress}</Text>
         </View>
 
-        {/* Bottom row: order ref + time */}
-        <View style={styles.cardRow}>
+        {/* Status pill */}
+        <View style={[styles.statusPill, { backgroundColor: statusColor + "18" }] as ViewStyle[]}>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }] as ViewStyle[]} />
+          <Text style={[styles.statusPillText, { color: statusColor }] as TextStyle[]}>
+            {STATUS_LABELS[task.status]}
+          </Text>
+        </View>
+
+        {/* Technician */}
+        <Text
+          style={task.technicianName ? styles.gridTech : styles.gridTechUnassigned}
+          numberOfLines={1}
+        >
+          {task.technicianName ?? "Unassigned"}
+        </Text>
+
+        {/* Footer: ref + time */}
+        <View style={styles.gridFooter}>
           {task.orderRef ? (
-            <Text style={styles.cardRef}>{task.orderRef}</Text>
+            <Text style={styles.gridRef}>{task.orderRef}</Text>
           ) : (
             <View />
           )}
-          <Text style={styles.cardTime}>{timeAgo}</Text>
+          <Text style={styles.gridTime}>{timeAgo}</Text>
         </View>
-      </View>
-
-      <View style={styles.cardChevronWrap}>
-        <IconSymbol name="chevron.right" size={15} color="#C0C8D8" />
       </View>
     </Pressable>
   );
 }
 
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function TasksScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const { tenantId, isDemo } = useTenant();
 
-  // ── Real API query (skipped in demo mode) ──────────────────────────────────
+  // Responsive columns: 2 on narrow mobile, 3 on wide/tablet, 4 on desktop
+  const numColumns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
+  const CARD_GAP = 10;
+  const H_PAD = 12;
+  const cardWidth = (width - H_PAD * 2 - CARD_GAP * (numColumns - 1)) / numColumns;
+
+  // ── Real API query ──────────────────────────────────────────────────────────
   const { data: apiTasks, isLoading: apiLoading, refetch } = trpc.tasks.list.useQuery(
     { tenantId: tenantId ?? 0, status: filter === "all" ? undefined : filter },
     { enabled: !isDemo && tenantId !== null, staleTime: 30_000 },
   );
 
-  // ── Normalize API tasks to local Task shape ────────────────────────────────
+  // ── Normalize API tasks ─────────────────────────────────────────────────────
   const normalizedApiTasks: Task[] = useMemo(() => {
     if (!apiTasks) return [];
     return (apiTasks as any[]).map((t) => ({
@@ -172,12 +188,10 @@ export default function TasksScreen() {
     }));
   }, [apiTasks]);
 
-  // ── Use real data or fall back to mock data ────────────────────────────────
   const allTasks = isDemo ? MOCK_TASKS : normalizedApiTasks;
 
   const filtered = useMemo(() => {
     let list = allTasks;
-    // Filter is already applied server-side for real data; apply locally for mock
     if (isDemo && filter !== "all") list = list.filter((t) => t.status === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -192,9 +206,22 @@ export default function TasksScreen() {
     return list;
   }, [allTasks, filter, search, isDemo]);
 
-  const countFor = useCallback((key: "all" | TaskStatus) =>
-    key === "all" ? allTasks.length : allTasks.filter((t) => t.status === key).length,
-  [allTasks]);
+  const countFor = useCallback(
+    (key: "all" | TaskStatus) =>
+      key === "all" ? allTasks.length : allTasks.filter((t) => t.status === key).length,
+    [allTasks],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: Task }) => (
+      <TaskGridCard
+        task={item}
+        cardWidth={cardWidth}
+        onPress={() => router.push(`/task/${item.id}` as any)}
+      />
+    ),
+    [cardWidth, router],
+  );
 
   return (
     <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
@@ -203,96 +230,117 @@ export default function TasksScreen() {
         <View style={styles.headerLeft}>
           <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
           <View>
-            <Text style={styles.headerLabel}>NVC360</Text>
+            <Text style={styles.headerLabel}>NVC360 2.0</Text>
             <Text style={styles.headerTitle}>Work Orders</Text>
           </View>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
-          onPress={() => router.push("/create-task")}
-        >
-          <IconSymbol name="plus" size={18} color="#fff" />
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Text style={styles.headerCount}>{allTasks.length} total</Text>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
+            onPress={() => router.push("/create-task")}
+          >
+            <IconSymbol name="plus" size={14} color="#fff" />
+            <Text style={styles.addBtnText}>New Order</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Search Bar ── */}
-      <View style={styles.searchWrapper}>
-        <View style={styles.searchBar}>
-          <IconSymbol name="magnifyingglass" size={16} color="#9CA3AF" />
+      <View style={[styles.searchSection, { backgroundColor: "#1A5FA8" }] as ViewStyle[]}>
+        <View style={[styles.searchBar, searchFocused && styles.searchBarFocused] as ViewStyle[]}>
+          <IconSymbol name="magnifyingglass" size={15} color={search ? NVC_BLUE : "#9CA3AF"} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search orders, customers, technicians..."
             placeholderTextColor="#9CA3AF"
             value={search}
             onChangeText={setSearch}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             returnKeyType="search"
+            clearButtonMode="while-editing"
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <IconSymbol name="xmark" size={15} color="#9CA3AF" />
+              <View style={styles.clearBtn}>
+                <IconSymbol name="xmark" size={10} color="#fff" />
+              </View>
             </Pressable>
           )}
         </View>
       </View>
 
       {/* ── Filter Tabs ── */}
-      <FlatList
-        data={FILTERS}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={styles.filterList}
-        renderItem={({ item }) => {
-          const isActive = filter === item.key;
-          const count = countFor(item.key);
-          return (
-            <Pressable
-              style={[
-                styles.filterTab,
-                isActive ? styles.filterTabActive : styles.filterTabInactive,
-              ] as ViewStyle[]}
-              onPress={() => setFilter(item.key)}
-            >
-              <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "#6B7280" } as TextStyle]}>
-                {item.label}
-              </Text>
-              {count > 0 && (
-                <View
-                  style={[
-                    styles.filterCount,
-                    { backgroundColor: isActive ? "rgba(255,255,255,0.28)" : "#E5E7EB" } as ViewStyle,
-                  ]}
-                >
-                  <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "#6B7280" } as TextStyle]}>
-                    {count}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          );
-        }}
-      />
+      <View style={styles.filterBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterList}
+        >
+          {FILTERS.map((item) => {
+            const isActive = filter === item.key;
+            const count = countFor(item.key);
+            return (
+              <Pressable
+                key={item.key}
+                style={[
+                  styles.filterTab,
+                  {
+                    backgroundColor: isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)",
+                    borderColor: isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)",
+                  },
+                ] as ViewStyle[]}
+                onPress={() => setFilter(item.key)}
+              >
+                <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "rgba(255,255,255,0.65)" }] as TextStyle[]}>
+                  {item.label}
+                </Text>
+                {count > 0 && (
+                  <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)" }] as ViewStyle[]}>
+                    <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }] as TextStyle[]}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-      {/* ── Loading indicator for real API ── */}
+      {/* ── Results bar ── */}
+      <View style={styles.resultsBar}>
+        <Text style={styles.resultsText}>
+          {filtered.length} {filtered.length === 1 ? "order" : "orders"}
+          {search ? ` matching "${search}"` : ""}
+        </Text>
+        {(search || filter !== "all") && (
+          <Pressable onPress={() => { setSearch(""); setFilter("all"); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.clearFiltersText}>Clear filters</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* ── Loading ── */}
       {!isDemo && apiLoading && (
-        <View style={{ alignItems: "center", paddingVertical: 16 }}>
+        <View style={{ alignItems: "center", paddingVertical: 12 }}>
           <ActivityIndicator size="small" color={NVC_BLUE} />
         </View>
       )}
 
-      {/* ── Task List ── */}
+      {/* ── Task Grid ── */}
       <FlatList
+        key={numColumns}
         data={filtered}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? styles.gridRow : undefined}
+        contentContainerStyle={styles.gridContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           !isDemo ? (
-            <RefreshControl
-              refreshing={apiLoading}
-              onRefresh={() => refetch()}
-              tintColor={NVC_BLUE}
-            />
+            <RefreshControl refreshing={apiLoading} onRefresh={() => refetch()} tintColor={NVC_BLUE} />
           ) : undefined
         }
         ListEmptyComponent={
@@ -304,184 +352,116 @@ export default function TasksScreen() {
             <Text style={styles.emptySubtitle}>Try adjusting your filters or search</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <TaskCard task={item} onPress={() => router.push(`/task/${item.id}` as any)} />
-        )}
+        renderItem={renderItem}
       />
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create<{
-  header: ViewStyle;
-  headerLeft: ViewStyle;
-  headerLogo: ViewStyle;
-  headerLabel: TextStyle;
-  headerTitle: TextStyle;
-  addBtn: ViewStyle;
-  searchWrapper: ViewStyle;
-  searchBar: ViewStyle;
-  searchInput: TextStyle;
-  filterList: ViewStyle;
-  filterTab: ViewStyle;
-  filterTabActive: ViewStyle;
-  filterTabInactive: ViewStyle;
-  filterTabText: TextStyle;
-  filterCount: ViewStyle;
-  filterCountText: TextStyle;
-  listContent: ViewStyle;
-  card: ViewStyle;
-  cardBar: ViewStyle;
-  cardBody: ViewStyle;
-  cardRow: ViewStyle;
-  cardCustomer: TextStyle;
-  priorityBadge: ViewStyle;
-  priorityBadgeText: TextStyle;
-  cardAddress: TextStyle;
-  statusPill: ViewStyle;
-  statusDot: ViewStyle;
-  statusPillText: TextStyle;
-  cardTech: TextStyle;
-  cardTechUnassigned: TextStyle;
-  cardRef: TextStyle;
-  cardTime: TextStyle;
-  cardChevronWrap: ViewStyle;
-  empty: ViewStyle;
-  emptyIcon: ViewStyle;
-  emptyTitle: TextStyle;
-  emptySubtitle: TextStyle;
-}>({
-  // ── Header
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  // Header
   header: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: NVC_BLUE,
+    flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: NVC_BLUE,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerLogo: { width: 32, height: 32, borderRadius: 7 },
   headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
   headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerCount: { fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600" },
   addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: NVC_ORANGE,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: NVC_ORANGE, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 12, minHeight: 36,
   },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
-  // ── Search
-  searchWrapper: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  // Search
+  searchSection: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },
   searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: WIDGET_SURFACE_LIGHT,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 12,
-    gap: 10,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#fff", borderRadius: 12, borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 10,
     minHeight: 44,
-    shadowColor: "#1E3A5F",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.09,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 3,
   },
+  searchBarFocused: { borderColor: NVC_BLUE, shadowOpacity: 0.2 },
   searchInput: { flex: 1, fontSize: 14, color: "#1A1E2A" },
+  clearBtn: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#9CA3AF", alignItems: "center", justifyContent: "center" },
 
-  // ── Filter Tabs
-  filterList: { paddingHorizontal: 16, paddingBottom: 10, paddingTop: 6, gap: 7 },
+  // Filter bar
+  filterBar: { backgroundColor: "#1A5FA8", paddingBottom: 10 },
+  filterList: { paddingHorizontal: 14, paddingTop: 4, gap: 5 },
   filterTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    gap: 6,
-    minHeight: 36,
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 16, borderWidth: 1, gap: 4, minHeight: 26,
   },
-  filterTabActive: { backgroundColor: NVC_BLUE },
-  filterTabInactive: {
-    backgroundColor: WIDGET_SURFACE_LIGHT,
-    shadowColor: "#1E3A5F",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  filterTabText: { fontSize: 13, fontWeight: "700" },
-  filterCount: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-    minWidth: 18,
-    alignItems: "center",
-  },
-  filterCountText: { fontSize: 11, fontWeight: "700" },
+  filterTabText: { fontSize: 11, fontWeight: "700" },
+  filterCount: { paddingHorizontal: 5, borderRadius: 7, minWidth: 16, alignItems: "center" },
+  filterCountText: { fontSize: 10, fontWeight: "700" },
 
-  // ── Task Cards
-  listContent: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4 },
-  card: {
-    flexDirection: "row",
-    borderRadius: 16,
-    marginBottom: 12,
-    overflow: "hidden",
+  // Results bar
+  resultsBar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "#EFF2F7",
+  },
+  resultsText: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
+  clearFiltersText: { fontSize: 12, color: NVC_BLUE, fontWeight: "700" },
+
+  // Grid
+  gridContent: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 32, gap: 10 },
+  gridRow: { gap: 10 },
+
+  // Grid Card
+  gridCard: {
     backgroundColor: WIDGET_SURFACE_LIGHT,
+    borderRadius: 16,
+    overflow: "hidden",
     shadowColor: "#1E3A5F",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.10,
-    shadowRadius: 14,
+    shadowRadius: 12,
     elevation: 4,
   },
-  cardBar: { width: 5 },
-  cardBody: { flex: 1, paddingHorizontal: 14, paddingVertical: 14, gap: 6 },
-  cardRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardCustomer: { fontSize: 15, fontWeight: "800", flex: 1, marginRight: 8, color: "#1A1E2A", letterSpacing: -0.1 },
-
+  gridCardAccent: { height: 4, width: "100%" },
+  gridCardBody: { padding: 10, gap: 5 },
+  gridCardTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
+  gridAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: "center", justifyContent: "center",
+  },
+  gridAvatarText: { fontSize: 13, fontWeight: "800" },
   priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, borderWidth: 1.5,
   },
-  priorityBadgeText: { fontSize: 11, fontWeight: "700" },
-
-  cardAddress: { fontSize: 13, color: "#6B7280" },
-
+  priorityBadgeText: { fontSize: 10, fontWeight: "700" },
+  gridCustomer: { fontSize: 13, fontWeight: "800", color: "#1A1E2A", letterSpacing: -0.1, lineHeight: 17 },
+  gridAddressRow: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
+  gridAddress: { fontSize: 11, color: "#6B7280", flex: 1, lineHeight: 15 },
   statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 5,
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, gap: 4, alignSelf: "flex-start",
   },
-  statusDot: { width: 7, height: 7, borderRadius: 3.5 },
-  statusPillText: { fontSize: 12, fontWeight: "700" },
-
-  cardTech: { fontSize: 13, flex: 1, textAlign: "right", color: "#6B7280" },
-  cardTechUnassigned: { fontSize: 13, flex: 1, textAlign: "right", color: "#EF4444" },
-  cardRef: { fontSize: 12, color: "#9CA3AF" },
-  cardTime: { fontSize: 12, color: "#9CA3AF" },
-  cardChevronWrap: { alignSelf: "center", marginRight: 12 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusPillText: { fontSize: 11, fontWeight: "700" },
+  gridTech: { fontSize: 11, color: "#6B7280", fontWeight: "500" },
+  gridTechUnassigned: { fontSize: 11, color: "#EF4444", fontWeight: "600" },
+  gridFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+  gridRef: { fontSize: 10, color: "#9CA3AF" },
+  gridTime: { fontSize: 10, color: "#9CA3AF" },
 
   // Empty state
   empty: { alignItems: "center", paddingTop: 80, gap: 10 },
   emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 72, height: 72, borderRadius: 20,
     backgroundColor: WIDGET_SURFACE_LIGHT,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#1E3A5F",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#374151" },
   emptySubtitle: { fontSize: 13, color: "#9CA3AF" },

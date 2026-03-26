@@ -4,6 +4,7 @@ import {
   ViewStyle, TextStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -213,6 +214,7 @@ export default function PricingScreen() {
         </View>
 
       </ScrollView>
+      <BottomNavBar />
     </ScreenContainer>
   );
 }

@@ -723,3 +723,30 @@
 - [x] Customers screen: status filter bar (All, VIP, Active, Prospect, Inactive) with count badges
 - [x] Customers screen: "Clear filters" shortcut when search + status filter active
 - [x] TypeScript: 0 errors
+
+## Sort Dropdown — Grid Screens (v5.1)
+- [ ] Customers screen: sort dropdown above grid (Name A–Z, Revenue High–Low, Most Recent Job, Status)
+- [ ] Customers screen: active sort indicator shown in dropdown button label
+- [ ] Technicians screen: sort dropdown above grid (Name A–Z, Most Jobs Today, Status, Distance Today)
+- [ ] Technicians screen: active sort indicator shown in dropdown button label
+
+## App-Wide Multi-Column Layout Redesign (v5.2)
+- [ ] Dispatcher screen: enlarge map to near-square aspect ratio (more height)
+- [ ] Dispatcher screen: replace single-column tech chips with 3-column status-grouped panel (En Route / On Site / Available)
+- [ ] Dispatcher screen: color-code each column header and cards by status
+- [ ] Dispatcher screen: radio button sort within each column
+- [ ] Tasks screen: replace full-width row list with compact card grid (2-3 columns)
+- [ ] Settings screen: replace full-width single-column rows with multi-column grid sections
+- [ ] Technicians screen: add sort dropdown (carry over from v5.1)
+
+## Navigation & Filter Improvements (v5.3)
+- [ ] Add persistent bottom tab bar to dispatcher screen and all non-tab screens (agent detail, task detail, etc.)
+- [ ] Wire NVC logo tap in all headers to navigate to home/dispatcher screen
+- [ ] Compact mobile filter chips on Tasks screen (smaller, color-coded, horizontal scroll)
+- [ ] Compact mobile filter chips on Dispatcher screen (smaller, color-coded)
+- [ ] Replace web dashboard tall filter buttons with small compact color-coded chips
+- [ ] Web dashboard: maximize work order table space by moving filters to a compact top row
+
+## 3-Panel Map-Dominant Layout (v5.4)
+- [x] Web Dashboard: 3-panel full-screen dispatcher view (left: work orders list, center: large dominant map, right: technician roster)
+- [x] Mobile Dispatcher: map-dominant layout with collapsible bottom drawer for work orders and right tech strip

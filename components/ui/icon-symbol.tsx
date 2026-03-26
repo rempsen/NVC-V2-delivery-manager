@@ -152,6 +152,14 @@ const MAPPING = {
   "building.fill": "apartment",
   "network": "hub",
   "chart.line.uptrend.xyaxis": "trending-up",
+  // Sort & ordering
+  "arrow.up.arrow.down": "swap-vert",
+  "textformat.abc": "sort-by-alpha",
+  "arrow.up.arrow.down.circle.fill": "swap-vert",
+  // Industry icons
+  "sparkles": "auto-awesome",
+  "wind": "air",
+  "shippingbox.fill": "inventory-2",
 } as unknown as IconMapping;
 
 export function IconSymbol({

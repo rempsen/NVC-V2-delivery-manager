@@ -71,6 +71,7 @@ export function GoogleMapView({
   center = { lat: 49.8951, lng: -97.1384 }, // Winnipeg default
   zoom = 11,
   height = 500,
+  style,
 }: GoogleMapViewProps) {
   const { isLoaded, error } = useGoogleMaps();
   const colors = useColors();
@@ -247,9 +248,10 @@ export function GoogleMapView({
       ref={mapRef}
       style={{
         width: "100%",
-        height: height,
-        borderRadius: 12,
+        height: height > 0 ? height : "100%",
+        borderRadius: height > 0 ? 12 : 0,
         overflow: "hidden",
+        ...style,
       }}
     />
   );

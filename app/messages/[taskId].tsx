@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -172,6 +173,7 @@ export default function MessagesScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      <BottomNavBar />
     </ScreenContainer>
   );
 }
