@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
@@ -80,23 +81,19 @@ export default function AgentDetailScreen() {
   };
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={22} color="#fff" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Technician Profile</Text>
-        <Pressable
-          style={({ pressed }) => [styles.chatBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.push(`/messages/${activeTasks[0]?.id ?? 0}` as any)}
-        >
-          <IconSymbol name="message.fill" size={20} color="#fff" />
-        </Pressable>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader
+        title="Technician Profile"
+        subtitle={technician.name}
+        rightElement={
+          <Pressable
+            onPress={() => router.push(`/messages/${activeTasks[0]?.id ?? 0}` as any)}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+          >
+            <IconSymbol name="message.fill" size={20} color="#fff" />
+          </Pressable>
+        }
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Profile Card */}

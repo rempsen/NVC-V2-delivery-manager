@@ -12,6 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { MOCK_TASKS, MOCK_TECHNICIANS } from "@/lib/nvc-types";
@@ -114,23 +115,8 @@ export default function MessagesScreen() {
   }, []);
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={22} color="#fff" />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{technician?.name ?? "Technician"}</Text>
-          <Text style={styles.headerSub}>
-            {task ? `Work Order #${task.orderRef ?? task.id}` : "Messages"}
-          </Text>
-        </View>
-        <View style={[styles.onlineDot, { backgroundColor: "#22C55E" }]} />
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader title={technician?.name ?? "Technician"} subtitle="In-App Messaging" />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

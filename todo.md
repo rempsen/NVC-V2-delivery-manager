@@ -209,3 +209,13 @@
 - [ ] Fix white-on-white navigation header on agent detail and all sub-screens (back button invisible)
 - [x] Fix white-on-white navigation headers (colors.accent undefined → use colors.primary)
 - [x] Replace plain text date/time input in Create Work Order with native iOS spinning wheel date picker bottom sheet
+- [ ] Build shared NVCHeader component (persistent, consistent across all screens, with back button + title + optional right action)
+- [ ] Apply NVCHeader to all screens replacing ad-hoc headers
+- [ ] Scale down hero/stat sections by 15-20% (font sizes, padding, card heights)
+
+## Dashboard UI Revision (v2)
+- [x] Push header below Dynamic Island / notch
+- [x] 6 compact hero boxes in 3x2 grid (Active Jobs, Completed, Unassigned, Online Techs, En Route, Create New)
+- [x] Create New bottom sheet with 7 categories
+- [x] Tighter Quick Actions (smaller icons, more spacing)
+- [x] Recent Work Orders: smaller rows, no WO number, show 4 items

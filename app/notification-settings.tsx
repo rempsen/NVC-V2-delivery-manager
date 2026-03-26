@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 
@@ -479,20 +480,8 @@ export default function NotificationSettingsScreen() {
   };
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={20} color="#fff" />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Notification Settings</Text>
-          <Text style={styles.headerSub}>{enabledCount} of {milestones.length} milestones active</Text>
-        </View>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader title="Notification Settings" subtitle={`${enabledCount} of ${milestones.length} milestones active`} />
 
       {/* Tab Bar */}
       <View style={[styles.tabBar, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>

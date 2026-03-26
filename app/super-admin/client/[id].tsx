@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 
@@ -498,40 +499,27 @@ export default function ClientDetailScreen() {
 
   return (
     <ScreenContainer containerClassName="flex-1" safeAreaClassName="flex-1">
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: client.primaryColor }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={18} color="#fff" />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <View style={[styles.headerAvatar, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-            <Text style={styles.headerAvatarText}>{client.name.charAt(0)}</Text>
-          </View>
-          <View>
-            <Text style={styles.headerTitle} numberOfLines={1}>{client.name}</Text>
-            <Text style={styles.headerSub}>{client.industry} · {client.subdomain}.nvc360.com</Text>
-          </View>
-        </View>
-        {activeTab === "employees" && (
-          <Pressable
-            style={({ pressed }) => [styles.headerActionBtn, { opacity: pressed ? 0.7 : 1 }]}
-            onPress={() => setShowAddEmployee(true)}
-          >
-            <IconSymbol name="person.badge.plus" size={16} color="#fff" />
-          </Pressable>
-        )}
-        {activeTab === "customers" && (
-          <Pressable
-            style={({ pressed }) => [styles.headerActionBtn, { opacity: pressed ? 0.7 : 1 }]}
-            onPress={() => setShowAddCustomer(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={20} color="#fff" />
-          </Pressable>
-        )}
-      </View>
+      <NVCHeader
+        title={client.name}
+        subtitle={`${client.industry} · ${client.subdomain}.nvc360.com`}
+        rightElement={
+          activeTab === "employees" ? (
+            <Pressable
+              onPress={() => setShowAddEmployee(true)}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+            >
+              <IconSymbol name="person.badge.plus" size={20} color="#fff" />
+            </Pressable>
+          ) : activeTab === "customers" ? (
+            <Pressable
+              onPress={() => setShowAddCustomer(true)}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+            >
+              <IconSymbol name="plus.circle.fill" size={20} color="#fff" />
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       {/* Tab Bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>

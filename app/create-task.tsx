@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { createTask, MOCK_AGENTS } from "@/lib/tookan";
@@ -194,22 +195,12 @@ export default function CreateTaskScreen() {
   };
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
+    <ScreenContainer edges={["left", "right"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
-          >
-            <IconSymbol name="chevron.left" size={22} color={colors.foreground} />
-          </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>New Work Order</Text>
-          <View style={{ width: 36 }} />
-        </View>
+        <NVCHeader title="New Work Order" />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}

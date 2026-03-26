@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
   headerSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
   mapBtn: {
     flexDirection: "row",

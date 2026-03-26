@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
   scroll: { paddingBottom: 40 },
   profileCard: {
     flexDirection: "row",
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  profileInitial: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  profileInitial: { fontSize: 18, fontWeight: "800", color: "#fff" },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 16, fontWeight: "700", color: "#fff" },
   profileRole: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 2 },
@@ -406,6 +406,6 @@ const styles = StyleSheet.create({
   rowContent: { flex: 1 },
   rowLabel: { fontSize: 15, fontWeight: "500" },
   rowValue: { fontSize: 12, marginTop: 1 },
-  footer: { alignItems: "center", paddingTop: 24, gap: 4 },
+  footer: { alignItems: "center", paddingTop: 16, gap: 4 },
   footerText: { fontSize: 12 },
 });

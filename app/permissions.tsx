@@ -12,6 +12,7 @@ import {
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 
@@ -442,30 +443,19 @@ export default function PermissionsScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={20} color="#fff" />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Roles & Permissions</Text>
-          <Text style={styles.headerSub}>{roles.length} roles · {ALL_PERMISSIONS.length} permissions</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.addRoleBtn,
-            { backgroundColor: "rgba(255,255,255,0.2)", opacity: pressed ? 0.7 : 1 },
-          ]}
-          onPress={() => Alert.alert("Custom Role", "Custom role creation coming soon. Contact NVC360 support to add custom roles.")}
-        >
-          <IconSymbol name="plus" size={16} color="#fff" />
-          <Text style={styles.addRoleBtnText}>New Role</Text>
-        </Pressable>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader
+        title="Roles & Permissions"
+        subtitle={`${roles.length} roles · ${ALL_PERMISSIONS.length} permissions`}
+        rightElement={
+          <Pressable
+            onPress={() => Alert.alert("Custom Role", "Custom role creation coming soon.")}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+          >
+            <IconSymbol name="plus" size={20} color="#fff" />
+          </Pressable>
+        }
+      />
 
       {/* Tier Filter */}
       <View style={[styles.tierFilter, { borderBottomColor: colors.border }]}>

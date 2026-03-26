@@ -3,13 +3,14 @@ import {
   View,
   Text,
   ScrollView,
-  FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Image,
+  Modal,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -24,19 +25,76 @@ import {
   type Technician,
 } from "@/lib/nvc-types";
 
-// ─── Metric Card ─────────────────────────────────────────────────────────────
+// ─── Create New Sheet ─────────────────────────────────────────────────────────
+
+const CREATE_OPTIONS = [
+  { label: "Work Order", icon: "doc.badge.plus", color: "#E85D04", route: "/create-task" },
+  { label: "Report", icon: "chart.bar.doc.horizontal", color: "#3B82F6", route: "/create-task" },
+  { label: "Photo Log", icon: "camera.fill", color: "#8B5CF6", route: "/create-task" },
+  { label: "Time Log", icon: "clock.fill", color: "#22C55E", route: "/create-task" },
+  { label: "Field Note", icon: "note.text", color: "#F59E0B", route: "/create-task" },
+  { label: "Internal Message", icon: "bubble.left.fill", color: "#06B6D4", route: "/messages/new" },
+  { label: "Accounting Message", icon: "dollarsign.circle.fill", color: "#10B981", route: "/messages/new" },
+];
+
+function CreateNewSheet({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const router = useRouter();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetOverlay} onPress={onClose} />
+      <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+        <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+        <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Create New</Text>
+        <View style={styles.sheetGrid}>
+          {CREATE_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt.label}
+              style={({ pressed }) => [
+                styles.sheetOption,
+                { backgroundColor: opt.color + "15", borderColor: opt.color + "30", opacity: pressed ? 0.75 : 1 },
+              ]}
+              onPress={() => {
+                onClose();
+                router.push(opt.route as any);
+              }}
+            >
+              <View style={[styles.sheetOptionIcon, { backgroundColor: opt.color + "25" }]}>
+                <IconSymbol name={opt.icon as any} size={22} color={opt.color} />
+              </View>
+              <Text style={[styles.sheetOptionLabel, { color: colors.foreground }]}>{opt.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <TouchableOpacity style={[styles.sheetCancel, { backgroundColor: colors.border }]} onPress={onClose}>
+          <Text style={[styles.sheetCancelText, { color: colors.foreground }]}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Compact Metric Card (6-up grid) ─────────────────────────────────────────
 
 function MetricCard({
   label,
   value,
   color,
   icon,
+  isCreateNew,
   onPress,
 }: {
   label: string;
-  value: number | string;
+  value?: number | string;
   color: string;
   icon: any;
+  isCreateNew?: boolean;
   onPress?: () => void;
 }) {
   const colors = useColors();
@@ -44,20 +102,29 @@ function MetricCard({
     <Pressable
       style={({ pressed }) => [
         styles.metricCard,
-        { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+        isCreateNew
+          ? { backgroundColor: color, borderColor: color }
+          : { backgroundColor: colors.surface, borderColor: colors.border },
+        { opacity: pressed ? 0.82 : 1 },
       ]}
       onPress={onPress}
     >
-      <View style={[styles.metricIcon, { backgroundColor: color + "20" }]}>
-        <IconSymbol name={icon} size={20} color={color} />
+      <View style={[styles.metricIcon, { backgroundColor: isCreateNew ? "rgba(255,255,255,0.25)" : color + "20" }]}>
+        <IconSymbol name={icon} size={16} color={isCreateNew ? "#fff" : color} />
       </View>
-      <Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text>
-      <Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text>
+      {isCreateNew ? (
+        <Text style={[styles.metricCreateLabel, { color: "#fff" }]}>{label}</Text>
+      ) : (
+        <>
+          <Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text>
+          <Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
 
-// ─── Task Row ─────────────────────────────────────────────────────────────────
+// ─── Compact Task Row ─────────────────────────────────────────────────────────
 
 function TaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
   const colors = useColors();
@@ -91,15 +158,12 @@ function TaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
             {task.technicianName}
           </Text>
         )}
-        {task.orderRef && (
-          <Text style={[styles.taskRef, { color: colors.muted }]}>{task.orderRef}</Text>
-        )}
       </View>
     </Pressable>
   );
 }
 
-// ─── Online Tech Chip ─────────────────────────────────────────────────────────
+// ─── Tech Chip ────────────────────────────────────────────────────────────────
 
 function TechChip({ tech, onPress }: { tech: Technician; onPress: () => void }) {
   const colors = useColors();
@@ -133,7 +197,9 @@ function TechChip({ tech, onPress }: { tech: Technician; onPress: () => void }) 
 export default function DashboardScreen() {
   const colors = useColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const [createSheetVisible, setCreateSheetVisible] = useState(false);
 
   const tasks = MOCK_TASKS;
   const technicians = MOCK_TECHNICIANS;
@@ -142,10 +208,12 @@ export default function DashboardScreen() {
   const completedToday = tasks.filter((t) => t.status === "completed").length;
   const unassigned = tasks.filter((t) => t.status === "unassigned").length;
   const onlineTechs = technicians.filter((t) => t.status !== "offline").length;
+  const enRoute = tasks.filter((t) => t.status === "en_route").length;
 
+  // Show only 4 most recent tasks, no order ref
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+    .slice(0, 4);
 
   const onlineTeam = technicians.filter((t) => t.status !== "offline");
 
@@ -154,17 +222,20 @@ export default function DashboardScreen() {
     setTimeout(() => setRefreshing(false), 1200);
   }, []);
 
+  // Header top padding: push below Dynamic Island / notch
+  const headerTopPadding = Math.max(insets.top + 8, 52);
+
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["left", "right", "bottom"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ── Header ── */}
-        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        {/* ── Header — pushed below notch/Dynamic Island ── */}
+        <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: headerTopPadding }]}>
           <View>
-            <Text style={styles.headerGreeting}>Good morning</Text>
+            <Text style={styles.headerGreeting}>Good morning, Dan</Text>
             <Text style={styles.headerTitle}>NVC360 Dispatch</Text>
           </View>
           <View style={styles.headerRight}>
@@ -172,77 +243,57 @@ export default function DashboardScreen() {
               style={({ pressed }) => [styles.notifBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={() => {}}
             >
-              <IconSymbol name="bell.fill" size={22} color="#fff" />
+              <IconSymbol name="bell.fill" size={20} color="#fff" />
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.createBtn, { opacity: pressed ? 0.8 : 1 }]}
-              onPress={() => router.push("/create-task")}
+              onPress={() => setCreateSheetVisible(true)}
             >
-              <IconSymbol name="plus" size={18} color="#fff" />
+              <IconSymbol name="plus" size={15} color="#fff" />
               <Text style={styles.createBtnText}>New Order</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* ── Metrics ── */}
+        {/* ── 6-up Compact Metrics Grid ── */}
         <View style={styles.section}>
           <View style={styles.metricsGrid}>
-            <MetricCard
-              label="Active Jobs"
-              value={activeTasks.length}
-              color="#F59E0B"
-              icon="bolt.fill"
-              onPress={() => router.push("/tasks")}
-            />
-            <MetricCard
-              label="Completed"
-              value={completedToday}
-              color="#22C55E"
-              icon="checkmark.circle.fill"
-              onPress={() => router.push("/tasks")}
-            />
-            <MetricCard
-              label="Unassigned"
-              value={unassigned}
-              color="#EF4444"
-              icon="exclamationmark.triangle.fill"
-              onPress={() => router.push("/tasks")}
-            />
-            <MetricCard
-              label="Online Techs"
-              value={onlineTechs}
-              color="#3B82F6"
-              icon="person.2.fill"
-              onPress={() => router.push("/agents")}
-            />
+            <MetricCard label="Active Jobs" value={activeTasks.length} color="#F59E0B" icon="bolt.fill" onPress={() => router.push("/tasks")} />
+            <MetricCard label="Completed" value={completedToday} color="#22C55E" icon="checkmark.circle.fill" onPress={() => router.push("/tasks")} />
+            <MetricCard label="Unassigned" value={unassigned} color="#EF4444" icon="exclamationmark.triangle.fill" onPress={() => router.push("/tasks")} />
+            <MetricCard label="Online Techs" value={onlineTechs} color="#3B82F6" icon="person.2.fill" onPress={() => router.push("/agents")} />
+            <MetricCard label="En Route" value={enRoute} color="#8B5CF6" icon="car.fill" onPress={() => router.push("/tasks")} />
+            <MetricCard label="Create New" color="#E85D04" icon="plus.circle.fill" isCreateNew onPress={() => setCreateSheetVisible(true)} />
           </View>
         </View>
 
         {/* ── Quick Actions ── */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActions}>
-            {[
-              { label: "New Work Order", icon: "doc.badge.plus", route: "/create-task", color: colors.primary },
-              { label: "Dispatcher", icon: "map.fill", route: "/dispatcher", color: "#3B82F6" },
-              { label: "Technicians", icon: "person.2.fill", route: "/agents", color: "#8B5CF6" },
-              { label: "Integrations", icon: "arrow.triangle.2.circlepath", route: "/integrations", color: "#22C55E" },
-              { label: "Super Admin", icon: "building.2.fill", route: "/super-admin", color: "#8B5CF6" },
-              { label: "Track Demo", icon: "location.fill", route: "/track/JH-2026-8821", color: "#E85D04" },
-            ].map((action) => (
-              <Pressable
-                key={action.label}
-                style={({ pressed }) => [
-                  styles.quickAction,
-                  { backgroundColor: action.color + "15", borderColor: action.color + "40", opacity: pressed ? 0.75 : 1 },
-                ]}
-                onPress={() => router.push(action.route as any)}
-              >
-                <IconSymbol name={action.icon as any} size={22} color={action.color} />
-                <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <View style={styles.quickActionsRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActionsContent}>
+              {[
+                { label: "Dispatcher", icon: "map.fill", route: "/dispatcher", color: "#3B82F6" },
+                { label: "Technicians", icon: "person.2.fill", route: "/agents", color: "#8B5CF6" },
+                { label: "Integrations", icon: "arrow.triangle.2.circlepath", route: "/integrations", color: "#22C55E" },
+                { label: "Super Admin", icon: "building.2.fill", route: "/super-admin", color: "#E85D04" },
+                { label: "Track Demo", icon: "location.fill", route: "/track/JH-2026-8821", color: "#06B6D4" },
+                { label: "Settings", icon: "gearshape.fill", route: "/settings", color: "#F59E0B" },
+              ].map((action) => (
+                <Pressable
+                  key={action.label}
+                  style={({ pressed }) => [
+                    styles.quickAction,
+                    { backgroundColor: action.color + "15", borderColor: action.color + "35", opacity: pressed ? 0.75 : 1 },
+                  ]}
+                  onPress={() => router.push(action.route as any)}
+                >
+                  <IconSymbol name={action.icon as any} size={18} color={action.color} />
+                  <Text style={[styles.quickActionLabel, { color: action.color }]}>{action.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
         </View>
 
         {/* ── Online Team ── */}
@@ -266,7 +317,7 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* ── Recent Work Orders ── */}
+        {/* ── Recent Work Orders (4 items, no WO number) ── */}
         <View style={[styles.section, styles.lastSection]}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Work Orders</Text>
@@ -283,109 +334,189 @@ export default function DashboardScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* ── Create New Bottom Sheet ── */}
+      <CreateNewSheet visible={createSheetVisible} onClose={() => setCreateSheetVisible(false)} />
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 32 },
+
+  // Header
   header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingTop: 16,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
-  headerGreeting: { fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: "500" },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff", marginTop: 2 },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
-  notifBtn: { padding: 8 },
+  headerGreeting: { fontSize: 11, color: "rgba(255,255,255,0.72)", fontWeight: "500" },
+  headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  notifBtn: { padding: 6 },
   createBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#E85D04",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
   },
-  createBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  section: { paddingHorizontal: 20, paddingTop: 20 },
+  createBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+
+  // Sections
+  section: { paddingHorizontal: 16, paddingTop: 16 },
   lastSection: { paddingBottom: 8 },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: "700" },
-  seeAll: { fontSize: 14, fontWeight: "600" },
-  metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: "700" },
+  seeAll: { fontSize: 12, fontWeight: "600" },
+
+  // 6-up Metrics Grid
+  metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   metricCard: {
-    flex: 1,
-    minWidth: "45%",
-    borderRadius: 14,
-    padding: 14,
+    width: "31%",
+    flexGrow: 1,
+    borderRadius: 12,
+    padding: 10,
     borderWidth: 1,
     alignItems: "flex-start",
-    gap: 6,
+    gap: 4,
+    minHeight: 80,
   },
-  metricIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  metricValue: { fontSize: 28, fontWeight: "800" },
-  metricLabel: { fontSize: 12, fontWeight: "500" },
-  quickActions: { marginHorizontal: -4 },
+  metricIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metricValue: { fontSize: 20, fontWeight: "800" },
+  metricLabel: { fontSize: 10, fontWeight: "500" },
+  metricCreateLabel: { fontSize: 11, fontWeight: "700", marginTop: 2 },
+
+  // Quick Actions
+  quickActionsRow: { marginTop: 10 },
+  quickActionsContent: { paddingRight: 4, gap: 8 },
   quickAction: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
     borderWidth: 1,
-    marginHorizontal: 4,
-    gap: 6,
-    minWidth: 90,
+    gap: 5,
+    minWidth: 76,
   },
-  quickActionLabel: { fontSize: 11, fontWeight: "600", textAlign: "center" },
+  quickActionLabel: { fontSize: 10, fontWeight: "600", textAlign: "center" },
+
+  // Tech Chips
   techChip: {
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    marginRight: 10,
-    minWidth: 80,
-    gap: 4,
+    marginRight: 8,
+    minWidth: 72,
+    gap: 3,
   },
   techAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
-  techInitial: { fontSize: 18, fontWeight: "700" },
+  techInitial: { fontSize: 15, fontWeight: "700" },
   techStatusDot: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 2,
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
     borderColor: "#fff",
   },
-  techChipName: { fontSize: 12, fontWeight: "600" },
-  techChipStatus: { fontSize: 10, fontWeight: "500" },
+  techChipName: { fontSize: 11, fontWeight: "600" },
+  techChipStatus: { fontSize: 9, fontWeight: "500" },
+
+  // Compact Task Rows
   taskRow: {
     flexDirection: "row",
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: 6,
     overflow: "hidden",
   },
-  taskStatusBar: { width: 4 },
-  taskContent: { flex: 1, padding: 12, gap: 3 },
+  taskStatusBar: { width: 3 },
+  taskContent: { flex: 1, paddingHorizontal: 10, paddingVertical: 8, gap: 2 },
   taskHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  taskCustomer: { fontSize: 15, fontWeight: "700", flex: 1, marginRight: 8 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusBadgeText: { fontSize: 11, fontWeight: "700" },
-  taskAddress: { fontSize: 12, marginTop: 1 },
-  taskTech: { fontSize: 12, marginTop: 2 },
-  taskRef: { fontSize: 11, marginTop: 1 },
+  taskCustomer: { fontSize: 13, fontWeight: "700", flex: 1, marginRight: 6 },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  statusBadgeText: { fontSize: 10, fontWeight: "700" },
+  taskAddress: { fontSize: 11 },
+  taskTech: { fontSize: 11 },
+
+  // Create New Sheet
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    paddingTop: 12,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  sheetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  sheetOption: {
+    width: "30%",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 8,
+  },
+  sheetOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetOptionLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  sheetCancel: {
+    marginTop: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  sheetCancelText: { fontSize: 15, fontWeight: "700" },
 });

@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
   addBtn: {
     width: 36,
     height: 36,

@@ -5,6 +5,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
@@ -99,26 +100,19 @@ export default function TaskDetailScreen() {
   };
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={22} color="#fff" />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{task.customerName}</Text>
-          {task.orderRef && <Text style={styles.headerRef}>{task.orderRef}</Text>}
-        </View>
-        <Pressable
-          style={({ pressed }) => [styles.shareBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={handleShareTracking}
-        >
-          <IconSymbol name="square.and.arrow.up" size={20} color="#fff" />
-        </Pressable>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader
+        title={task.customerName}
+        subtitle={task.orderRef ?? task.templateName}
+        rightElement={
+          <Pressable
+            onPress={handleShareTracking}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+          >
+            <IconSymbol name="square.and.arrow.up" size={20} color="#fff" />
+          </Pressable>
+        }
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Status Banner */}

@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { MOCK_TASKS } from "@/lib/nvc-types";
@@ -416,23 +417,16 @@ export default function ExecuteTaskScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={22} color="#fff" />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Execute Work Order</Text>
-          <Text style={styles.headerSub}>{task.customerName}</Text>
-        </View>
-        <View style={[styles.progressCircle, { borderColor: allMandatoryDone ? "#22C55E" : "#fff" }]}>
-          <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
-        </View>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader
+        title="Execute Work Order"
+        subtitle={task.customerName}
+        rightElement={
+          <View style={[styles.progressCircle, { borderColor: allMandatoryDone ? "#22C55E" : "#fff" }]}>
+            <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
+          </View>
+        }
+      />
 
       {/* Progress Bar */}
       <View style={[styles.progressBar, { backgroundColor: colors.border }]}>

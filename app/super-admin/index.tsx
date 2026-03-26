@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 
@@ -383,24 +384,21 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: "#0a0a0a" }]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>NVC360 Super Admin</Text>
-          <Text style={styles.headerSub}>Platform Management · {clients.length} Clients</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.addClientBtn,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-          ]}
-          onPress={() => setShowCreate(true)}
-        >
-          <IconSymbol name="plus" size={16} color="#fff" />
-          <Text style={styles.addClientBtnText}>Add Client</Text>
-        </Pressable>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader
+        title="NVC360 Super Admin"
+        subtitle="Platform Management"
+        showBack={false}
+        variant="primary"
+        rightElement={
+          <Pressable
+            onPress={() => setShowCreate(true)}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+          >
+            <IconSymbol name="plus" size={22} color="#fff" />
+          </Pressable>
+        }
+      />
 
       {/* Platform Stats */}
       <View style={[styles.platformStats, { backgroundColor: "#0a0a0a" }]}>

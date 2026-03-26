@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
+import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
@@ -344,24 +345,21 @@ export default function DispatcherDashboard() {
   ).length;
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Dispatcher Dashboard</Text>
-          <Text style={styles.headerSub}>NVC360 · Live Operations</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.newTaskBtn,
-            { backgroundColor: "rgba(255,255,255,0.2)", opacity: pressed ? 0.7 : 1 },
-          ]}
-          onPress={() => router.push("/create-task" as any)}
-        >
-          <IconSymbol name="plus" size={16} color="#fff" />
-          <Text style={styles.newTaskBtnText}>New Order</Text>
-        </Pressable>
-      </View>
+    <ScreenContainer edges={["left", "right"]}>
+      <NVCHeader
+        title="Dispatcher Dashboard"
+        subtitle="NVC360 · Live Operations"
+        showBack={false}
+        variant="primary"
+        rightElement={
+          <Pressable
+            onPress={() => router.push("/create-task" as any)}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+          >
+            <IconSymbol name="plus" size={22} color="#fff" />
+          </Pressable>
+        }
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Stats Row */}
