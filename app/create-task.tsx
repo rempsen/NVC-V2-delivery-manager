@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { createTask, MOCK_AGENTS } from "@/lib/nvc360-api";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { trpc } from "@/lib/trpc";
 
 // ─── Workflow Templates ───────────────────────────────────────────────────────
 
@@ -147,6 +148,39 @@ export default function CreateTaskScreen() {
   };
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [priority, setPriority] = useState("Normal");
+
+  // ─── Gemini SMS Draft ─────────────────────────────────────────────────────
+  const [smsDraft, setSmsDraft] = useState<string | null>(null);
+  const [smsVariants, setSmsVariants] = useState<string[]>([]);
+  const [smsCharCount, setSmsCharCount] = useState(0);
+  const [showSmsPanel, setShowSmsPanel] = useState(false);
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
+
+  const smsDraftMutation = trpc.ai.draftSms.useMutation({
+    onSuccess: (data) => {
+      const allVariants = [data.message, ...data.variants];
+      setSmsDraft(data.message);
+      setSmsVariants(allVariants);
+      setSmsCharCount(data.characterCount);
+      setSelectedVariantIdx(0);
+      setShowSmsPanel(true);
+    },
+  });
+
+  const handleDraftSms = useCallback(() => {
+    const address = deliveryAddress.trim() || pickupAddress.trim();
+    if (!customerName.trim() || !address) {
+      Alert.alert("Fill in details first", "Please enter the customer name and service address before drafting an SMS.");
+      return;
+    }
+    smsDraftMutation.mutate({
+      eventType: "job_created",
+      customerName: customerName.trim(),
+      jobAddress: address,
+      companyName: "NVC360",
+      scheduledTime: scheduledDate ? scheduledDate.toLocaleString() : undefined,
+    });
+  }, [customerName, deliveryAddress, pickupAddress, scheduledDate]);
 
   const hasField = (field: string) => selectedTemplate.fields.includes(field);
 
@@ -455,6 +489,99 @@ export default function CreateTaskScreen() {
             })}
           </View>
 
+          {/* ─── Gemini SMS Draft Panel ─── */}
+          <View style={[styles.smsPanelContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.smsPanelHeader}>
+              <View style={[styles.smsPanelDot, { backgroundColor: "#3B8FDF" }]} />
+              <Text style={[styles.smsPanelTitle, { color: colors.foreground }]}>Gemini SMS Draft</Text>
+              <Text style={[styles.smsPanelSub, { color: colors.muted }]}>Auto-draft customer notification</Text>
+            </View>
+
+            {!showSmsPanel ? (
+              <Pressable
+                onPress={handleDraftSms}
+                disabled={smsDraftMutation.isPending}
+                style={({ pressed }) => [
+                  styles.smsDraftBtn,
+                  { backgroundColor: "#3B8FDF" + "18", borderColor: "#3B8FDF" + "40" },
+                  pressed && { opacity: 0.75 },
+                  smsDraftMutation.isPending && { opacity: 0.6 },
+                ]}
+              >
+                {smsDraftMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#3B8FDF" />
+                ) : (
+                  <IconSymbol name="paperplane.fill" size={14} color="#3B8FDF" />
+                )}
+                <Text style={[styles.smsDraftBtnText, { color: "#3B8FDF" }]}>
+                  {smsDraftMutation.isPending ? "Drafting with Gemini AI…" : "Draft Customer SMS with AI"}
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={styles.smsDraftResult}>
+                {/* Variant selector */}
+                <View style={styles.smsVariantRow}>
+                  {["Professional", "Friendly", "Brief"].map((label, i) => (
+                    <Pressable
+                      key={i}
+                      onPress={() => {
+                        setSelectedVariantIdx(i);
+                        setSmsDraft(smsVariants[i] ?? smsVariants[0]);
+                        setSmsCharCount((smsVariants[i] ?? smsVariants[0]).length);
+                      }}
+                      style={[
+                        styles.smsVariantChip,
+                        {
+                          backgroundColor: selectedVariantIdx === i ? "#3B8FDF" : colors.background,
+                          borderColor: selectedVariantIdx === i ? "#3B8FDF" : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.smsVariantText, { color: selectedVariantIdx === i ? "#fff" : colors.muted }]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    onPress={handleDraftSms}
+                    style={[styles.smsVariantChip, { backgroundColor: colors.background, borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.smsVariantText, { color: colors.muted }]}>↻ Re-draft</Text>
+                  </Pressable>
+                </View>
+
+                {/* Editable SMS text */}
+                <TextInput
+                  value={smsDraft ?? ""}
+                  onChangeText={(t) => { setSmsDraft(t); setSmsCharCount(t.length); }}
+                  multiline
+                  style={[
+                    styles.smsTextInput,
+                    {
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      borderColor: smsCharCount > 160 ? "#EF4444" : colors.border,
+                    },
+                  ]}
+                  placeholderTextColor={colors.muted}
+                />
+
+                {/* Character count */}
+                <View style={styles.smsFooter}>
+                  <Text style={[styles.smsCharCount, { color: smsCharCount > 160 ? "#EF4444" : colors.muted }]}>
+                    {smsCharCount}/160 chars · {Math.ceil(smsCharCount / 160)} segment{Math.ceil(smsCharCount / 160) > 1 ? "s" : ""}
+                  </Text>
+                  <Pressable
+                    onPress={() => setShowSmsPanel(false)}
+                    style={[styles.smsDismiss, { borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.smsDismissText, { color: colors.muted }]}>Dismiss</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </View>
+
           {/* Submit */}
           <Pressable
             onPress={handleSubmit}
@@ -586,4 +713,64 @@ const styles = StyleSheet.create({
   pickerCancelText: { fontSize: 15 },
   pickerTitle: { fontSize: 15, fontWeight: "600" },
   pickerDoneText: { fontSize: 15, fontWeight: "700", textAlign: "right" },
+  // ─── Gemini SMS Panel styles ────────────────────────────────────────────────────────────
+  smsPanelContainer: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+    gap: 0,
+  },
+  smsPanelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  smsPanelDot: { width: 8, height: 8, borderRadius: 4 },
+  smsPanelTitle: { fontSize: 14, fontWeight: "600" },
+  smsPanelSub: { fontSize: 12, flex: 1 },
+  smsDraftBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  smsDraftBtnText: { fontSize: 14, fontWeight: "600" },
+  smsDraftResult: { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
+  smsVariantRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
+  smsVariantChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  smsVariantText: { fontSize: 12, fontWeight: "600" },
+  smsTextInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    minHeight: 72,
+    textAlignVertical: "top",
+  },
+  smsFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  smsCharCount: { fontSize: 11 },
+  smsDismiss: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  smsDismissText: { fontSize: 12 },
 });

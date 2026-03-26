@@ -582,3 +582,9 @@
 ## API Key Update — New Google Maps Key
 - [x] Store new Google Maps API key (AIzaSyBmW8a43bZiApE5ejzjBb92CbhHSQOAqjo) replacing old key
 - [x] Validate new key reaches Google Maps API
+
+## Sprint: Maps + Gemini SMS (Mar 26)
+- [x] Validate Google Maps JavaScript API and Geocoding API are enabled for the new key
+- [x] Wire mobile task detail screen map to real Google Maps (replace simulated map)
+- [x] Add Gemini-powered SMS drafting to job create/update flow on web dashboard
+- [x] Add SMS draft preview with edit-before-send capability

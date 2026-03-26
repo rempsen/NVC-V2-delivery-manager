@@ -614,6 +614,22 @@ export const appRouter = router({
         return gemini.generateOperationalBriefing(taskSummaries, techSummaries);
       }),
 
+    draftSms: protectedProcedure
+      .input(
+        z.object({
+          eventType: z.enum(["job_created", "job_assigned", "technician_en_route", "technician_arrived", "job_completed", "job_rescheduled", "custom"]),
+          customerName: z.string().min(1),
+          jobAddress: z.string().min(1),
+          technicianName: z.string().optional(),
+          scheduledTime: z.string().optional(),
+          estimatedArrival: z.string().optional(),
+          companyName: z.string().optional(),
+          trackingUrl: z.string().optional(),
+          customContext: z.string().optional(),
+        }),
+      )
+      .mutation(({ input }) => gemini.draftSmsMessage(input)),
+
     assessDelayRisk: protectedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(async ({ input }) => {

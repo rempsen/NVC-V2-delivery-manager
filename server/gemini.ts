@@ -177,6 +177,107 @@ Generate dispatch suggestions only for unassigned tasks where a suitable availab
   };
 }
 
+// ─── SMS Drafting ────────────────────────────────────────────────────────────
+
+export interface SmsDraftInput {
+  eventType: "job_created" | "job_assigned" | "technician_en_route" | "technician_arrived" | "job_completed" | "job_rescheduled" | "custom";
+  customerName: string;
+  jobAddress: string;
+  technicianName?: string;
+  scheduledTime?: string;
+  estimatedArrival?: string;
+  companyName?: string;
+  trackingUrl?: string;
+  customContext?: string;
+}
+
+export interface SmsDraft {
+  message: string;
+  characterCount: number;
+  segmentCount: number;
+  tone: "professional" | "friendly" | "urgent";
+  variants: string[];
+}
+
+/**
+ * Draft a customer notification SMS using Gemini AI.
+ * Returns the primary draft plus 2 tone variants.
+ */
+export async function draftSmsMessage(input: SmsDraftInput): Promise<SmsDraft> {
+  const client = getClient();
+  const model = client.getGenerativeModel({
+    model: MODEL_ID,
+    safetySettings: SAFETY_SETTINGS,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 512,
+      responseMimeType: "application/json",
+    },
+  });
+
+  const eventDescriptions: Record<SmsDraftInput["eventType"], string> = {
+    job_created: "A new service job has been created and is awaiting dispatch",
+    job_assigned: "A technician has been assigned to the job",
+    technician_en_route: "The technician is on their way to the customer",
+    technician_arrived: "The technician has arrived at the job site",
+    job_completed: "The job has been completed successfully",
+    job_rescheduled: "The job has been rescheduled to a new time",
+    custom: input.customContext ?? "Service update",
+  };
+
+  const prompt = `You are an SMS notification writer for NVC360, a professional field service company.
+Write a customer notification SMS for this event.
+
+Event: ${eventDescriptions[input.eventType]}
+Customer name: ${input.customerName}
+Job address: ${input.jobAddress}
+${input.technicianName ? `Technician: ${input.technicianName}` : ""}
+${input.scheduledTime ? `Scheduled time: ${input.scheduledTime}` : ""}
+${input.estimatedArrival ? `ETA: ${input.estimatedArrival}` : ""}
+${input.companyName ? `Company: ${input.companyName}` : "NVC360"}
+${input.trackingUrl ? `Tracking URL: ${input.trackingUrl}` : ""}
+
+Requirements:
+- Under 160 characters for the primary message (1 SMS segment)
+- Professional but warm tone
+- Include the customer's first name
+- Include tracking URL if provided
+- No emojis unless explicitly requested
+- Do NOT include placeholder text like [Company Name] — use the actual values
+
+Return JSON only:
+{
+  "message": "primary SMS draft (under 160 chars)",
+  "tone": "professional",
+  "variants": [
+    "friendly variant (slightly warmer tone, still under 160 chars)",
+    "brief variant (shortest possible, under 100 chars)"
+  ]
+}`;
+
+  const result = await model.generateContent(prompt);
+  let parsed: Omit<SmsDraft, "characterCount" | "segmentCount">;
+
+  try {
+    parsed = JSON.parse(result.response.text().trim());
+  } catch {
+    // Fallback draft
+    const fallback = `Hi ${input.customerName.split(" ")[0]}, your service job at ${input.jobAddress} has been updated. Thank you for choosing NVC360.`;
+    parsed = {
+      message: fallback,
+      tone: "professional",
+      variants: [fallback, fallback],
+    };
+  }
+
+  const charCount = parsed.message.length;
+  return {
+    ...parsed,
+    characterCount: charCount,
+    segmentCount: Math.ceil(charCount / 160),
+  };
+}
+
 /**
  * Generate a quick delay risk assessment for a specific task.
  */
