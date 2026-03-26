@@ -1,11 +1,12 @@
 /**
- * Agent Task Workflow Screen
+ * Agent Task Workflow Screen — NVC360 2.0
  *
- * Tookan-style task execution for field technicians:
- *   1. Pre-start: job details + Swipe-to-Start bar
- *   2. En Route: live GPS tracking, geofence arrival detection (20m)
- *   3. On Site: notes, photo capture, checklist, signature, payment
- *   4. Complete: Swipe-to-Complete bar
+ * Tookan-style task execution for field technicians.
+ * Layout mirrors the Tookan mock-up:
+ *   • Header: task time/type, customer name (call button), address (navigate button)
+ *   • Milestone bar: Start → Arrive → Successful
+ *   • Expandable sections: NOTES (+), SIGNATURE (+), IMAGES (+), TOTAL BILL
+ *   • Bottom bar: Failed ←toggle→ Successful  (or swipe-to-start pre-task)
  */
 import React, {
   useState,
@@ -30,8 +31,9 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  Linking,
   Modal,
-  KeyboardAvoidingView,
+  TouchableOpacity,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -40,7 +42,7 @@ import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK } from "@/constants/brand";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
 import { MOCK_TASKS, STATUS_COLORS, STATUS_LABELS, type Task } from "@/lib/nvc-types";
 import { useTenant } from "@/hooks/use-tenant";
@@ -48,289 +50,363 @@ import { useTenant } from "@/hooks/use-tenant";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.65; // 65% of screen width to trigger
-const GEOFENCE_RADIUS_M = 20; // 20-meter arrival threshold
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.62;
+const GEOFENCE_RADIUS_M = 20;
+
+const FAIL_REASONS = [
+  "Jobsite Not Ready",
+  "Materials Not Ready For Pickup",
+  "Scheduling Problem",
+  "Site Access Issue",
+  "Client Not On Site / Home",
+  "Personal Issue",
+  "Issue With Materials or Product",
+  "Other",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function haversineDistance(
-  lat1: number, lon1: number,
-  lat2: number, lon2: number,
-): number {
-  const R = 6371000; // Earth radius in metres
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) ** 2;
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── Swipe Bar Component ──────────────────────────────────────────────────────
+// ─── Swipe-to-Start Bar ───────────────────────────────────────────────────────
 
-interface SwipeBarProps {
-  label: string;
-  sublabel?: string;
-  color: string;
-  icon: string;
+function SwipeStartBar({
+  onComplete,
+  loading,
+}: {
   onComplete: () => void;
-  disabled?: boolean;
   loading?: boolean;
-}
-
-function SwipeBar({ label, sublabel, color, icon, onComplete, disabled, loading }: SwipeBarProps) {
+}) {
   const translateX = useRef(new Animated.Value(0)).current;
-  const [completed, setCompleted] = useState(false);
   const TRACK_WIDTH = SCREEN_WIDTH - 48;
-  const THUMB_SIZE = 52;
+  const THUMB_SIZE = 56;
   const MAX_X = TRACK_WIDTH - THUMB_SIZE - 8;
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled && !loading,
-      onMoveShouldSetPanResponder: () => !disabled && !loading,
+      onStartShouldSetPanResponder: () => !loading,
+      onMoveShouldSetPanResponder: () => !loading,
       onPanResponderGrant: () => {
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
-      onPanResponderMove: (_, gestureState) => {
-        const newX = Math.max(0, Math.min(gestureState.dx, MAX_X));
-        translateX.setValue(newX);
+      onPanResponderMove: (_, gs) => {
+        translateX.setValue(Math.max(0, Math.min(gs.dx, MAX_X)));
       },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx >= SWIPE_THRESHOLD) {
-          Animated.timing(translateX, {
-            toValue: MAX_X,
-            duration: 150,
-            useNativeDriver: true,
-          }).start(() => {
-            setCompleted(true);
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx >= SWIPE_THRESHOLD) {
+          Animated.timing(translateX, { toValue: MAX_X, duration: 150, useNativeDriver: true }).start(() => {
             if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onComplete();
           });
         } else {
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 8,
-          }).start();
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 100, friction: 8 }).start();
         }
       },
     }),
   ).current;
 
-  const opacity = translateX.interpolate({
-    inputRange: [0, MAX_X * 0.5],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
+  const labelOpacity = translateX.interpolate({ inputRange: [0, MAX_X * 0.4], outputRange: [1, 0], extrapolate: "clamp" });
 
   return (
-    <View style={[styles.swipeTrack, { backgroundColor: color + "18", borderColor: color + "40" }]}>
-      {/* Label fades as thumb moves */}
-      <Animated.View style={[styles.swipeLabelWrap, { opacity }]}>
-        <Text style={[styles.swipeLabel, { color }]}>{label}</Text>
-        {sublabel ? <Text style={[styles.swipeSublabel, { color: color + "99" }]}>{sublabel}</Text> : null}
+    <View style={swipeStyles.track}>
+      <Animated.View style={[swipeStyles.labelWrap, { opacity: labelOpacity }]}>
+        <Text style={swipeStyles.label}>Swipe to Start Job</Text>
+        <Text style={swipeStyles.sublabel}>SMS notification will be sent to customer</Text>
       </Animated.View>
-
-      {/* Thumb */}
       {loading ? (
-        <View style={[styles.swipeThumb, { backgroundColor: color, left: 4 }]}>
+        <View style={[swipeStyles.thumb, { backgroundColor: "#8B5CF6" }]}>
           <ActivityIndicator color="#fff" size="small" />
         </View>
       ) : (
         <Animated.View
-          style={[
-            styles.swipeThumb,
-            { backgroundColor: completed ? color : color, transform: [{ translateX }] },
-          ]}
+          style={[swipeStyles.thumb, { backgroundColor: "#8B5CF6", transform: [{ translateX }] }]}
           {...panResponder.panHandlers}
         >
-          <IconSymbol name={icon as any} size={22} color="#fff" />
+          <IconSymbol name="arrow.right" size={24} color="#fff" />
         </Animated.View>
       )}
-
-      {/* Chevrons hint */}
-      <View style={styles.swipeChevrons} pointerEvents="none">
+      <View style={swipeStyles.chevrons} pointerEvents="none">
         {[0, 1, 2].map((i) => (
-          <IconSymbol key={i} name="chevron.right" size={14} color={color + "60"} />
+          <IconSymbol key={i} name="chevron.right" size={13} color="#8B5CF660" />
         ))}
       </View>
     </View>
   );
 }
 
-// ─── Photo Grid ───────────────────────────────────────────────────────────────
+// ─── Failed / Successful Toggle Bar ──────────────────────────────────────────
 
-function PhotoGrid({ photos, onAdd, onRemove }: {
-  photos: string[];
-  onAdd: (uri: string) => void;
-  onRemove: (uri: string) => void;
+function OutcomeToggleBar({
+  onFail,
+  onSuccess,
+  loadingFail,
+  loadingSuccess,
+}: {
+  onFail: () => void;
+  onSuccess: () => void;
+  loadingFail?: boolean;
+  loadingSuccess?: boolean;
 }) {
-  const pickPhoto = async () => {
-    if (Platform.OS === "web") {
-      Alert.alert("Camera", "Photo capture is available on iOS and Android devices.");
-      return;
-    }
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Required", "Camera access is needed to take job photos.");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      allowsEditing: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      onAdd(result.assets[0].uri);
-    }
-  };
-
-  const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Required", "Photo library access is needed.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      allowsMultipleSelection: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      onAdd(result.assets[0].uri);
-    }
-  };
-
   return (
-    <View style={styles.photoGrid}>
-      {photos.map((uri, i) => (
-        <View key={uri + i} style={styles.photoThumbWrap}>
-          <Image source={{ uri }} style={styles.photoThumb} />
-          <Pressable
-            style={styles.photoRemoveBtn}
-            onPress={() => onRemove(uri)}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <IconSymbol name="xmark" size={10} color="#fff" />
-          </Pressable>
-        </View>
-      ))}
-      {/* Add photo button */}
+    <View style={outcomeStyles.bar}>
       <Pressable
-        style={({ pressed }) => [styles.photoAddBtn, pressed && { opacity: 0.7 }]}
-        onPress={() => {
-          Alert.alert("Add Photo", "Choose a source", [
-            { text: "Camera", onPress: pickPhoto },
-            { text: "Photo Library", onPress: pickFromLibrary },
-            { text: "Cancel", style: "cancel" },
-          ]);
-        }}
+        style={({ pressed }) => [
+          outcomeStyles.failBtn,
+          pressed && { opacity: 0.85 },
+        ] as ViewStyle[]}
+        onPress={onFail}
+        disabled={loadingFail || loadingSuccess}
       >
-        <IconSymbol name="camera.fill" size={20} color={NVC_BLUE} />
-        <Text style={styles.photoAddText}>Add Photo</Text>
+        {loadingFail ? (
+          <ActivityIndicator size="small" color="#EF4444" />
+        ) : (
+          <>
+            <View style={outcomeStyles.failDot} />
+            <Text style={outcomeStyles.failText}>Failed</Text>
+          </>
+        )}
+      </Pressable>
+
+      {/* Toggle pill */}
+      <View style={outcomeStyles.togglePill}>
+        <View style={outcomeStyles.toggleKnob} />
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
+          outcomeStyles.successBtn,
+          pressed && { opacity: 0.85 },
+        ] as ViewStyle[]}
+        onPress={onSuccess}
+        disabled={loadingFail || loadingSuccess}
+      >
+        {loadingSuccess ? (
+          <ActivityIndicator size="small" color="#22C55E" />
+        ) : (
+          <>
+            <Text style={outcomeStyles.successText}>Successful</Text>
+            <View style={outcomeStyles.successDot} />
+          </>
+        )}
       </Pressable>
     </View>
   );
 }
 
-// ─── Signature Pad (Canvas-based for web, touch-based for native) ─────────────
+// ─── Expandable Section ───────────────────────────────────────────────────────
 
-function SignaturePad({ onSave }: { onSave: (uri: string) => void }) {
-  const [signed, setSigned] = useState(false);
+function ExpandableSection({
+  title,
+  badge,
+  children,
+  defaultOpen = false,
+  rightAction,
+}: {
+  title: string;
+  badge?: string | number;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  rightAction?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const rotation = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
 
-  // For web: use a simple canvas-based approach
-  // For native: use a drawing surface via touch events
-  const handleCapture = () => {
-    // In production, this would capture a real signature
-    // For now, we record the intent and use a placeholder URI
-    setSigned(true);
-    onSave("signature://captured-" + Date.now());
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const toggle = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.timing(rotation, {
+      toValue: open ? 0 : 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    setOpen((v) => !v);
   };
 
-  if (signed) {
+  const rotate = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "45deg"] });
+
+  return (
+    <View style={sectionStyles.container}>
+      <Pressable
+        style={({ pressed }) => [sectionStyles.header, pressed && { backgroundColor: "#F9FAFB" }] as ViewStyle[]}
+        onPress={toggle}
+      >
+        <Text style={sectionStyles.title}>{title}</Text>
+        {badge !== undefined && badge !== 0 && (
+          <View style={sectionStyles.badge}>
+            <Text style={sectionStyles.badgeText}>{badge}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1 }} />
+        {rightAction}
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <IconSymbol name="plus" size={18} color="#9CA3AF" />
+        </Animated.View>
+      </Pressable>
+      {open && <View style={sectionStyles.body}>{children}</View>}
+    </View>
+  );
+}
+
+// ─── Signature Canvas (SVG path-based) ───────────────────────────────────────
+
+function SignatureCanvas({ onSave }: { onSave: (dataUri: string) => void }) {
+  const [paths, setPaths] = useState<string[]>([]);
+  const [currentPath, setCurrentPath] = useState<string>("");
+  const [isSigned, setIsSigned] = useState(false);
+  const canvasRef = useRef<View>(null);
+
+  const handleTouchStart = (e: any) => {
+    const { locationX, locationY } = e.nativeEvent;
+    setCurrentPath(`M${locationX.toFixed(1)},${locationY.toFixed(1)}`);
+  };
+
+  const handleTouchMove = (e: any) => {
+    const { locationX, locationY } = e.nativeEvent;
+    setCurrentPath((p) => `${p} L${locationX.toFixed(1)},${locationY.toFixed(1)}`);
+  };
+
+  const handleTouchEnd = () => {
+    if (currentPath) {
+      setPaths((p) => [...p, currentPath]);
+      setCurrentPath("");
+    }
+  };
+
+  const clear = () => {
+    setPaths([]);
+    setCurrentPath("");
+    setIsSigned(false);
+  };
+
+  const capture = () => {
+    if (paths.length === 0) {
+      Alert.alert("Empty Signature", "Please draw a signature before saving.");
+      return;
+    }
+    // Build an SVG data URI from the captured paths
+    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150">${paths.map((d) => `<path d="${d}" stroke="#1F2937" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join("")}</svg>`;
+    const dataUri = `data:image/svg+xml;base64,${btoa(svgContent)}`;
+    setIsSigned(true);
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onSave(dataUri);
+  };
+
+  if (isSigned) {
     return (
-      <View style={styles.signatureCapture}>
-        <IconSymbol name="checkmark.circle.fill" size={24} color="#22C55E" />
-        <Text style={styles.signatureCapturedText}>Signature captured</Text>
+      <View style={sigStyles.capturedRow}>
+        <IconSymbol name="checkmark.circle.fill" size={22} color="#22C55E" />
+        <Text style={sigStyles.capturedText}>Signature captured</Text>
+        <Pressable style={sigStyles.resignBtn} onPress={() => { setIsSigned(false); clear(); }}>
+          <Text style={sigStyles.resignText}>Re-sign</Text>
+        </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.signaturePad}>
-      <Text style={styles.signaturePadHint}>Have the customer sign below</Text>
-      <View style={styles.signatureCanvas}>
-        <Text style={styles.signatureCanvasPlaceholder}>Tap to sign</Text>
-      </View>
-      <Pressable
-        style={({ pressed }) => [styles.signatureCaptureBtn, pressed && { opacity: 0.8 }]}
-        onPress={handleCapture}
+    <View style={sigStyles.wrapper}>
+      <Text style={sigStyles.hint}>Have the customer sign in the box below</Text>
+      <View
+        ref={canvasRef}
+        style={sigStyles.canvas}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={handleTouchStart}
+        onResponderMove={handleTouchMove}
+        onResponderRelease={handleTouchEnd}
       >
-        <IconSymbol name="signature" size={16} color="#fff" />
-        <Text style={styles.signatureCaptureBtnText}>Capture Signature</Text>
-      </Pressable>
+        {/* Render SVG paths as a visual representation */}
+        {paths.length === 0 && !currentPath ? (
+          <Text style={sigStyles.placeholder}>Sign here</Text>
+        ) : (
+          <View style={sigStyles.pathsContainer}>
+            {/* Visual feedback: show a "drawing in progress" indicator */}
+            <Text style={sigStyles.drawingIndicator}>
+              {paths.length} stroke{paths.length !== 1 ? "s" : ""} captured
+            </Text>
+          </View>
+        )}
+      </View>
+      <View style={sigStyles.btnRow}>
+        <Pressable
+          style={({ pressed }) => [sigStyles.clearBtn, pressed && { opacity: 0.7 }] as ViewStyle[]}
+          onPress={clear}
+        >
+          <Text style={sigStyles.clearText}>Clear</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [sigStyles.saveBtn, pressed && { opacity: 0.85 }] as ViewStyle[]}
+          onPress={capture}
+        >
+          <IconSymbol name="checkmark" size={14} color="#fff" />
+          <Text style={sigStyles.saveBtnText}>Save Signature</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
-// ─── Payment Section ──────────────────────────────────────────────────────────
+// ─── Milestone Step Bar ───────────────────────────────────────────────────────
 
-function PaymentSection({
-  amount,
-  method,
-  onAmountChange,
-  onMethodChange,
-}: {
-  amount: string;
-  method: string;
-  onAmountChange: (v: string) => void;
-  onMethodChange: (v: string) => void;
-}) {
-  const METHODS = ["Cash", "Card", "E-Transfer", "Invoice", "Paid Online"];
+type WorkflowPhase = "pre_start" | "en_route" | "on_site" | "completed" | "failed";
 
+const MILESTONE_STEPS: { key: WorkflowPhase; label: string }[] = [
+  { key: "pre_start", label: "Assigned" },
+  { key: "en_route", label: "Started" },
+  { key: "on_site", label: "Arrived" },
+  { key: "completed", label: "Successful" },
+];
+
+const PHASE_INDEX: Record<WorkflowPhase, number> = {
+  pre_start: 0,
+  en_route: 1,
+  on_site: 2,
+  completed: 3,
+  failed: 3,
+};
+
+function MilestoneBar({ phase }: { phase: WorkflowPhase }) {
+  const currentIdx = PHASE_INDEX[phase];
   return (
-    <View style={styles.paymentSection}>
-      <View style={styles.paymentAmountRow}>
-        <Text style={styles.paymentCurrencySymbol}>$</Text>
-        <TextInput
-          style={styles.paymentAmountInput}
-          value={amount}
-          onChangeText={onAmountChange}
-          keyboardType="decimal-pad"
-          placeholder="0.00"
-          placeholderTextColor="#9CA3AF"
-          returnKeyType="done"
-        />
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.paymentMethods}>
-        {METHODS.map((m) => (
-          <Pressable
-            key={m}
-            style={[
-              styles.paymentMethodChip,
-              method === m && styles.paymentMethodChipActive,
-            ]}
-            onPress={() => onMethodChange(m)}
-          >
-            <Text style={[
-              styles.paymentMethodText,
-              method === m && styles.paymentMethodTextActive,
-            ]}>{m}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+    <View style={milestoneStyles.container}>
+      {MILESTONE_STEPS.map((step, i) => {
+        const done = i < currentIdx;
+        const active = i === currentIdx && phase !== "failed";
+        const failed = phase === "failed" && i === currentIdx;
+        const color = failed ? "#EF4444" : done || active ? "#22C55E" : "#D1D5DB";
+        return (
+          <React.Fragment key={step.key}>
+            <View style={milestoneStyles.step}>
+              <View style={[milestoneStyles.dot, { backgroundColor: color, borderColor: color }]}>
+                {(done || active) && !failed && (
+                  <IconSymbol name="checkmark" size={9} color="#fff" />
+                )}
+                {failed && <IconSymbol name="xmark" size={9} color="#fff" />}
+              </View>
+              <Text style={[milestoneStyles.label, { color: active || done ? "#374151" : "#9CA3AF" }]}>
+                {step.label}
+              </Text>
+            </View>
+            {i < MILESTONE_STEPS.length - 1 && (
+              <View style={[milestoneStyles.line, { backgroundColor: i < currentIdx ? "#22C55E" : "#E5E7EB" }]} />
+            )}
+          </React.Fragment>
+        );
+      })}
     </View>
   );
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-
-type WorkflowPhase = "pre_start" | "en_route" | "on_site" | "completed";
 
 export default function AgentTaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -347,8 +423,7 @@ export default function AgentTaskScreen() {
 
   const task = useMemo<Task | null>(() => {
     if (isDemo) {
-      const mock = MOCK_TASKS.find((t) => t.id === taskId) ?? MOCK_TASKS[0] ?? null;
-      return mock;
+      return MOCK_TASKS.find((t) => t.id === taskId) ?? MOCK_TASKS[0] ?? null;
     }
     if (!apiTask) return null;
     const t = apiTask as any;
@@ -380,12 +455,12 @@ export default function AgentTaskScreen() {
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [signatureUri, setSignatureUri] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [totalBill, setTotalBill] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [distanceToJob, setDistanceToJob] = useState<number | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "tracking" | "arrived">("idle");
-  const [showSignaturePad, setShowSignaturePad] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
+  const [showFailModal, setShowFailModal] = useState(false);
+  const [selectedFailReason, setSelectedFailReason] = useState("");
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
 
   // ── tRPC mutations ───────────────────────────────────────────────────────────
@@ -394,58 +469,54 @@ export default function AgentTaskScreen() {
   const saveNotesMutation = trpc.tasks.saveTaskNotes.useMutation();
   const completeTaskMutation = trpc.tasks.completeTask.useMutation();
 
-  // ── Determine initial phase from task status ─────────────────────────────────
+  // ── Init phase from task status ──────────────────────────────────────────────
   useEffect(() => {
     if (!task) return;
     if (task.status === "en_route") setPhase("en_route");
     else if (task.status === "on_site") setPhase("on_site");
     else if (task.status === "completed") setPhase("completed");
+    else if (task.status === "failed") setPhase("failed");
     else setPhase("pre_start");
+
+    // Pre-fill from saved customFields
+    const cf = (task as any).customFields ?? {};
+    if (cf.agentNotes) setNotes(cf.agentNotes);
+    if (cf.photoUris) setPhotos(cf.photoUris);
+    if (cf.signatureUri) setSignatureUri(cf.signatureUri);
+    if (cf.paymentAmount) setTotalBill(String(cf.paymentAmount));
+    if (cf.paymentMethod) setPaymentMethod(cf.paymentMethod);
   }, [task]);
 
   // ── Geolocation tracking ─────────────────────────────────────────────────────
   const startLocationTracking = useCallback(async () => {
     if (Platform.OS === "web") {
-      // Web: use navigator.geolocation
-      if (!navigator.geolocation) return;
+      if (!navigator?.geolocation) return;
       setLocationStatus("tracking");
-      const watchId = navigator.geolocation.watchPosition(
+      const wid = navigator.geolocation.watchPosition(
         (pos) => {
           if (!task?.jobLatitude || !task?.jobLongitude) return;
-          const dist = haversineDistance(
-            pos.coords.latitude, pos.coords.longitude,
-            task.jobLatitude, task.jobLongitude,
-          );
+          const dist = haversineDistance(pos.coords.latitude, pos.coords.longitude, task.jobLatitude, task.jobLongitude);
           setDistanceToJob(Math.round(dist));
-          if (dist <= GEOFENCE_RADIUS_M && locationStatus !== "arrived") {
-            handleAutoArrive(pos.coords.latitude, pos.coords.longitude);
-          }
+          if (dist <= GEOFENCE_RADIUS_M) triggerAutoArrive(pos.coords.latitude, pos.coords.longitude);
         },
         undefined,
         { enableHighAccuracy: true, maximumAge: 5000 },
       );
-      return () => navigator.geolocation.clearWatch(watchId);
+      return () => navigator.geolocation.clearWatch(wid);
     }
-
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") return;
-
     setLocationStatus("tracking");
     locationWatchRef.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 5 },
       (loc) => {
         if (!task?.jobLatitude || !task?.jobLongitude) return;
-        const dist = haversineDistance(
-          loc.coords.latitude, loc.coords.longitude,
-          task.jobLatitude, task.jobLongitude,
-        );
+        const dist = haversineDistance(loc.coords.latitude, loc.coords.longitude, task.jobLatitude, task.jobLongitude);
         setDistanceToJob(Math.round(dist));
-        if (dist <= GEOFENCE_RADIUS_M && locationStatus !== "arrived") {
-          handleAutoArrive(loc.coords.latitude, loc.coords.longitude);
-        }
+        if (dist <= GEOFENCE_RADIUS_M) triggerAutoArrive(loc.coords.latitude, loc.coords.longitude);
       },
     );
-  }, [task, locationStatus]);
+  }, [task]);
 
   const stopLocationTracking = useCallback(() => {
     locationWatchRef.current?.remove();
@@ -454,117 +525,146 @@ export default function AgentTaskScreen() {
   }, []);
 
   useEffect(() => {
-    if (phase === "en_route") {
-      startLocationTracking();
-    } else {
-      stopLocationTracking();
-    }
+    if (phase === "en_route") startLocationTracking();
+    else stopLocationTracking();
     return () => stopLocationTracking();
   }, [phase]);
 
-  // ── Auto-arrive when within geofence ────────────────────────────────────────
-  const handleAutoArrive = useCallback(async (lat: number, lng: number) => {
+  const triggerAutoArrive = useCallback((lat: number, lng: number) => {
     if (locationStatus === "arrived") return;
     setLocationStatus("arrived");
     stopLocationTracking();
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert("You've Arrived! 📍", "You are within 20 metres of the job site.", [
+      { text: "Mark as Arrived", onPress: () => handleArrive(lat, lng) },
+      { text: "Not Yet", style: "cancel", onPress: () => { setLocationStatus("tracking"); startLocationTracking(); } },
+    ]);
+  }, [locationStatus]);
 
-    Alert.alert(
-      "You've Arrived! 📍",
-      "You are within 20 meters of the job site. Mark as arrived?",
-      [
-        {
-          text: "Yes, I'm Here",
-          onPress: async () => {
-            if (!isDemo) {
-              await arriveTaskMutation.mutateAsync({ taskId, latitude: lat, longitude: lng });
-            }
-            setPhase("on_site");
-          },
-        },
-        {
-          text: "Not Yet",
-          style: "cancel",
-          onPress: () => {
-            setLocationStatus("tracking");
-            startLocationTracking();
-          },
-        },
-      ],
-    );
-  }, [locationStatus, taskId, isDemo]);
-
-  // ── Swipe handlers ───────────────────────────────────────────────────────────
-  const handleSwipeStart = useCallback(async () => {
+  // ── Action handlers ──────────────────────────────────────────────────────────
+  const handleStart = useCallback(async () => {
     try {
-      if (!isDemo) {
-        await startTaskMutation.mutateAsync({ taskId });
-      }
+      if (!isDemo) await startTaskMutation.mutateAsync({ taskId });
       setPhase("en_route");
-    } catch (e) {
-      Alert.alert("Error", "Could not start task. Please try again.");
-    }
+    } catch { Alert.alert("Error", "Could not start task. Please try again."); }
   }, [taskId, isDemo]);
 
-  const handleManualArrive = useCallback(async () => {
+  const handleArrive = useCallback(async (lat?: number, lng?: number) => {
     try {
-      if (!isDemo) {
-        await arriveTaskMutation.mutateAsync({ taskId });
-      }
+      if (!isDemo) await arriveTaskMutation.mutateAsync({ taskId, latitude: lat, longitude: lng });
       setPhase("on_site");
-    } catch (e) {
-      Alert.alert("Error", "Could not mark as arrived. Please try again.");
-    }
+    } catch { Alert.alert("Error", "Could not mark as arrived."); }
   }, [taskId, isDemo]);
 
-  const handleSwipeComplete = useCallback(async () => {
+  const handleSuccess = useCallback(async () => {
     try {
       if (!isDemo) {
         await completeTaskMutation.mutateAsync({
           taskId,
           notes: notes || undefined,
           signatureUri: signatureUri || undefined,
-          paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+          paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
           paymentMethod: paymentMethod || undefined,
         });
       }
       setPhase("completed");
-    } catch (e) {
-      Alert.alert("Error", "Could not complete task. Please try again.");
-    }
-  }, [taskId, isDemo, notes, signatureUri, paymentAmount, paymentMethod]);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch { Alert.alert("Error", "Could not complete task."); }
+  }, [taskId, isDemo, notes, signatureUri, totalBill, paymentMethod]);
 
-  const handleSaveNotes = useCallback(async () => {
+  const handleFail = useCallback(() => {
+    setShowFailModal(true);
+  }, []);
+
+  const confirmFail = useCallback(async () => {
+    if (!selectedFailReason) { Alert.alert("Select Reason", "Please select a reason for failing this task."); return; }
+    setShowFailModal(false);
+    try {
+      if (!isDemo) {
+        await saveNotesMutation.mutateAsync({
+          taskId,
+          notes: `FAILED: ${selectedFailReason}${notes ? `\n${notes}` : ""}`,
+        });
+      }
+      setPhase("failed");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch { Alert.alert("Error", "Could not mark task as failed."); }
+  }, [selectedFailReason, taskId, isDemo, notes]);
+
+  const handleSaveProgress = useCallback(async () => {
     if (!isDemo) {
       await saveNotesMutation.mutateAsync({
         taskId,
         notes: notes || undefined,
         photoUris: photos.length > 0 ? photos : undefined,
         signatureUri: signatureUri || undefined,
-        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
         paymentMethod: paymentMethod || undefined,
       });
     }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Saved", "Notes and photos saved successfully.");
-  }, [taskId, isDemo, notes, photos, signatureUri, paymentAmount, paymentMethod]);
+  }, [taskId, isDemo, notes, photos, signatureUri, totalBill, paymentMethod]);
 
-  // ── Render helpers ───────────────────────────────────────────────────────────
-  const statusColor = task ? STATUS_COLORS[task.status] ?? NVC_BLUE : NVC_BLUE;
-  const statusLabel = task ? STATUS_LABELS[task.status] ?? task.status : "";
-
-  const formatScheduled = (iso?: string) => {
-    if (!iso) return "ASAP";
-    const d = new Date(iso);
-    return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const callCustomer = () => {
+    if (task?.customerPhone) Linking.openURL(`tel:${task.customerPhone}`);
   };
 
+  const navigateToJob = () => {
+    if (task?.jobAddress) {
+      const encoded = encodeURIComponent(task.jobAddress);
+      const url = Platform.OS === "ios"
+        ? `maps://?q=${encoded}`
+        : `geo:0,0?q=${encoded}`;
+      Linking.openURL(url).catch(() => {
+        Linking.openURL(`https://maps.google.com/?q=${encoded}`);
+      });
+    }
+  };
+
+  const addPhoto = async () => {
+    if (Platform.OS === "web") { Alert.alert("Camera", "Photo capture is available on iOS and Android."); return; }
+    Alert.alert("Add Photo", "Choose source", [
+      {
+        text: "Camera", onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") { Alert.alert("Permission Required", "Camera access needed."); return; }
+          const r = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.75 });
+          if (!r.canceled && r.assets[0]) setPhotos((p) => [...p, r.assets[0].uri]);
+        },
+      },
+      {
+        text: "Photo Library", onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") { Alert.alert("Permission Required", "Library access needed."); return; }
+          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.75 });
+          if (!r.canceled && r.assets[0]) setPhotos((p) => [...p, r.assets[0].uri]);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  // ── Formatted time ───────────────────────────────────────────────────────────
+  const timeLabel = useMemo(() => {
+    if (!task?.scheduledAt) return "ASAP";
+    const d = new Date(task.scheduledAt);
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }, [task?.scheduledAt]);
+
+  const taskTypeLabel = task?.description
+    ? task.description.split(" ").slice(0, 3).join(" ")
+    : task?.orderRef ?? "Service Call";
+
+  const isFinished = phase === "completed" || phase === "failed";
+  const canWork = phase === "on_site";
+
+  // ── Loading / not found ──────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <ScreenContainer edges={["left", "right"]}>
-        <View style={styles.loadingContainer}>
+        <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={NVC_BLUE} />
-          <Text style={styles.loadingText}>Loading task...</Text>
+          <Text style={styles.centeredText}>Loading task...</Text>
         </View>
       </ScreenContainer>
     );
@@ -573,9 +673,9 @@ export default function AgentTaskScreen() {
   if (!task) {
     return (
       <ScreenContainer edges={["left", "right"]}>
-        <View style={styles.loadingContainer}>
+        <View style={styles.centeredContainer}>
           <IconSymbol name="exclamationmark.triangle.fill" size={40} color={NVC_ORANGE} />
-          <Text style={styles.loadingText}>Task not found</Text>
+          <Text style={styles.centeredText}>Task not found</Text>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backBtnText}>Go Back</Text>
           </Pressable>
@@ -585,313 +685,333 @@ export default function AgentTaskScreen() {
   }
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#F0F4FA]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#F5F6FA]">
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable
-          style={({ pressed }) => [styles.headerBack, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [styles.headerBackBtn, pressed && { opacity: 0.6 }] as ViewStyle[]}
           onPress={() => router.back()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <IconSymbol name="chevron.left" size={18} color="#fff" />
+          <IconSymbol name="chevron.left" size={18} color="#374151" />
         </Pressable>
+
         <View style={styles.headerCenter}>
-          <Text style={styles.headerRef}>{task.orderRef ?? `#${task.id}`}</Text>
-          <View style={[styles.headerStatusPill, { backgroundColor: statusColor + "30" }]}>
-            <View style={[styles.headerStatusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.headerStatusText, { color: statusColor }]}>{statusLabel}</Text>
+          <Text style={styles.headerTime}>{timeLabel} — {taskTypeLabel}</Text>
+          <View style={styles.headerStatusRow}>
+            <View style={[styles.headerStatusDot, { backgroundColor: phase === "completed" ? "#22C55E" : phase === "failed" ? "#EF4444" : phase === "on_site" ? "#F59E0B" : NVC_BLUE }]} />
+            <Text style={styles.headerStatusText}>
+              {phase === "pre_start" ? "Assigned" : phase === "en_route" ? "En Route" : phase === "on_site" ? "On Site" : phase === "completed" ? "Completed" : "Failed"}
+            </Text>
           </View>
         </View>
+
         <Pressable
-          style={({ pressed }) => [styles.headerAction, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [styles.headerMsgBtn, pressed && { opacity: 0.7 }] as ViewStyle[]}
           onPress={() => router.push(`/messages/${task.id}` as any)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <IconSymbol name="message.fill" size={18} color="#fff" />
+          <IconSymbol name="message.fill" size={17} color={NVC_BLUE} />
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={insets.top + 60}
-      >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: insets.bottom + 140 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      {/* ── Customer Info Row ── */}
+      <View style={styles.customerRow}>
+        <View style={styles.customerAvatar}>
+          <Text style={styles.customerAvatarText}>{task.customerName.charAt(0).toUpperCase()}</Text>
+        </View>
+        <View style={styles.customerInfo}>
+          <Text style={styles.customerName}>{task.customerName}</Text>
+          <Text style={styles.customerPhone}>{task.customerPhone || "No phone"}</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.actionCircle, styles.callCircle, pressed && { opacity: 0.8 }] as ViewStyle[]}
+          onPress={callCustomer}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
-          {/* ── Customer Card ── */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.cardIconBg, { backgroundColor: NVC_BLUE + "15" }]}>
-                <IconSymbol name="person.fill" size={16} color={NVC_BLUE} />
-              </View>
-              <Text style={styles.cardTitle}>Customer</Text>
-            </View>
-            <Text style={styles.customerName}>{task.customerName}</Text>
-            {task.customerPhone ? (
-              <View style={styles.infoRow}>
-                <IconSymbol name="phone.fill" size={13} color="#9CA3AF" />
-                <Text style={styles.infoText}>{task.customerPhone}</Text>
-              </View>
-            ) : null}
-            {task.customerEmail ? (
-              <View style={styles.infoRow}>
-                <IconSymbol name="envelope.fill" size={13} color="#9CA3AF" />
-                <Text style={styles.infoText}>{task.customerEmail}</Text>
-              </View>
-            ) : null}
-          </View>
+          <IconSymbol name="phone.fill" size={18} color="#fff" />
+        </Pressable>
+      </View>
 
-          {/* ── Job Details Card ── */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.cardIconBg, { backgroundColor: NVC_ORANGE + "15" }]}>
-                <IconSymbol name="briefcase.fill" size={16} color={NVC_ORANGE} />
-              </View>
-              <Text style={styles.cardTitle}>Job Details</Text>
-              <View style={[styles.priorityBadge, { backgroundColor: "#F59E0B20" }]}>
-                <Text style={styles.priorityText}>{task.priority.toUpperCase()}</Text>
-              </View>
-            </View>
-            <View style={styles.infoRow}>
-              <IconSymbol name="location.fill" size={13} color="#9CA3AF" />
-              <Text style={styles.infoTextBold}>{task.jobAddress}</Text>
-            </View>
-            {task.description ? (
-              <Text style={styles.descriptionText}>{task.description}</Text>
-            ) : null}
-            <View style={styles.infoRow}>
-              <IconSymbol name="clock.fill" size={13} color="#9CA3AF" />
-              <Text style={styles.infoText}>Scheduled: {formatScheduled(task.scheduledAt)}</Text>
-            </View>
-          </View>
+      {/* ── Address Row ── */}
+      <Pressable
+        style={({ pressed }) => [styles.addressRow, pressed && { backgroundColor: "#EEF2FF" }] as ViewStyle[]}
+        onPress={navigateToJob}
+      >
+        <View style={styles.addressIconWrap}>
+          <IconSymbol name="location.fill" size={14} color="#6366F1" />
+        </View>
+        <Text style={styles.addressText} numberOfLines={2}>{task.jobAddress}</Text>
+        <View style={[styles.actionCircle, styles.navCircle]}>
+          <IconSymbol name="arrow.up.right.square.fill" size={18} color="#fff" />
+        </View>
+      </Pressable>
 
-          {/* ── En Route Status Card ── */}
-          {phase === "en_route" && (
-            <View style={[styles.card, styles.enRouteCard]}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIconBg, { backgroundColor: "#8B5CF615" }]}>
-                  <IconSymbol name="car.fill" size={16} color="#8B5CF6" />
-                </View>
-                <Text style={[styles.cardTitle, { color: "#8B5CF6" }]}>En Route</Text>
-                {locationStatus === "tracking" && (
-                  <View style={styles.trackingBadge}>
-                    <View style={styles.trackingDot} />
-                    <Text style={styles.trackingText}>GPS Active</Text>
-                  </View>
-                )}
-              </View>
+      {/* ── Milestone Bar ── */}
+      <View style={styles.milestoneWrap}>
+        <MilestoneBar phase={phase} />
+      </View>
 
-              {distanceToJob !== null ? (
-                <View style={styles.distanceRow}>
-                  <Text style={styles.distanceValue}>{distanceToJob}m</Text>
-                  <Text style={styles.distanceLabel}>from job site</Text>
-                  {distanceToJob <= 50 && (
-                    <View style={styles.nearBadge}>
-                      <Text style={styles.nearBadgeText}>Almost there!</Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <Text style={styles.distanceLoading}>Calculating distance...</Text>
-              )}
-
-              <Pressable
-                style={({ pressed }) => [styles.manualArriveBtn, pressed && { opacity: 0.8 }]}
-                onPress={handleManualArrive}
-              >
-                <IconSymbol name="mappin.and.ellipse" size={15} color="#8B5CF6" />
-                <Text style={styles.manualArriveBtnText}>I've Arrived (Manual)</Text>
-              </Pressable>
-            </View>
+      {/* ── En Route GPS Banner ── */}
+      {phase === "en_route" && (
+        <View style={styles.gpsBanner}>
+          <View style={styles.gpsDot} />
+          <Text style={styles.gpsText}>
+            {distanceToJob !== null ? `${distanceToJob}m from job site` : "Calculating distance..."}
+          </Text>
+          {distanceToJob !== null && distanceToJob <= 50 && (
+            <View style={styles.nearBadge}><Text style={styles.nearBadgeText}>Almost there!</Text></View>
           )}
+          <Pressable
+            style={({ pressed }) => [styles.manualArriveBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
+            onPress={() => handleArrive()}
+          >
+            <Text style={styles.manualArriveBtnText}>I've Arrived</Text>
+          </Pressable>
+        </View>
+      )}
 
-          {/* ── On-Site Work Section ── */}
-          {(phase === "on_site" || phase === "completed") && (
-            <>
-              {/* Notes */}
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIconBg, { backgroundColor: "#22C55E15" }]}>
-                    <IconSymbol name="pencil" size={16} color="#22C55E" />
-                  </View>
-                  <Text style={styles.cardTitle}>Field Notes</Text>
-                  <Text style={styles.optionalLabel}>optional</Text>
-                </View>
-                <TextInput
-                  style={styles.notesInput}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Add notes about the job, materials used, issues found..."
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  returnKeyType="done"
-                  editable={phase !== "completed"}
-                />
+      {/* ── Main Content ── */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 130 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Task description */}
+        {task.description ? (
+          <View style={styles.descriptionCard}>
+            <IconSymbol name="info.circle.fill" size={14} color="#6B7280" />
+            <Text style={styles.descriptionText}>{task.description}</Text>
+          </View>
+        ) : null}
+
+        {/* ── NOTES Section ── */}
+        <ExpandableSection
+          title="NOTES"
+          badge={notes.length > 0 ? 1 : undefined}
+          defaultOpen={canWork || isFinished}
+        >
+          <TextInput
+            style={styles.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add job notes, materials used, issues found..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            returnKeyType="done"
+            editable={!isFinished}
+          />
+          {!isFinished && (
+            <Pressable
+              style={({ pressed }) => [styles.saveProgressBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
+              onPress={handleSaveProgress}
+            >
+              {saveNotesMutation.isPending ? (
+                <ActivityIndicator size="small" color={NVC_BLUE} />
+              ) : (
+                <Text style={styles.saveProgressText}>Save Progress</Text>
+              )}
+            </Pressable>
+          )}
+        </ExpandableSection>
+
+        {/* ── SIGNATURE Section ── */}
+        <ExpandableSection
+          title="SIGNATURE"
+          badge={signatureUri ? "✓" : undefined}
+          defaultOpen={false}
+        >
+          {!isFinished ? (
+            signatureUri ? (
+              <View style={sigStyles.capturedRow}>
+                <IconSymbol name="checkmark.circle.fill" size={22} color="#22C55E" />
+                <Text style={sigStyles.capturedText}>Client signature captured</Text>
+                <Pressable style={sigStyles.resignBtn} onPress={() => setSignatureUri(null)}>
+                  <Text style={sigStyles.resignText}>Re-sign</Text>
+                </Pressable>
               </View>
+            ) : (
+              <SignatureCanvas onSave={setSignatureUri} />
+            )
+          ) : (
+            <Text style={styles.finishedFieldText}>
+              {signatureUri ? "✓ Signature captured" : "No signature recorded"}
+            </Text>
+          )}
+        </ExpandableSection>
 
-              {/* Photos */}
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIconBg, { backgroundColor: "#3B82F615" }]}>
-                    <IconSymbol name="camera.fill" size={16} color="#3B82F6" />
-                  </View>
-                  <Text style={styles.cardTitle}>Job Photos</Text>
-                  <Text style={styles.optionalLabel}>{photos.length} added</Text>
-                </View>
-                {phase !== "completed" ? (
-                  <PhotoGrid
-                    photos={photos}
-                    onAdd={(uri) => setPhotos((p) => [...p, uri])}
-                    onRemove={(uri) => setPhotos((p) => p.filter((x) => x !== uri))}
-                  />
-                ) : (
-                  <Text style={styles.completedFieldText}>
-                    {photos.length > 0 ? `${photos.length} photo(s) attached` : "No photos attached"}
-                  </Text>
+        {/* ── IMAGES Section ── */}
+        <ExpandableSection
+          title="IMAGES"
+          badge={photos.length > 0 ? photos.length : undefined}
+          defaultOpen={false}
+        >
+          <View style={styles.photoGrid}>
+            {photos.map((uri, i) => (
+              <View key={uri + i} style={styles.photoThumbWrap}>
+                <Image source={{ uri }} style={styles.photoThumb as any} />
+                {!isFinished && (
+                  <Pressable
+                    style={styles.photoRemoveBtn}
+                    onPress={() => setPhotos((p) => p.filter((_, idx) => idx !== i))}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <IconSymbol name="xmark" size={9} color="#fff" />
+                  </Pressable>
                 )}
               </View>
+            ))}
+            {!isFinished && (
+              <Pressable
+                style={({ pressed }) => [styles.photoAddBtn, pressed && { opacity: 0.7 }] as ViewStyle[]}
+                onPress={addPhoto}
+              >
+                <IconSymbol name="camera.fill" size={20} color={NVC_BLUE} />
+                <Text style={styles.photoAddText}>Add Photo</Text>
+              </Pressable>
+            )}
+          </View>
+        </ExpandableSection>
 
-              {/* Signature */}
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIconBg, { backgroundColor: "#F59E0B15" }]}>
-                    <IconSymbol name="signature" size={16} color="#F59E0B" />
-                  </View>
-                  <Text style={styles.cardTitle}>Client Signature</Text>
-                  {signatureUri && (
-                    <View style={styles.capturedBadge}>
-                      <IconSymbol name="checkmark" size={10} color="#22C55E" />
-                      <Text style={styles.capturedBadgeText}>Captured</Text>
-                    </View>
-                  )}
-                </View>
-                {phase !== "completed" ? (
-                  signatureUri ? (
-                    <View style={styles.signatureCapture}>
-                      <IconSymbol name="checkmark.circle.fill" size={20} color="#22C55E" />
-                      <Text style={styles.signatureCapturedText}>Signature captured</Text>
-                      <Pressable
-                        style={styles.resignBtn}
-                        onPress={() => setSignatureUri(null)}
-                      >
-                        <Text style={styles.resignBtnText}>Re-sign</Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <SignaturePad onSave={setSignatureUri} />
-                  )
-                ) : (
-                  <Text style={styles.completedFieldText}>
-                    {signatureUri ? "Signature captured" : "No signature"}
-                  </Text>
-                )}
-              </View>
-
-              {/* Payment */}
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIconBg, { backgroundColor: "#10B98115" }]}>
-                    <IconSymbol name="creditcard.fill" size={16} color="#10B981" />
-                  </View>
-                  <Text style={styles.cardTitle}>Payment</Text>
-                  <Text style={styles.optionalLabel}>optional</Text>
-                </View>
-                {phase !== "completed" ? (
-                  <PaymentSection
-                    amount={paymentAmount}
-                    method={paymentMethod}
-                    onAmountChange={setPaymentAmount}
-                    onMethodChange={setPaymentMethod}
-                  />
-                ) : (
-                  <Text style={styles.completedFieldText}>
-                    {paymentAmount ? `$${paymentAmount} via ${paymentMethod}` : "No payment recorded"}
-                  </Text>
-                )}
-              </View>
-
-              {/* Save Notes Button (only in on_site phase) */}
-              {phase === "on_site" && (
+        {/* ── TOTAL BILL Section ── */}
+        <ExpandableSection
+          title="TOTAL BILL"
+          badge={totalBill ? `$${totalBill}` : undefined}
+          defaultOpen={canWork || isFinished}
+        >
+          <View style={styles.billSection}>
+            <View style={styles.billAmountRow}>
+              <Text style={styles.billCurrency}>$</Text>
+              <TextInput
+                style={styles.billAmountInput}
+                value={totalBill}
+                onChangeText={setTotalBill}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                returnKeyType="done"
+                editable={!isFinished}
+              />
+              {!isFinished && (
                 <Pressable
-                  style={({ pressed }) => [styles.saveNotesBtn, pressed && { opacity: 0.8 }]}
-                  onPress={handleSaveNotes}
+                  style={styles.billEditIcon}
+                  onPress={() => {}}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  {saveNotesMutation.isPending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <IconSymbol name="square.and.arrow.down.fill" size={15} color="#fff" />
-                      <Text style={styles.saveNotesBtnText}>Save Progress</Text>
-                    </>
-                  )}
+                  <IconSymbol name="pencil" size={14} color={NVC_BLUE} />
                 </Pressable>
               )}
-            </>
-          )}
-
-          {/* ── Completed Banner ── */}
-          {phase === "completed" && (
-            <View style={styles.completedBanner}>
-              <IconSymbol name="checkmark.circle.fill" size={40} color="#22C55E" />
-              <Text style={styles.completedTitle}>Job Complete!</Text>
-              <Text style={styles.completedSubtitle}>
-                This work order has been marked as completed.
-              </Text>
-              <Pressable
-                style={({ pressed }) => [styles.viewSummaryBtn, pressed && { opacity: 0.8 }]}
-                onPress={() => router.push(`/task/${task.id}` as any)}
-              >
-                <Text style={styles.viewSummaryBtnText}>View Summary</Text>
-              </Pressable>
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+            {/* Payment method chips */}
+            {!isFinished && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.methodScroll}>
+                {["Cash", "Card", "E-Transfer", "Invoice", "Paid Online"].map((m) => (
+                  <Pressable
+                    key={m}
+                    style={[styles.methodChip, paymentMethod === m && styles.methodChipActive]}
+                    onPress={() => setPaymentMethod(m)}
+                  >
+                    <Text style={[styles.methodChipText, paymentMethod === m && styles.methodChipTextActive]}>{m}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+            {isFinished && totalBill && (
+              <Text style={styles.finishedFieldText}>Paid via {paymentMethod}</Text>
+            )}
+          </View>
+        </ExpandableSection>
+
+        {/* Completed / Failed banner */}
+        {phase === "completed" && (
+          <View style={styles.completedBanner}>
+            <IconSymbol name="checkmark.circle.fill" size={36} color="#22C55E" />
+            <Text style={styles.completedTitle}>Job Completed Successfully</Text>
+            <Text style={styles.completedSubtitle}>This work order has been marked as complete.</Text>
+          </View>
+        )}
+        {phase === "failed" && (
+          <View style={[styles.completedBanner, { borderColor: "#EF444430" }]}>
+            <IconSymbol name="xmark.circle.fill" size={36} color="#EF4444" />
+            <Text style={[styles.completedTitle, { color: "#EF4444" }]}>Job Marked as Failed</Text>
+            {selectedFailReason ? <Text style={styles.completedSubtitle}>Reason: {selectedFailReason}</Text> : null}
+          </View>
+        )}
+      </ScrollView>
 
       {/* ── Bottom Action Bar ── */}
-      {phase !== "completed" && (
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+      {!isFinished && (
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
           {phase === "pre_start" && (
-            <SwipeBar
-              label="Swipe to Start Job"
-              sublabel="SMS will be sent to customer"
-              color="#8B5CF6"
-              icon="arrow.right"
-              onComplete={handleSwipeStart}
-              loading={startTaskMutation.isPending}
-            />
+            <SwipeStartBar onComplete={handleStart} loading={startTaskMutation.isPending} />
           )}
-          {phase === "en_route" && (
-            <SwipeBar
-              label="Swipe when Arrived"
-              sublabel="Marks you as on-site"
-              color="#F59E0B"
-              icon="mappin.and.ellipse"
-              onComplete={handleManualArrive}
-              loading={arriveTaskMutation.isPending}
-            />
-          )}
-          {phase === "on_site" && (
-            <SwipeBar
-              label="Swipe to Complete Job"
-              sublabel="Notifies dispatcher"
-              color="#22C55E"
-              icon="checkmark"
-              onComplete={handleSwipeComplete}
-              loading={completeTaskMutation.isPending}
+          {(phase === "en_route" || phase === "on_site") && (
+            <OutcomeToggleBar
+              onFail={handleFail}
+              onSuccess={phase === "on_site" ? handleSuccess : () => handleArrive()}
+              loadingFail={false}
+              loadingSuccess={completeTaskMutation.isPending || arriveTaskMutation.isPending}
             />
           )}
         </View>
       )}
+
+      {/* ── Fail Reason Modal ── */}
+      <Modal
+        visible={showFailModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFailModal(false)}
+      >
+        <View style={modalStyles.overlay}>
+          <View style={modalStyles.sheet}>
+            <View style={modalStyles.handle} />
+            <Text style={modalStyles.title}>Select Fail Reason</Text>
+            <Text style={modalStyles.subtitle}>Choose the reason for marking this task as failed</Text>
+            <ScrollView style={modalStyles.reasonList} showsVerticalScrollIndicator={false}>
+              {FAIL_REASONS.map((reason) => (
+                <Pressable
+                  key={reason}
+                  style={[
+                    modalStyles.reasonRow,
+                    selectedFailReason === reason && modalStyles.reasonRowSelected,
+                  ]}
+                  onPress={() => setSelectedFailReason(reason)}
+                >
+                  <View style={[
+                    modalStyles.radioOuter,
+                    selectedFailReason === reason && modalStyles.radioOuterSelected,
+                  ]}>
+                    {selectedFailReason === reason && <View style={modalStyles.radioInner} />}
+                  </View>
+                  <Text style={[
+                    modalStyles.reasonText,
+                    selectedFailReason === reason && modalStyles.reasonTextSelected,
+                  ]}>{reason}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <View style={modalStyles.btnRow}>
+              <Pressable
+                style={({ pressed }) => [modalStyles.cancelBtn, pressed && { opacity: 0.7 }] as ViewStyle[]}
+                onPress={() => setShowFailModal(false)}
+              >
+                <Text style={modalStyles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [modalStyles.confirmBtn, pressed && { opacity: 0.85 }] as ViewStyle[]}
+                onPress={confirmFail}
+              >
+                <Text style={modalStyles.confirmBtnText}>Confirm Failed</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -899,222 +1019,148 @@ export default function AgentTaskScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  centeredContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 } as ViewStyle,
+  centeredText: { fontSize: 15, color: "#6B7280" } as TextStyle,
+  backBtn: { backgroundColor: NVC_BLUE, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 } as ViewStyle,
+  backBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" } as TextStyle,
+
   // Header
   header: {
-    backgroundColor: NVC_BLUE,
+    backgroundColor: "#fff",
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  } as ViewStyle,
+  headerBackBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  } as ViewStyle,
+  headerCenter: { flex: 1, alignItems: "center", gap: 3 } as ViewStyle,
+  headerTime: { fontSize: 13, fontWeight: "700", color: "#1F2937" } as TextStyle,
+  headerStatusRow: { flexDirection: "row", alignItems: "center", gap: 5 } as ViewStyle,
+  headerStatusDot: { width: 7, height: 7, borderRadius: 3.5 } as ViewStyle,
+  headerStatusText: { fontSize: 11, color: "#6B7280", fontWeight: "600" } as TextStyle,
+  headerMsgBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: NVC_BLUE + "12",
+    alignItems: "center",
+    justifyContent: "center",
+  } as ViewStyle,
+
+  // Customer row
+  customerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     paddingHorizontal: 16,
-    paddingBottom: 14,
-    flexDirection: "row",
-    alignItems: "center",
+    paddingVertical: 12,
     gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   } as ViewStyle,
-  headerBack: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
+  customerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: NVC_BLUE,
     alignItems: "center",
     justifyContent: "center",
   } as ViewStyle,
-  headerCenter: {
-    flex: 1,
+  customerAvatarText: { fontSize: 16, fontWeight: "800", color: "#fff" } as TextStyle,
+  customerInfo: { flex: 1 } as ViewStyle,
+  customerName: { fontSize: 16, fontWeight: "700", color: "#111827" } as TextStyle,
+  customerPhone: { fontSize: 12, color: "#9CA3AF", marginTop: 1 } as TextStyle,
+  actionCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
   } as ViewStyle,
-  headerRef: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 0.3,
-  } as TextStyle,
-  headerStatusPill: {
+  callCircle: { backgroundColor: "#22C55E" } as ViewStyle,
+  navCircle: { backgroundColor: "#6366F1" } as ViewStyle,
+
+  // Address row
+  addressRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   } as ViewStyle,
-  headerStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  } as ViewStyle,
-  headerStatusText: {
-    fontSize: 11,
-    fontWeight: "600",
-  } as TextStyle,
-  headerAction: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
+  addressIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#EEF2FF",
     alignItems: "center",
     justifyContent: "center",
   } as ViewStyle,
+  addressText: { flex: 1, fontSize: 13, color: "#374151", fontWeight: "500" } as TextStyle,
+
+  // Milestone
+  milestoneWrap: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  } as ViewStyle,
+
+  // GPS banner
+  gpsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#8B5CF608",
+    borderBottomWidth: 1,
+    borderBottomColor: "#8B5CF620",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  } as ViewStyle,
+  gpsDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22C55E" } as ViewStyle,
+  gpsText: { flex: 1, fontSize: 12, color: "#6B7280", fontWeight: "500" } as TextStyle,
+  nearBadge: { backgroundColor: "#22C55E15", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 } as ViewStyle,
+  nearBadgeText: { fontSize: 10, color: "#22C55E", fontWeight: "700" } as TextStyle,
+  manualArriveBtn: {
+    backgroundColor: "#8B5CF6",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  } as ViewStyle,
+  manualArriveBtnText: { fontSize: 11, fontWeight: "700", color: "#fff" } as TextStyle,
 
   // Scroll
   scroll: { flex: 1 },
-  scrollContent: {
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
+  scrollContent: { paddingTop: 8, gap: 1 },
 
-  // Cards
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-    gap: 10,
-  } as ViewStyle,
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  } as ViewStyle,
-  cardIconBg: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  } as ViewStyle,
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1F2937",
-    flex: 1,
-  } as TextStyle,
-
-  // Customer
-  customerName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  } as TextStyle,
-  infoRow: {
+  // Description card
+  descriptionCard: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 6,
-  } as ViewStyle,
-  infoText: {
-    fontSize: 13,
-    color: "#6B7280",
-    flex: 1,
-  } as TextStyle,
-  infoTextBold: {
-    fontSize: 13,
-    color: "#374151",
-    fontWeight: "500",
-    flex: 1,
-  } as TextStyle,
-  descriptionText: {
-    fontSize: 13,
-    color: "#6B7280",
-    lineHeight: 19,
-    backgroundColor: "#F9FAFB",
-    padding: 10,
-    borderRadius: 8,
-  } as TextStyle,
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  } as ViewStyle,
-  priorityText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#F59E0B",
-    letterSpacing: 0.5,
-  } as TextStyle,
-
-  // En Route
-  enRouteCard: {
-    borderWidth: 1.5,
-    borderColor: "#8B5CF640",
-    backgroundColor: "#8B5CF608",
-  } as ViewStyle,
-  trackingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#22C55E15",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  } as ViewStyle,
-  trackingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#22C55E",
-  } as ViewStyle,
-  trackingText: {
-    fontSize: 11,
-    color: "#22C55E",
-    fontWeight: "600",
-  } as TextStyle,
-  distanceRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
-    paddingVertical: 4,
-  } as ViewStyle,
-  distanceValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#8B5CF6",
-  } as TextStyle,
-  distanceLabel: {
-    fontSize: 13,
-    color: "#6B7280",
-  } as TextStyle,
-  distanceLoading: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-  } as TextStyle,
-  nearBadge: {
-    backgroundColor: "#22C55E15",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  } as ViewStyle,
-  nearBadgeText: {
-    fontSize: 11,
-    color: "#22C55E",
-    fontWeight: "600",
-  } as TextStyle,
-  manualArriveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#8B5CF615",
-    borderWidth: 1,
-    borderColor: "#8B5CF640",
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    backgroundColor: "#FFF7ED",
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    alignSelf: "flex-start",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FED7AA",
   } as ViewStyle,
-  manualArriveBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#8B5CF6",
-  } as TextStyle,
+  descriptionText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 18 } as TextStyle,
 
   // Notes
-  optionalLabel: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-  } as TextStyle,
   notesInput: {
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
@@ -1126,319 +1172,269 @@ const styles = StyleSheet.create({
     minHeight: 100,
     lineHeight: 20,
   } as TextStyle,
+  saveProgressBtn: {
+    alignSelf: "flex-end",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: NVC_BLUE + "15",
+    borderRadius: 8,
+    marginTop: 6,
+  } as ViewStyle,
+  saveProgressText: { fontSize: 12, fontWeight: "700", color: NVC_BLUE } as TextStyle,
 
   // Photos
-  photoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  } as ViewStyle,
-  photoThumbWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 8,
-    overflow: "hidden",
-    position: "relative",
-  } as ViewStyle,
-  photoThumb: {
-    width: 72,
-    height: 72,
-    borderRadius: 8,
-  } as any,
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 } as ViewStyle,
+  photoThumbWrap: { width: 76, height: 76, borderRadius: 10, overflow: "hidden", position: "relative" } as ViewStyle,
+  photoThumb: { width: 76, height: 76 },
   photoRemoveBtn: {
-    position: "absolute",
-    top: 3,
-    right: 3,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    position: "absolute", top: 3, right: 3,
+    width: 18, height: 18, borderRadius: 9,
     backgroundColor: "rgba(0,0,0,0.6)",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   } as ViewStyle,
   photoAddBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: NVC_BLUE + "40",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    backgroundColor: NVC_BLUE + "08",
+    width: 76, height: 76, borderRadius: 10,
+    borderWidth: 1.5, borderColor: NVC_BLUE + "40", borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center", gap: 4,
+    backgroundColor: NVC_BLUE + "06",
   } as ViewStyle,
-  photoAddText: {
-    fontSize: 10,
-    color: NVC_BLUE,
-    fontWeight: "600",
-    textAlign: "center",
-  } as TextStyle,
+  photoAddText: { fontSize: 10, color: NVC_BLUE, fontWeight: "600", textAlign: "center" } as TextStyle,
 
-  // Signature
-  signaturePad: {
-    gap: 10,
+  // Bill
+  billSection: { gap: 10 } as ViewStyle,
+  billAmountRow: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB",
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, gap: 4,
   } as ViewStyle,
-  signaturePadHint: {
-    fontSize: 12,
-    color: "#9CA3AF",
-  } as TextStyle,
-  signatureCanvas: {
-    height: 100,
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+  billCurrency: { fontSize: 22, fontWeight: "700", color: "#374151" } as TextStyle,
+  billAmountInput: { flex: 1, fontSize: 26, fontWeight: "700", color: "#111827" } as TextStyle,
+  billEditIcon: { padding: 4 } as ViewStyle,
+  methodScroll: { flexGrow: 0 },
+  methodChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: "#F3F4F6", marginRight: 6,
+    borderWidth: 1, borderColor: "#E5E7EB",
   } as ViewStyle,
-  signatureCanvasPlaceholder: {
-    fontSize: 13,
-    color: "#D1D5DB",
-    fontStyle: "italic",
-  } as TextStyle,
-  signatureCaptureBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#F59E0B",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    alignSelf: "flex-start",
-  } as ViewStyle,
-  signatureCaptureBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#fff",
-  } as TextStyle,
-  signatureCapture: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  } as ViewStyle,
-  signatureCapturedText: {
-    fontSize: 13,
-    color: "#22C55E",
-    fontWeight: "600",
-    flex: 1,
-  } as TextStyle,
-  resignBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: "#F3F4F6",
-  } as ViewStyle,
-  resignBtnText: {
-    fontSize: 12,
-    color: "#6B7280",
-  } as TextStyle,
-  capturedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#22C55E15",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
-  } as ViewStyle,
-  capturedBadgeText: {
-    fontSize: 10,
-    color: "#22C55E",
-    fontWeight: "600",
-  } as TextStyle,
+  methodChipActive: { backgroundColor: "#10B98115", borderColor: "#10B98140" } as ViewStyle,
+  methodChipText: { fontSize: 12, color: "#6B7280", fontWeight: "500" } as TextStyle,
+  methodChipTextActive: { color: "#10B981", fontWeight: "700" } as TextStyle,
 
-  // Payment
-  paymentSection: {
-    gap: 10,
-  } as ViewStyle,
-  paymentAmountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 4,
-  } as ViewStyle,
-  paymentCurrencySymbol: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#374151",
-  } as TextStyle,
-  paymentAmountInput: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-  } as TextStyle,
-  paymentMethods: {
-    flexGrow: 0,
-  },
-  paymentMethodChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: "#F3F4F6",
-    marginRight: 6,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  } as ViewStyle,
-  paymentMethodChipActive: {
-    backgroundColor: "#10B98115",
-    borderColor: "#10B98140",
-  } as ViewStyle,
-  paymentMethodText: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-  } as TextStyle,
-  paymentMethodTextActive: {
-    color: "#10B981",
-    fontWeight: "700",
-  } as TextStyle,
+  // Finished field
+  finishedFieldText: { fontSize: 13, color: "#9CA3AF", fontStyle: "italic" } as TextStyle,
 
-  // Save Notes
-  saveNotesBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: NVC_BLUE,
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginTop: 4,
-  } as ViewStyle,
-  saveNotesBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fff",
-  } as TextStyle,
-
-  // Completed
+  // Completed / failed banners
   completedBanner: {
+    margin: 16,
     backgroundColor: "#fff",
     borderRadius: 14,
     padding: 24,
     alignItems: "center",
-    gap: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    gap: 8,
     borderWidth: 2,
     borderColor: "#22C55E30",
   } as ViewStyle,
-  completedTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-  } as TextStyle,
-  completedSubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-  } as TextStyle,
-  completedFieldText: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-  } as TextStyle,
-  viewSummaryBtn: {
-    backgroundColor: NVC_BLUE,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 6,
-  } as ViewStyle,
-  viewSummaryBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fff",
-  } as TextStyle,
+  completedTitle: { fontSize: 18, fontWeight: "800", color: "#111827" } as TextStyle,
+  completedSubtitle: { fontSize: 13, color: "#6B7280", textAlign: "center" } as TextStyle,
 
-  // Bottom Swipe Bar
+  // Bottom bar
   bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    backgroundColor: "#F0F4FA",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 20, paddingTop: 12,
+    backgroundColor: "#fff",
+    borderTopWidth: 1, borderTopColor: "#F3F4F6",
+    shadowColor: "#000", shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
   } as ViewStyle,
+});
 
-  // Swipe Track
-  swipeTrack: {
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    overflow: "hidden",
-    justifyContent: "center",
-    alignItems: "center",
+// Swipe bar styles
+const swipeStyles = StyleSheet.create({
+  track: {
+    height: 62, borderRadius: 31,
+    backgroundColor: "#8B5CF610",
+    borderWidth: 1.5, borderColor: "#8B5CF630",
+    overflow: "hidden", justifyContent: "center", alignItems: "center",
     position: "relative",
   } as ViewStyle,
-  swipeLabelWrap: {
-    position: "absolute",
-    alignItems: "center",
-    gap: 2,
+  labelWrap: { position: "absolute", alignItems: "center", gap: 2 } as ViewStyle,
+  label: { fontSize: 15, fontWeight: "700", color: "#8B5CF6", letterSpacing: 0.2 } as TextStyle,
+  sublabel: { fontSize: 10, color: "#8B5CF680", fontWeight: "500" } as TextStyle,
+  thumb: {
+    position: "absolute", left: 4,
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#8B5CF6", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   } as ViewStyle,
-  swipeLabel: {
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  } as TextStyle,
-  swipeSublabel: {
-    fontSize: 11,
-    fontWeight: "500",
-  } as TextStyle,
-  swipeThumb: {
-    position: "absolute",
-    left: 4,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  } as ViewStyle,
-  swipeChevrons: {
-    position: "absolute",
-    right: 16,
+  chevrons: { position: "absolute", right: 14, flexDirection: "row", alignItems: "center" } as ViewStyle,
+});
+
+// Outcome toggle styles
+const outcomeStyles = StyleSheet.create({
+  bar: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+    height: 56,
   } as ViewStyle,
+  failBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 7, paddingVertical: 12,
+    backgroundColor: "#FEF2F2",
+  } as ViewStyle,
+  failDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444" } as ViewStyle,
+  failText: { fontSize: 15, fontWeight: "700", color: "#EF4444" } as TextStyle,
+  togglePill: {
+    width: 44, height: 24, borderRadius: 12,
+    backgroundColor: "#E5E7EB",
+    alignItems: "center", justifyContent: "center",
+    marginHorizontal: 4,
+  } as ViewStyle,
+  toggleKnob: {
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: "#fff",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15, shadowRadius: 2, elevation: 2,
+  } as ViewStyle,
+  successBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 7, paddingVertical: 12,
+    backgroundColor: "#F0FDF4",
+  } as ViewStyle,
+  successText: { fontSize: 15, fontWeight: "700", color: "#22C55E" } as TextStyle,
+  successDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22C55E" } as ViewStyle,
+});
 
-  // Loading
-  loadingContainer: {
-    flex: 1,
+// Section styles
+const sectionStyles = StyleSheet.create({
+  container: {
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  } as ViewStyle,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 8,
+  } as ViewStyle,
+  title: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  } as TextStyle,
+  badge: {
+    backgroundColor: NVC_BLUE + "15",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  } as ViewStyle,
+  badgeText: { fontSize: 11, fontWeight: "700", color: NVC_BLUE } as TextStyle,
+  body: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 4,
+  } as ViewStyle,
+});
+
+// Signature styles
+const sigStyles = StyleSheet.create({
+  wrapper: { gap: 10 } as ViewStyle,
+  hint: { fontSize: 12, color: "#9CA3AF" } as TextStyle,
+  canvas: {
+    height: 120,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
   } as ViewStyle,
-  loadingText: {
-    fontSize: 15,
-    color: "#6B7280",
-  } as TextStyle,
-  backBtn: {
-    backgroundColor: NVC_BLUE,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 8,
+  placeholder: { fontSize: 13, color: "#D1D5DB", fontStyle: "italic" } as TextStyle,
+  pathsContainer: { alignItems: "center", justifyContent: "center", flex: 1 } as ViewStyle,
+  drawingIndicator: { fontSize: 12, color: "#9CA3AF" } as TextStyle,
+  btnRow: { flexDirection: "row", gap: 10, justifyContent: "flex-end" } as ViewStyle,
+  clearBtn: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 8, backgroundColor: "#F3F4F6",
   } as ViewStyle,
-  backBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fff",
-  } as TextStyle,
+  clearText: { fontSize: 13, color: "#6B7280", fontWeight: "600" } as TextStyle,
+  saveBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 8, backgroundColor: "#F59E0B",
+  } as ViewStyle,
+  saveBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" } as TextStyle,
+  capturedRow: { flexDirection: "row", alignItems: "center", gap: 8 } as ViewStyle,
+  capturedText: { flex: 1, fontSize: 13, color: "#22C55E", fontWeight: "600" } as TextStyle,
+  resignBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "#F3F4F6" } as ViewStyle,
+  resignText: { fontSize: 12, color: "#6B7280" } as TextStyle,
+});
+
+// Milestone styles
+const milestoneStyles = StyleSheet.create({
+  container: { flexDirection: "row", alignItems: "center" } as ViewStyle,
+  step: { alignItems: "center", gap: 4 } as ViewStyle,
+  dot: {
+    width: 22, height: 22, borderRadius: 11,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2,
+  } as ViewStyle,
+  label: { fontSize: 10, fontWeight: "600", textAlign: "center" } as TextStyle,
+  line: { flex: 1, height: 2, marginBottom: 14 } as ViewStyle,
+});
+
+// Modal styles
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  } as ViewStyle,
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 12, paddingHorizontal: 20, paddingBottom: 32,
+    maxHeight: "75%",
+  } as ViewStyle,
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: "#E5E7EB", alignSelf: "center", marginBottom: 16,
+  } as ViewStyle,
+  title: { fontSize: 18, fontWeight: "800", color: "#111827", marginBottom: 4 } as TextStyle,
+  subtitle: { fontSize: 13, color: "#6B7280", marginBottom: 16 } as TextStyle,
+  reasonList: { maxHeight: 320 },
+  reasonRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+  } as ViewStyle,
+  reasonRowSelected: { backgroundColor: "#FEF2F2" } as ViewStyle,
+  radioOuter: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 2, borderColor: "#D1D5DB",
+    alignItems: "center", justifyContent: "center",
+  } as ViewStyle,
+  radioOuterSelected: { borderColor: "#EF4444" } as ViewStyle,
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444" } as ViewStyle,
+  reasonText: { flex: 1, fontSize: 14, color: "#374151" } as TextStyle,
+  reasonTextSelected: { color: "#EF4444", fontWeight: "600" } as TextStyle,
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 20 } as ViewStyle,
+  cancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: "#F3F4F6", alignItems: "center",
+  } as ViewStyle,
+  cancelBtnText: { fontSize: 15, fontWeight: "700", color: "#6B7280" } as TextStyle,
+  confirmBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: "#EF4444", alignItems: "center",
+  } as ViewStyle,
+  confirmBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" } as TextStyle,
 });

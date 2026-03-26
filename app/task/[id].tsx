@@ -14,7 +14,7 @@ import {
   MOCK_TASKS, MOCK_TECHNICIANS, STATUS_COLORS, STATUS_LABELS,
   PRIORITY_COLORS, formatDuration, getETA, type Task, type TaskStatus,
 } from "@/lib/nvc-types";
-import { NativeMapView } from "@/components/native-map-view";
+// Map view removed from agent-facing task screen (fleet map is dispatcher-only)
 
 const STATUS_FLOW: TaskStatus[] = ["unassigned", "assigned", "en_route", "on_site", "completed"];
 
@@ -195,43 +195,29 @@ export default function TaskDetailScreen() {
           )}
         </View>
 
-        {/* Live Map */}
-        <View style={[styles.mapCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <NativeMapView
-            technicians={
-              technician
-                ? [{
-                    id: technician.id,
-                    name: technician.name,
-                    latitude: technician.latitude,
-                    longitude: technician.longitude,
-                    status: currentStatus === "en_route" ? "en_route" : currentStatus === "on_site" ? "on_job" : "available",
-                    transportType: "van",
-                  }]
-                : []
-            }
-            destination={{
-              lat: task.jobLatitude,
-              lng: task.jobLongitude,
-              label: task.jobAddress,
-            }}
-            center={{ lat: task.jobLatitude, lng: task.jobLongitude }}
-            zoom={14}
-            height={200}
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.trackingLinkBtn,
-              { borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
-            ]}
-            onPress={handleShareTracking}
-          >
-            <IconSymbol name="location.fill" size={14} color={colors.primary} />
-            <Text style={[styles.trackingLinkText, { color: colors.primary }]}>
-              Send Uber-Style Tracking to Customer
-            </Text>
-          </Pressable>
-        </View>
+        {/* Navigate to Job Address */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.navigateCard,
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={() => {
+            const encoded = encodeURIComponent(task.jobAddress);
+            const url = Platform.OS === "ios" ? `maps://?q=${encoded}` : `geo:0,0?q=${encoded}`;
+            Linking.openURL(url).catch(() => Linking.openURL(`https://maps.google.com/?q=${encoded}`));
+          }}
+        >
+          <View style={styles.navigateIconWrap}>
+            <IconSymbol name="location.fill" size={20} color="#6366F1" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.navigateLabel, { color: colors.muted }]}>Job Address</Text>
+            <Text style={[styles.navigateAddress, { color: colors.foreground }]} numberOfLines={2}>{task.jobAddress}</Text>
+          </View>
+          <View style={styles.navigateArrow}>
+            <IconSymbol name="arrow.up.right.square.fill" size={22} color="#6366F1" />
+          </View>
+        </Pressable>
 
         {/* Customer */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -475,41 +461,25 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   advanceBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  mapCard: {
+  // Navigate card (replaces fleet map)
+  navigateCard: {
+    flexDirection: "row",
+    alignItems: "center",
     margin: 16,
     marginTop: 8,
     borderRadius: 14,
     borderWidth: 1,
-    overflow: "hidden",
+    padding: 14,
+    gap: 12,
   },
-  mapPlaceholder: {
-    height: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  navigateIconWrap: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center", justifyContent: "center",
   },
-  mapLabel: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  mapTechBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  mapTechDot: { width: 8, height: 8, borderRadius: 4 },
-  mapTechName: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  mapEta: { color: "rgba(255,255,255,0.7)", fontSize: 12 },
-  mapNote: { color: "rgba(255,255,255,0.4)", fontSize: 11 },
-  trackingLinkBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    gap: 6,
-    borderTopWidth: 1,
-  },
+  navigateLabel: { fontSize: 11, fontWeight: "500", marginBottom: 2 },
+  navigateAddress: { fontSize: 14, fontWeight: "600", lineHeight: 18 },
+  navigateArrow: { paddingLeft: 4 },
   trackingLinkText: { fontSize: 13, fontWeight: "600" },
   infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   infoContent: { flex: 1 },

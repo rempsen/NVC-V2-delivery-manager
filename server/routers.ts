@@ -361,6 +361,7 @@ export const appRouter = router({
       .mutation(({ input }) => db.geoClockOut(input.taskId)),
 
     /** Agent swipes to start — set status=en_route, record startedAt, optionally send SMS */
+    // ── Twilio SMS helpers are imported lazily to avoid import errors when not configured
     startTask: protectedProcedure
       .input(z.object({
         taskId: z.number(),
@@ -382,7 +383,12 @@ export const appRouter = router({
           try {
             const trackUrl = jobHash ? `https://tookandeliv-ve29h94a.manus.space/track/${jobHash}` : "";
             const smsBody = `Hi ${customerName}, your technician is on the way for ${orderRef}. ${trackUrl ? `Track here: ${trackUrl}` : ""}`.trim();
-            // SMS sending is handled by Twilio integration if configured
+            // Fetch tenant Twilio credentials and send real SMS
+            const { resolveTwilioCredentials, sendSmsIfConfigured } = await import("./twilio.js");
+            const tenant = (task as any)?.tenantId ? await db.getTenantById((task as any).tenantId) : null;
+            const creds = resolveTwilioCredentials(tenant);
+            await sendSmsIfConfigured(customerPhone, smsBody, creds);
+            // Always log the SMS attempt in notifications table
             await db.createNotification({
               tenantId: (task as any)?.tenantId ?? 1,
               recipientUserId: 0,
@@ -392,11 +398,11 @@ export const appRouter = router({
               deepLink: `/task/${input.taskId}`,
               entityType: "task",
               entityId: input.taskId,
-              pushStatus: "sent",
+              pushStatus: creds ? "sent" : "pending",
               pushToken: null,
               sentAt: new Date(),
             } as any);
-          } catch { /* non-fatal */ }
+          } catch (err) { console.error("[startTask] SMS error:", err); /* non-fatal */ }
         }
         return { success: true, taskId: input.taskId, status: "en_route" };
       }),
@@ -414,26 +420,32 @@ export const appRouter = router({
           status: "on_site",
           geoClockIn: new Date(),
         } as any);
-        const customerPhone = (task as any)?.customerPhone;
-        const customerName = (task as any)?.customerName ?? "Customer";
-        const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
-        if (customerPhone) {
+        const customerPhone2 = (task as any)?.customerPhone;
+        const customerName2 = (task as any)?.customerName ?? "Customer";
+        const orderRef2 = (task as any)?.orderRef ?? `#${input.taskId}`;
+        if (customerPhone2) {
           try {
-            const smsBody = `Hi ${customerName}, your technician has arrived for ${orderRef}. They will be with you shortly.`;
+            const smsBody2 = `Hi ${customerName2}, your technician has arrived for ${orderRef2}. They will be with you shortly.`;
+            // Fetch tenant Twilio credentials and send real SMS
+            const { resolveTwilioCredentials: resolveCreds2, sendSmsIfConfigured: sendSms2 } = await import("./twilio.js");
+            const tenant2 = (task as any)?.tenantId ? await db.getTenantById((task as any).tenantId) : null;
+            const creds2 = resolveCreds2(tenant2);
+            await sendSms2(customerPhone2, smsBody2, creds2);
+            // Log SMS attempt
             await db.createNotification({
               tenantId: (task as any)?.tenantId ?? 1,
               recipientUserId: 0,
               type: "sms_sent",
               title: "SMS: Technician Arrived",
-              body: smsBody,
+              body: smsBody2,
               deepLink: `/task/${input.taskId}`,
               entityType: "task",
               entityId: input.taskId,
-              pushStatus: "sent",
+              pushStatus: creds2 ? "sent" : "pending",
               pushToken: null,
               sentAt: new Date(),
             } as any);
-          } catch { /* non-fatal */ }
+          } catch (err) { console.error("[arriveTask] SMS error:", err); /* non-fatal */ }
         }
         return { success: true, taskId: input.taskId, status: "on_site" };
       }),

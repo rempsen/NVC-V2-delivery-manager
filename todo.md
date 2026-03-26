@@ -803,3 +803,17 @@
 - [x] Mobile: Agent task detail — client signature capture
 - [x] Mobile: Agent task detail — payment processing (if job configured)
 - [x] Mobile: Agent task detail — swipe-to-complete bar marking job done
+
+## Sprint: Role Routing, Signature Canvas, Twilio SMS, Tookan-Style Task UI (v6.0)
+- [x] Mobile: role-based routing at login — technician JWT role → /agent-home, dispatcher/admin → /(tabs)
+- [x] Mobile: remove fleet map (react-native-maps) from all agent/technician-facing screens
+- [x] Mobile: agent task screen — Tookan-style header (back, task ref, call customer, navigate button)
+- [x] Mobile: agent task screen — collapsed expandable sections: Notes (+), Signature (+), Images (+), Total Bill
+- [x] Mobile: agent task screen — Failed / Successful toggle bar at bottom (replaces swipe-to-complete)
+- [x] Mobile: agent task screen — fail reason picker (predefined list: Jobsite Not Ready, Materials Not Ready, Scheduling Problem, Site Access Issue, Client Not Home, Personal Issue, Issue with Materials)
+- [x] Mobile: agent task screen — real touch-drawing signature canvas (SVG path capture)
+- [x] Mobile: agent task screen — image thumbnails grid inside Images section
+- [x] Mobile: agent task screen — Total Bill editable amount field inside collapsed section
+- [x] Server: Twilio SMS — wire startTask mutation to send real SMS via Twilio API
+- [x] Server: Twilio SMS — wire arriveTask mutation to send real SMS via Twilio API
+- [x] Server: read Twilio credentials from tenant notification settings (accountSid, authToken, fromPhone)

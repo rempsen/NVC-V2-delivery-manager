@@ -98,7 +98,11 @@ export default function LoginScreen() {
     }
     if (user.role === "nvc_super_admin" || user.role === "nvc_project_manager") {
       router.replace("/super-admin" as any);
+    } else if (user.role === "field_technician") {
+      // Technicians go to the agent home (no fleet map, task-focused)
+      router.replace("/agent-home" as any);
     } else {
+      // Dispatchers, company admins, managers → main dashboard
       router.replace("/(tabs)" as any);
     }
   };
