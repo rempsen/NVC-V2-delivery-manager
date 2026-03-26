@@ -5,6 +5,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-auth-session";
 import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
@@ -389,14 +391,34 @@ function OAuthModal({
         const result = await getAuthUrlQuery.refetch();
         const url = result.data?.url;
         if (url) {
-          await Linking.openURL(url);
+          if (Platform.OS === "web") {
+            // On web, open in same tab — the callback page will close the window
+            await WebBrowser.openBrowserAsync(url);
+          } else {
+            // On native, use openAuthSessionAsync so the in-app browser handles
+            // the OAuth redirect back to the app via deep link
+            const redirectUri = makeRedirectUri({ scheme: "manus20260325202550", path: "oauth" });
+            const authResult = await WebBrowser.openAuthSessionAsync(url, redirectUri);
+            if (authResult.type === "success") {
+              onConnect(integration.id);
+              onClose();
+              return;
+            } else if (authResult.type === "cancel" || authResult.type === "dismiss") {
+              // User cancelled — silently close
+              setLoading(false);
+              return;
+            }
+          }
           onConnect(integration.id);
           onClose();
         } else {
-          Alert.alert("Configuration Required", `To connect ${integration.name}, please configure the OAuth credentials in your server environment variables (${integration.serverKey.toUpperCase()}_CLIENT_ID and ${integration.serverKey.toUpperCase()}_CLIENT_SECRET).`);
+          Alert.alert(
+            "Setup Required",
+            `To enable ${integration.name} connections for your clients, NVC360 needs to register an OAuth app with ${integration.name}. Contact NVC360 support to complete this one-time setup.`
+          );
         }
       } catch {
-        Alert.alert("Error", `Could not get authorization URL for ${integration.name}. Check server configuration.`);
+        Alert.alert("Error", `Could not open ${integration.name} authorization. Please try again.`);
       } finally {
         setLoading(false);
       }

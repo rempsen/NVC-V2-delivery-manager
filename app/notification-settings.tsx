@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -441,6 +443,7 @@ function EmailTemplateSection() {
 export default function NotificationSettingsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [milestones, setMilestones] = useState<MilestoneConfig[]>(DEFAULT_MILESTONES);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [activeTab, setActiveTab] = useState<"milestones" | "twilio" | "email" | "template">("milestones");
@@ -450,6 +453,8 @@ export default function NotificationSettingsScreen() {
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioPhone, setTwilioPhone] = useState("");
   const [senderName, setSenderName] = useState("Acme HVAC");
+  const [testSmsPhone, setTestSmsPhone] = useState("");
+  const [smsLoading, setSmsLoading] = useState(false);
 
   // Email config
   const [smtpHost, setSmtpHost] = useState("");
@@ -458,6 +463,46 @@ export default function NotificationSettingsScreen() {
   const [smtpPassword, setSmtpPassword] = useState("");
   const [fromEmail, setFromEmail] = useState("noreply@acmehvac.com");
   const [fromName, setFromName] = useState("Acme HVAC Services");
+  const [testEmailAddr, setTestEmailAddr] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  // tRPC test-send mutations
+  const sendTestSmsMutation = trpc.notifications.sendTestSms.useMutation();
+  const sendTestEmailMutation = trpc.notifications.sendTestEmail.useMutation();
+
+  const handleSendTestSms = useCallback(async () => {
+    const phone = testSmsPhone.trim() || twilioPhone.trim();
+    if (!phone) {
+      Alert.alert("Phone Required", "Enter a phone number to send the test SMS to.");
+      return;
+    }
+    setSmsLoading(true);
+    try {
+      await sendTestSmsMutation.mutateAsync({ tenantId: tenantId ?? 1, phone });
+      Alert.alert("SMS Sent", `Test SMS delivered to ${phone}. Check your phone!`);
+    } catch (e: any) {
+      Alert.alert("SMS Failed", e?.message ?? "Could not send test SMS. Check your Twilio credentials.");
+    } finally {
+      setSmsLoading(false);
+    }
+  }, [testSmsPhone, twilioPhone, tenantId, sendTestSmsMutation]);
+
+  const handleSendTestEmail = useCallback(async () => {
+    const email = testEmailAddr.trim() || fromEmail.trim();
+    if (!email) {
+      Alert.alert("Email Required", "Enter an email address to send the test email to.");
+      return;
+    }
+    setEmailLoading(true);
+    try {
+      await sendTestEmailMutation.mutateAsync({ tenantId: tenantId ?? 1, email });
+      Alert.alert("Email Sent", `Test email delivered to ${email}. Check your inbox!`);
+    } catch (e: any) {
+      Alert.alert("Email Failed", e?.message ?? "Could not send test email. Check your SMTP credentials.");
+    } finally {
+      setEmailLoading(false);
+    }
+  }, [testEmailAddr, fromEmail, tenantId, sendTestEmailMutation]);
 
   const filteredMilestones = milestones.filter(
     (m) => categoryFilter === "All" || m.category === categoryFilter,
@@ -586,15 +631,17 @@ export default function NotificationSettingsScreen() {
             <ConfigField label="Twilio Account SID" value={twilioSid} onChange={setTwilioSid} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" secure />
             <ConfigField label="Twilio Auth Token" value={twilioToken} onChange={setTwilioToken} placeholder="Your auth token" secure />
             <ConfigField label="Twilio Phone Number" value={twilioPhone} onChange={setTwilioPhone} placeholder="+1 (555) 000-0000" keyboardType="phone-pad" />
+            <ConfigField label="Test SMS Recipient (optional)" value={testSmsPhone} onChange={setTestSmsPhone} placeholder="+1 (555) 000-0000 — defaults to Twilio Phone above" keyboardType="phone-pad" />
 
             <Pressable
               style={({ pressed }) => [
                 styles.saveConfigBtn,
-                { backgroundColor: "#22C55E", opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: "#22C55E", opacity: (pressed || smsLoading) ? 0.75 : 1 },
               ]}
-              onPress={() => Alert.alert("Saved", "Twilio configuration saved. Test SMS sent to your number.")}
+              onPress={handleSendTestSms}
+              disabled={smsLoading}
             >
-              <Text style={styles.saveConfigBtnText}>Save & Send Test SMS</Text>
+              <Text style={styles.saveConfigBtnText}>{smsLoading ? "Sending…" : "Save & Send Test SMS"}</Text>
             </Pressable>
 
             <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -625,15 +672,17 @@ export default function NotificationSettingsScreen() {
             <ConfigField label="SMTP Port" value={smtpPort} onChange={setSmtpPort} placeholder="587" keyboardType="numeric" />
             <ConfigField label="SMTP Username" value={smtpUser} onChange={setSmtpUser} placeholder="apikey or your@email.com" />
             <ConfigField label="SMTP Password / API Key" value={smtpPassword} onChange={setSmtpPassword} placeholder="Your SMTP password or API key" secure />
+            <ConfigField label="Test Email Recipient (optional)" value={testEmailAddr} onChange={setTestEmailAddr} placeholder="you@yourcompany.com — defaults to From Email above" keyboardType="email-address" />
 
             <Pressable
               style={({ pressed }) => [
                 styles.saveConfigBtn,
-                { backgroundColor: "#3B82F6", opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: "#3B82F6", opacity: (pressed || emailLoading) ? 0.75 : 1 },
               ]}
-              onPress={() => Alert.alert("Saved", "Email configuration saved. A test email has been sent to your address.")}
+              onPress={handleSendTestEmail}
+              disabled={emailLoading}
             >
-              <Text style={styles.saveConfigBtnText}>Save & Send Test Email</Text>
+              <Text style={styles.saveConfigBtnText}>{emailLoading ? "Sending…" : "Save & Send Test Email"}</Text>
             </Pressable>
 
             <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

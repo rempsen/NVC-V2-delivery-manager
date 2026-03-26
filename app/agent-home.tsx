@@ -25,6 +25,11 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
+import {
+  startBackgroundLocationTracking,
+  stopBackgroundLocationTracking,
+  isBackgroundLocationRunning,
+} from "@/lib/background-location-task";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -286,6 +291,32 @@ export default function AgentHomeScreen() {
     completed: allTasks.filter((t) => t.status === "completed").length,
     total: allTasks.length,
   }), [allTasks]);
+
+  // ── Background GPS: start/stop based on active job status ────────────────────
+  // Keeps the dispatcher fleet map live even when the phone is locked.
+  useEffect(() => {
+    if (Platform.OS === "web" || isDemo) return;
+    const techId = technicianId.current;
+    if (!techId) return;
+
+    const hasActiveJob = allTasks.some(
+      (t) => t.status === "en_route" || t.status === "on_site"
+    );
+    const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+
+    if (hasActiveJob) {
+      isBackgroundLocationRunning().then((running) => {
+        if (!running) {
+          startBackgroundLocationTracking(techId, apiBase).then((started) => {
+            if (started) console.log("[AgentHome] Background GPS started for tech", techId);
+          });
+        }
+      });
+    } else {
+      stopBackgroundLocationTracking();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTasks, isDemo]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

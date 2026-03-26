@@ -933,3 +933,20 @@
 - [x] Invoice PDF export button added to completed job banner in agent-task/[id].tsx
 - [x] handleDownloadInvoice: fetches PDF from server, triggers browser download on web, share sheet on native
 - [x] TypeScript: 0 errors | Tests: 98 passed, 1 skipped (99 total)
+
+## Sprint: WebSocket GPS, OAuth Integrations, Notification Test-Send (Mar 26)
+
+- [x] QuickBooks: server OAuth callback route (/oauth/quickbooks/callback) — exchange code for tokens, store in DB
+- [x] QuickBooks: mobile Connect button opens real Intuit OAuth URL via openAuthSessionAsync (in-app browser)
+- [x] QuickBooks: show connected status after successful OAuth (store access_token, refresh_token per tenant)
+- [x] Google Calendar: server OAuth callback route (/oauth/google-calendar/callback) — exchange code for tokens
+- [x] Google Calendar: mobile Connect button opens real Google OAuth URL via openAuthSessionAsync (in-app browser)
+- [x] Google Calendar: show connected status after successful OAuth
+- [x] WebSocket server: broadcast technician location updates to subscribed dispatcher clients (locationHub.ts)
+- [x] Fleet map (dashboard + dispatcher): subscribe to WebSocket for real-time technician position updates
+- [x] Agent home screen: start background GPS tracking (expo-task-manager) when technician has active job
+- [x] Notification Settings: wire "Send Test SMS" button to real Twilio API (trpc.notifications.sendTestSms)
+- [x] Notification Settings: wire "Send Test Email" button to real SMTP nodemailer (trpc.notifications.sendTestEmail)
+- [x] API_BASE_URL secret set so OAuth redirect URIs point to correct deployed server
+- [x] nodemailer installed; server/email.ts module created with resolveSmtpCredentials + sendTestEmail
+- [x] TypeScript: 0 errors | Tests: 105 passed, 1 skipped (106 total)

@@ -1007,6 +1007,17 @@ export const appRouter = router({
         await sendSmsIfConfigured(input.phone, "NVC360 2.0 test SMS — your Twilio integration is working!", creds);
         return { success: true };
       }),
+    /** Send a test email to validate SMTP credentials */
+    sendTestEmail: protectedProcedure
+      .input(z.object({ tenantId: z.number(), email: z.string().email() }))
+      .mutation(async ({ input }) => {
+        const { resolveSmtpCredentials, sendTestEmail } = await import("./email.js");
+        const tenant = await db.getTenantById(input.tenantId);
+        const creds = resolveSmtpCredentials(tenant as any);
+        if (!creds) throw new Error("SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM_EMAIL in Secrets.");
+        await sendTestEmail(input.email, creds);
+        return { success: true };
+      }),
   }),
 
   // ─── File Attachments ──────────────────────────────────────────────────────

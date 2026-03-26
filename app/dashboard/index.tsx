@@ -39,6 +39,7 @@ import { NVC_BLUE, NVC_BLUE_DARK, NVC_ORANGE, NVC_LOGO_DARK, STATUS_SORT_ORDER }
 import { trpc } from "@/lib/trpc";
 import { MOCK_CUSTOMERS, type Customer } from "@/app/(tabs)/customers";
 import { GoogleMapView } from "@/components/google-map-view";
+import { useLocationHub } from "@/hooks/use-location-hub";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -2814,14 +2815,25 @@ export default function DesktopDashboard() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
+  // Real-time WebSocket position overrides (techId → {lat, lng})
+  const [wsPositions, setWsPositions] = useState<Record<number, { lat: number; lng: number }>>({});
+
+  // Subscribe to real-time location updates — updates fleet map instantly
+  useLocationHub({
+    tenantId: DEMO_TENANT_ID,
+    enabled: Platform.OS === "web",
+    onLocationUpdate: useCallback((techId: number, lat: number, lng: number) => {
+      setWsPositions((prev) => ({ ...prev, [techId]: { lat, lng } }));
+    }, []),
+  });
 
   const tasksQuery = trpc.tasks.list.useQuery(
     { tenantId: DEMO_TENANT_ID },
-    { refetchInterval: 30_000, staleTime: 15_000 },
+    { refetchInterval: 60_000, staleTime: 30_000 },
   );
   const techniciansQuery = trpc.technicians.list.useQuery(
     { tenantId: DEMO_TENANT_ID },
-    { refetchInterval: 30_000, staleTime: 15_000 },
+    { refetchInterval: 60_000, staleTime: 30_000 },
   );
 
   // Notification history panel state
@@ -2870,34 +2882,41 @@ export default function DesktopDashboard() {
   }, [tasksQuery.data]);
 
   const liveTechnicians: Technician[] = useMemo(() => {
-    if (techniciansQuery.data && techniciansQuery.data.length > 0) {
-      return techniciansQuery.data.map((row: any) => {
-        // getTechniciansByTenant returns { tech: {...}, user: {...} } nested objects
-        const t = row.tech ?? row;
-        const u = row.user ?? {};
-        const firstName = t.firstName ?? u.firstName ?? "";
-        const lastName = t.lastName ?? u.lastName ?? "";
-        const fullName = `${firstName} ${lastName}`.trim() || t.name || "Technician";
-        return {
-          id: t.id,
-          name: fullName,
-          phone: t.phone ?? u.phone ?? "",
-          email: t.email ?? u.email ?? "",
-          status: (t.status as any) ?? "offline",
-          latitude: t.latitude ? parseFloat(t.latitude) : 49.8951,
-          longitude: t.longitude ? parseFloat(t.longitude) : -97.1384,
-          transportType: (t.transportType ?? "car") as any,
-          skills: Array.isArray(t.skills) ? t.skills : [],
-          photoUrl: t.photoUrl ?? undefined,
-          activeTaskId: t.activeTaskId ?? undefined,
-          activeTaskAddress: t.activeTaskAddress ?? undefined,
-          todayJobs: t.todayJobs ?? 0,
-          todayDistanceKm: t.todayDistanceKm ?? 0,
-        };
-      });
-    }
-    return MOCK_TECHNICIANS;
-  }, [techniciansQuery.data]);
+    const base = (() => {
+      if (techniciansQuery.data && techniciansQuery.data.length > 0) {
+        return techniciansQuery.data.map((row: any) => {
+          // getTechniciansByTenant returns { tech: {...}, user: {...} } nested objects
+          const t = row.tech ?? row;
+          const u = row.user ?? {};
+          const firstName = t.firstName ?? u.firstName ?? "";
+          const lastName = t.lastName ?? u.lastName ?? "";
+          const fullName = `${firstName} ${lastName}`.trim() || t.name || "Technician";
+          return {
+            id: t.id,
+            name: fullName,
+            phone: t.phone ?? u.phone ?? "",
+            email: t.email ?? u.email ?? "",
+            status: (t.status as any) ?? "offline",
+            latitude: t.latitude ? parseFloat(t.latitude) : 49.8951,
+            longitude: t.longitude ? parseFloat(t.longitude) : -97.1384,
+            transportType: (t.transportType ?? "car") as any,
+            skills: Array.isArray(t.skills) ? t.skills : [],
+            photoUrl: t.photoUrl ?? undefined,
+            activeTaskId: t.activeTaskId ?? undefined,
+            activeTaskAddress: t.activeTaskAddress ?? undefined,
+            todayJobs: t.todayJobs ?? 0,
+            todayDistanceKm: t.todayDistanceKm ?? 0,
+          };
+        });
+      }
+      return MOCK_TECHNICIANS;
+    })();
+    // Apply real-time WebSocket position overrides on top of DB data
+    return base.map((tech) => {
+      const wsPos = wsPositions[tech.id];
+      return wsPos ? { ...tech, latitude: wsPos.lat, longitude: wsPos.lng } : tech;
+    });
+  }, [techniciansQuery.data, wsPositions]);
 
   const renderContent = () => {
     switch (activeSection) {
