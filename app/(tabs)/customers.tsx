@@ -332,11 +332,11 @@ const styles = StyleSheet.create<{
   headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
   headerSub: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 1 },
   addBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: NVC_ORANGE, paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 10,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: NVC_ORANGE, paddingHorizontal: 16, paddingVertical: 9,
+    borderRadius: 12, minHeight: 38,
   },
-  addBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  addBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
 
   // Stats
   statsWrap: { paddingHorizontal: 16, paddingBottom: 14 },
@@ -349,17 +349,18 @@ const styles = StyleSheet.create<{
   searchWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
     marginHorizontal: 14, marginTop: 12, marginBottom: 4,
-    borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10,
-    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 11,
+    minHeight: 44,
+    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 14 },
+  searchInput: { flex: 1, fontSize: 15 },
 
   // Filter Tabs
   filterTabsWrap: { borderBottomWidth: 0.5, marginTop: 4 },
   filterTabs: { paddingHorizontal: 14, gap: 4 },
-  filterTab: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 2 },
-  filterTabText: { fontSize: 13, fontWeight: "600" },
+  filterTab: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 2, minHeight: 44 },
+  filterTabText: { fontSize: 14, fontWeight: "700" },
 
   // List
   list: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 40 },
@@ -367,22 +368,22 @@ const styles = StyleSheet.create<{
 
   // Row
   row: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 12,
-    borderRadius: 0,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 14, gap: 14,
+    borderRadius: 0, minHeight: 68,
   },
   rowAvatar: {
-    width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center",
+    width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center",
   },
-  rowAvatarText: { fontSize: 14, fontWeight: "800" },
+  rowAvatarText: { fontSize: 16, fontWeight: "800" },
   rowContent: { flex: 1 },
   rowTop: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
-  rowCompany: { fontSize: 14, fontWeight: "700", flex: 1 },
-  statusBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  statusText: { fontSize: 10, fontWeight: "700" },
-  rowContact: { fontSize: 12, marginBottom: 3 },
+  rowCompany: { fontSize: 15, fontWeight: "800", flex: 1, letterSpacing: -0.1 },
+  statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8 },
+  statusText: { fontSize: 11, fontWeight: "700" },
+  rowContact: { fontSize: 13, marginBottom: 3 },
   rowMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
-  rowMetaText: { fontSize: 11, fontWeight: "500" },
-  rowMetaDot: { fontSize: 11 },
+  rowMetaText: { fontSize: 12, fontWeight: "500" },
+  rowMetaDot: { fontSize: 12 },
 
   // Empty
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },

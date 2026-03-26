@@ -736,28 +736,29 @@ const styles = StyleSheet.create<{
     backgroundColor: NVC_ORANGE, borderWidth: 1.5, borderColor: NVC_BLUE,
   },
   createBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: NVC_ORANGE, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 14,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: NVC_ORANGE, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+    minHeight: 36,
   },
-  createBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  createBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
   // Metrics — icon wrap 20% smaller (28→22, icon 15→12)
   metricsSection: { paddingHorizontal: 14, paddingTop: 14 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   metricCard: {
-    width: "31%", flexGrow: 1, borderRadius: 14, padding: 12,
-    alignItems: "flex-start", gap: 4, minHeight: 90, overflow: "hidden",
-    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22, shadowRadius: 10, elevation: 6,
+    width: "31%", flexGrow: 1, borderRadius: 16, padding: 14,
+    alignItems: "flex-start", gap: 5, minHeight: 96, overflow: "hidden",
+    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.24, shadowRadius: 12, elevation: 7,
   },
   metricHighlight: { borderRadius: 14, backgroundColor: "rgba(255,255,255,0.10)" },
   metricIconWrap: {
-    width: 22, height: 22, borderRadius: 7,
+    width: 26, height: 26, borderRadius: 8,
     alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.22)",
   },
-  metricValue: { fontSize: 24, fontWeight: "800", color: "#fff", letterSpacing: -0.5 },
-  metricLabel: { fontSize: 10, fontWeight: "500", color: "rgba(255,255,255,0.82)", lineHeight: 13 },
+  metricValue: { fontSize: 26, fontWeight: "800", color: "#fff", letterSpacing: -0.6 },
+  metricLabel: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.85)", lineHeight: 14 },
 
   // Map — taller (200→260) since Quick Actions section is now smaller
   mapWidget: {
@@ -808,19 +809,19 @@ const styles = StyleSheet.create<{
   section: { paddingHorizontal: 14, paddingTop: 18 },
   lastSection: { paddingBottom: 8 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#1A1E2A" },
-  seeAll: { fontSize: 12, fontWeight: "600", color: NVC_BLUE },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#1A1E2A", letterSpacing: -0.2 },
+  seeAll: { fontSize: 13, fontWeight: "700", color: NVC_BLUE },
 
   // Contact — 3-button row
   contactGrid: { flexDirection: "row", gap: 10 },
   contactActionCard: {
     flex: 1, alignItems: "center", justifyContent: "center",
-    paddingVertical: 16, borderRadius: 14, borderWidth: 1, gap: 8,
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+    paddingVertical: 20, borderRadius: 16, borderWidth: 1.5, gap: 10,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
   },
   contactActionIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  contactActionLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  contactActionLabel: { fontSize: 13, fontWeight: "700", textAlign: "center" },
 
   // Contact Modal
   contactSheet: {
@@ -834,7 +835,7 @@ const styles = StyleSheet.create<{
   contactBackBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 12 },
   contactBackText: { fontSize: 14, fontWeight: "600" },
   contactCloseBtn: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.08)",
+    width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.08)",
     alignItems: "center", justifyContent: "center",
   },
   contactRootGrid: { gap: 12, paddingBottom: 4 },
@@ -849,9 +850,9 @@ const styles = StyleSheet.create<{
   contactCardActions: { flexDirection: "row", gap: 8, marginTop: 8 },
   contactActionBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 10, borderRadius: 10,
+    gap: 8, paddingVertical: 12, borderRadius: 10, minHeight: 44,
   },
-  contactActionText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  contactActionText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   contactChevronRow: { marginTop: 4 },
   contactList: { gap: 2, paddingBottom: 8 },
   contactListRow: {
@@ -867,39 +868,39 @@ const styles = StyleSheet.create<{
   contactListSub: { fontSize: 12, fontWeight: "500", marginTop: 1 },
   contactRowActions: { flexDirection: "row", gap: 6 },
   contactRowBtn: {
-    width: 34, height: 34, borderRadius: 10,
+    width: 40, height: 40, borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
 
   // Tech Chips
   techRow: { paddingBottom: 4, gap: 8 },
   techChip: {
-    alignItems: "center", paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14,
-    backgroundColor: WIDGET_SURFACE_LIGHT, gap: 4, minWidth: 70,
+    alignItems: "center", paddingHorizontal: 12, paddingVertical: 12, borderRadius: 16,
+    backgroundColor: WIDGET_SURFACE_LIGHT, gap: 5, minWidth: 76,
     shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
   },
-  techAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  techInitials: { fontSize: 12, fontWeight: "800" },
+  techAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  techInitials: { fontSize: 13, fontWeight: "800" },
   techDot: { position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: WIDGET_SURFACE_LIGHT },
-  techName: { fontSize: 10, fontWeight: "700", color: "#1A1E2A" },
-  techStatus: { fontSize: 9, fontWeight: "600" },
+  techName: { fontSize: 11, fontWeight: "700", color: "#1A1E2A" },
+  techStatus: { fontSize: 10, fontWeight: "600" },
 
   // Task Rows
   taskRow: {
-    flexDirection: "row", borderRadius: 13, marginBottom: 8, overflow: "hidden",
+    flexDirection: "row", borderRadius: 14, marginBottom: 10, overflow: "hidden",
     backgroundColor: WIDGET_SURFACE_LIGHT,
-    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
+    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10, shadowRadius: 12, elevation: 4,
   },
   taskBar: { width: 4 },
-  taskBody: { flex: 1, paddingHorizontal: 12, paddingVertical: 11, gap: 3 },
+  taskBody: { flex: 1, paddingHorizontal: 14, paddingVertical: 13, gap: 4 },
   taskTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  taskCustomer: { fontSize: 13, fontWeight: "700", flex: 1, marginRight: 6, color: "#1A1E2A" },
-  taskBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7 },
-  taskBadgeText: { fontSize: 10, fontWeight: "700" },
-  taskAddr: { fontSize: 11, color: "#6B7280" },
-  taskTech: { fontSize: 11, color: "#6B7280" },
+  taskCustomer: { fontSize: 14, fontWeight: "700", flex: 1, marginRight: 6, color: "#1A1E2A" },
+  taskBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  taskBadgeText: { fontSize: 11, fontWeight: "700" },
+  taskAddr: { fontSize: 12, color: "#6B7280" },
+  taskTech: { fontSize: 12, color: "#6B7280" },
 
   // Create Sheet
   sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
@@ -907,9 +908,9 @@ const styles = StyleSheet.create<{
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
   sheetTitle: { fontSize: 18, fontWeight: "800", marginBottom: 16, textAlign: "center" },
   sheetGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
-  sheetOption: { width: "30%", alignItems: "center", paddingVertical: 14, borderRadius: 14, borderWidth: 1, gap: 8 },
-  sheetOptionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  sheetOptionLabel: { fontSize: 11, fontWeight: "600", textAlign: "center" },
-  sheetCancel: { marginTop: 14, paddingVertical: 14, borderRadius: 14, alignItems: "center" },
-  sheetCancelText: { fontSize: 15, fontWeight: "700" },
+  sheetOption: { width: "30%", alignItems: "center", paddingVertical: 18, borderRadius: 16, borderWidth: 1.5, gap: 10 },
+  sheetOptionIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  sheetOptionLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  sheetCancel: { marginTop: 16, paddingVertical: 16, borderRadius: 14, alignItems: "center" },
+  sheetCancelText: { fontSize: 16, fontWeight: "700" },
 });

@@ -430,3 +430,24 @@
 - [x] Spacing: reduce 20-30%, 8px grid discipline, 40% more visible data
 - [x] Micro-interactions: card hover elevation, status pulse, smooth transitions
 - [x] Light + dark mode variants
+
+## Web Dashboard — Live Calendar Panel (v6)
+- [ ] CalendarPanel component: mini month grid with prev/next navigation
+- [ ] Single-click selects a date (highlights it)
+- [ ] Double-click opens quick-add popover on selected date
+- [ ] Quick-add popover: Note, Task, Event, Work Order type selector
+- [ ] Form fields per type: title, description, time (for events/WO), assignee (for tasks/WO)
+- [ ] Saved items appear as colored dots on calendar dates
+- [ ] Selected date shows item list below calendar
+- [ ] Calendar panel visible on Dashboard, Work Orders, Technicians, Customers sections
+- [ ] Today always highlighted with accent color
+- [ ] Items persist in local state across section switches
+
+## Premium Design System Upgrade (Award-Winning Quality)
+- [ ] Research award-winning dashboard design principles (Linear, Stripe, Vercel, Apple HIG)
+- [ ] Define NVC360 design tokens: button height 44px min, padding scale, radius, shadow levels, typography scale
+- [ ] Fix squished buttons: min-height 44px, horizontal padding 20-24px, proper font weight 600-700
+- [ ] Apply consistent design system to all web dashboard screens (buttons, modals, forms, tables, cards)
+- [ ] Apply consistent design system to all mobile screens (buttons, cards, forms, headers, tab bar, modals)
+- [ ] Uniform UX across mobile and web platforms
+- [ ] Calendar panel integration on web dashboard (Dashboard, Work Orders, Technicians, Customers sections)

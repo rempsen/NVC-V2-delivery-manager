@@ -2182,21 +2182,21 @@ const styles = StyleSheet.create({
   topBarSub: { fontSize: 12, marginTop: 1 } as TextStyle,
   topBarRight: { flexDirection: "row", alignItems: "center", gap: 10 } as ViewStyle,
   topBarBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 40, height: 40, borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   } as ViewStyle,
 
   // Stat cards
   statsRow: { flexDirection: "row", gap: 12 } as ViewStyle,
   statCard: {
-    flex: 1, borderRadius: 16, padding: 16, minWidth: 120,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 10, elevation: 4,
+    flex: 1, borderRadius: 16, padding: 20, minWidth: 120,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 14, elevation: 6,
   } as ViewStyle,
   statIcon: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 10,
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 12,
   } as ViewStyle,
-  statValue: { fontSize: 26, fontWeight: "800", color: "#fff" } as TextStyle,
+  statValue: { fontSize: 28, fontWeight: "800", color: "#fff", letterSpacing: -0.5 } as TextStyle,
   statLabel: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: "600", marginTop: 2 } as TextStyle,
   statSub: { fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 4 } as TextStyle,
 
@@ -2212,9 +2212,9 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   cardHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 20, paddingVertical: 16,
   } as ViewStyle,
-  cardTitle: { fontSize: 14, fontWeight: "700" } as TextStyle,
+  cardTitle: { fontSize: 15, fontWeight: "700", letterSpacing: -0.1 } as TextStyle,
   cardSubtitle: { fontSize: 12 } as TextStyle,
   liveBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 } as ViewStyle,
   liveDot: { width: 6, height: 6, borderRadius: 3 } as ViewStyle,
@@ -2246,17 +2246,17 @@ const styles = StyleSheet.create({
   mapAttrText: { fontSize: 9, color: "rgba(255,255,255,0.4)" } as TextStyle,
 
   // Work order rows
-  woRow: { flexDirection: "row", alignItems: "stretch", borderBottomWidth: 1, minHeight: 60 } as ViewStyle,
+  woRow: { flexDirection: "row", alignItems: "stretch", borderBottomWidth: 1, minHeight: 68 } as ViewStyle,
   woStatusBar: { width: 4 } as ViewStyle,
-  woMain: { flex: 1, paddingHorizontal: 12, paddingVertical: 8 } as ViewStyle,
+  woMain: { flex: 1, paddingHorizontal: 16, paddingVertical: 12 } as ViewStyle,
   woTopRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 } as ViewStyle,
   woOrderRef: { fontSize: 10, fontWeight: "600" } as TextStyle,
   woPriorityBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 } as ViewStyle,
   woPriorityText: { fontSize: 9, fontWeight: "700" } as TextStyle,
   woStatusBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 } as ViewStyle,
   woStatusText: { fontSize: 9, fontWeight: "600" } as TextStyle,
-  woCustomer: { fontSize: 13, fontWeight: "600" } as TextStyle,
-  woAddress: { fontSize: 11, marginTop: 1 } as TextStyle,
+  woCustomer: { fontSize: 14, fontWeight: "700" } as TextStyle,
+  woAddress: { fontSize: 12, marginTop: 2 } as TextStyle,
   woTech: { fontSize: 11, marginTop: 2 } as TextStyle,
   woTime: { alignItems: "center", justifyContent: "center", paddingHorizontal: 12, gap: 4 } as ViewStyle,
   woTimeText: { fontSize: 11 } as TextStyle,
@@ -2265,60 +2265,62 @@ const styles = StyleSheet.create({
   quickActionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 } as ViewStyle,
   quickActionBtn: {
     flex: 1, minWidth: 80, alignItems: "center", justifyContent: "center",
-    paddingVertical: 12, borderRadius: 12, borderWidth: 1, gap: 6,
+    paddingVertical: 16, borderRadius: 12, borderWidth: 1.5, gap: 8,
   } as ViewStyle,
-  quickActionLabel: { fontSize: 11, fontWeight: "600" } as TextStyle,
+  quickActionLabel: { fontSize: 12, fontWeight: "700" } as TextStyle,
 
   // Tech rows (dashboard)
   techRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderLeftWidth: 3,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderLeftWidth: 3,
   } as ViewStyle,
-  techAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" } as ViewStyle,
+  techAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", position: "relative" } as ViewStyle,
   techAvatarText: { fontSize: 12, fontWeight: "700" } as TextStyle,
   techStatusDot: { position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: "#fff" } as ViewStyle,
-  techName: { fontSize: 13, fontWeight: "600" } as TextStyle,
-  techDetail: { fontSize: 11, marginTop: 1 } as TextStyle,
+  techName: { fontSize: 14, fontWeight: "700" } as TextStyle,
+  techDetail: { fontSize: 12, marginTop: 2 } as TextStyle,
   techStatusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 } as ViewStyle,
   techStatusPillText: { fontSize: 10, fontWeight: "600" } as TextStyle,
 
   // Section headers
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } as ViewStyle,
-  sectionTitle: { fontSize: 20, fontWeight: "800" } as TextStyle,
-  sectionSubtitle: { fontSize: 13, marginTop: 2 } as TextStyle,
+  sectionTitle: { fontSize: 22, fontWeight: "800", letterSpacing: -0.4 } as TextStyle,
+  sectionSubtitle: { fontSize: 14, marginTop: 3 } as TextStyle,
 
   // KPI row
   kpiRow: { flexDirection: "row", gap: 12, marginBottom: 16 } as ViewStyle,
   kpiCard: {
-    flex: 1, borderRadius: 12, borderWidth: 1, padding: 14,
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    flex: 1, borderRadius: 14, borderWidth: 1.5, padding: 16,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
   } as ViewStyle,
-  kpiValue: { fontSize: 24, fontWeight: "800" } as TextStyle,
-  kpiLabel: { fontSize: 11, fontWeight: "600", marginTop: 2 } as TextStyle,
+  kpiValue: { fontSize: 26, fontWeight: "800", letterSpacing: -0.5 } as TextStyle,
+  kpiLabel: { fontSize: 12, fontWeight: "600", marginTop: 3 } as TextStyle,
 
   // Search
   searchRow: { marginBottom: 10 } as ViewStyle,
   searchBox: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+    minHeight: 44,
   } as ViewStyle,
-  searchInput: { flex: 1, fontSize: 13, outlineStyle: "none" } as any,
+  searchInput: { flex: 1, fontSize: 14, outlineStyle: "none" } as any,
   filterScroll: { marginBottom: 12 } as ViewStyle,
   filterChip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1, marginRight: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, marginRight: 8, minHeight: 36,
+    alignItems: "center", justifyContent: "center",
   } as ViewStyle,
-  filterChipText: { fontSize: 12, fontWeight: "600" } as TextStyle,
+  filterChipText: { fontSize: 13, fontWeight: "600" } as TextStyle,
 
   // Table
   tableCard: { flex: 1, borderRadius: 16, borderWidth: 1, overflow: "hidden" } as ViewStyle,
-  tableHeader: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 } as ViewStyle,
-  tableHeaderCell: { flex: 1, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 } as TextStyle,
-  tableRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, alignItems: "center" } as ViewStyle,
-  tableCell: { flex: 1, fontSize: 13 } as any,
+  tableHeader: { flexDirection: "row", paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 } as ViewStyle,
+  tableHeaderCell: { flex: 1, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6 } as TextStyle,
+  tableRow: { flexDirection: "row", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, alignItems: "center", minHeight: 56 } as ViewStyle,
+  tableCell: { flex: 1, fontSize: 14 } as any,
   tableCellRef: { fontWeight: "700" } as TextStyle,
-  statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start" } as ViewStyle,
-  statusPillText: { fontSize: 11, fontWeight: "600" } as TextStyle,
+  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-start" } as ViewStyle,
+  statusPillText: { fontSize: 12, fontWeight: "700" } as TextStyle,
   emptyState: { alignItems: "center", justifyContent: "center", padding: 48 } as ViewStyle,
   emptyText: { fontSize: 14, marginTop: 12 } as TextStyle,
 
@@ -2331,18 +2333,19 @@ const styles = StyleSheet.create({
   techTableAvatarText: { fontSize: 11, fontWeight: "700" } as TextStyle,
 
   // Action icon button
-  actionIconBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" } as ViewStyle,
+  actionIconBtn: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" } as ViewStyle,
 
-  // Buttons
+  // Buttons — Apple HIG 44pt minimum touch target
   primaryBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 20, paddingVertical: 11, borderRadius: 10,
+    minHeight: 44,
   } as ViewStyle,
-  primaryBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" } as TextStyle,
-  cancelBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, borderWidth: 1 } as ViewStyle,
-  cancelBtnText: { fontSize: 13, fontWeight: "600" } as TextStyle,
-  dangerBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 9 } as ViewStyle,
-  dangerBtnText: { fontSize: 13, fontWeight: "600", color: "#DC2626" } as TextStyle,
+  primaryBtnText: { fontSize: 14, fontWeight: "700", color: "#fff", letterSpacing: 0.1 } as TextStyle,
+  cancelBtn: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 10, borderWidth: 1.5, minHeight: 44 } as ViewStyle,
+  cancelBtnText: { fontSize: 14, fontWeight: "600", letterSpacing: 0.1 } as TextStyle,
+  dangerBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 11, minHeight: 44 } as ViewStyle,
+  dangerBtnText: { fontSize: 14, fontWeight: "600", color: "#DC2626" } as TextStyle,
 
   // Modal
   modalOverlay: {
@@ -2350,44 +2353,45 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   } as ViewStyle,
   modalContainer: {
-    width: "90%", maxWidth: 680, maxHeight: "88%",
+    width: "90%", maxWidth: 700, maxHeight: "90%",
     borderRadius: 20, borderWidth: 1, overflow: "hidden",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.3, shadowRadius: 40, elevation: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.28, shadowRadius: 48, elevation: 24,
   } as ViewStyle,
   modalHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingVertical: 16,
+    paddingHorizontal: 24, paddingVertical: 20,
   } as ViewStyle,
-  modalTitle: { fontSize: 16, fontWeight: "800", color: "#fff" } as TextStyle,
-  modalSubtitle: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 } as TextStyle,
-  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" } as ViewStyle,
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.2 } as TextStyle,
+  modalSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 3 } as TextStyle,
+  modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" } as ViewStyle,
   modalTabs: { flexDirection: "row", borderBottomWidth: 1 } as ViewStyle,
-  modalTab: { flex: 1, alignItems: "center", paddingVertical: 12 } as ViewStyle,
-  modalTabText: { fontSize: 12 } as TextStyle,
-  modalBody: { flex: 1, maxHeight: 420 } as ViewStyle,
-  modalSection: { padding: 20, gap: 0 } as ViewStyle,
-  modalSectionTitle: { fontSize: 13, fontWeight: "700", marginBottom: 10, marginTop: 4 } as TextStyle,
+  modalTab: { flex: 1, alignItems: "center", paddingVertical: 14 } as ViewStyle,
+  modalTabText: { fontSize: 13, fontWeight: "500" } as TextStyle,
+  modalBody: { flex: 1, maxHeight: 460 } as ViewStyle,
+  modalSection: { padding: 24, gap: 0 } as ViewStyle,
+  modalSectionTitle: { fontSize: 13, fontWeight: "700", marginBottom: 12, marginTop: 8, letterSpacing: 0.1 } as TextStyle,
   modalSectionDivider: { height: 1, marginVertical: 16 } as ViewStyle,
-  modalRow2: { flexDirection: "row", gap: 12 } as ViewStyle,
+  modalRow2: { flexDirection: "row", gap: 16 } as ViewStyle,
   modalRow3: { flexDirection: "row", gap: 8 } as ViewStyle,
-  modalField: { flex: 1, marginBottom: 12 } as ViewStyle,
-  modalFieldLabel: { fontSize: 11, fontWeight: "600", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.3 } as TextStyle,
+  modalField: { flex: 1, marginBottom: 16 } as ViewStyle,
+  modalFieldLabel: { fontSize: 11, fontWeight: "700", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 } as TextStyle,
   modalFieldInput: {
-    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
-    fontSize: 13, outlineStyle: "none",
+    borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 14, outlineStyle: "none", minHeight: 44,
   } as any,
   modalSwitchRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
+    borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 14,
+    minHeight: 52,
   } as ViewStyle,
   modalFooter: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 24, paddingVertical: 18, borderTopWidth: 1,
   } as ViewStyle,
 
   // Chip buttons
-  chipBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 4 } as ViewStyle,
-  chipBtnText: { fontSize: 12, fontWeight: "600" } as TextStyle,
+  chipBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36 } as ViewStyle,
+  chipBtnText: { fontSize: 13, fontWeight: "600" } as TextStyle,
 
   // ─── Mission Control additions ────────────────────────────────────────────
   commandStrip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, borderWidth: 1, gap: 0 } as ViewStyle,

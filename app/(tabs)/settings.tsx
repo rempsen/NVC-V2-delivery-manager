@@ -243,40 +243,41 @@ const styles = StyleSheet.create<{
     shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
   },
   profileAvatar: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center",
   },
-  profileInitial: { fontSize: 20, fontWeight: "800", color: "#fff" },
+  profileInitial: { fontSize: 22, fontWeight: "800", color: "#fff" },
   profileInfo: { flex: 1, gap: 3 },
-  profileName: { fontSize: 16, fontWeight: "700", color: "#fff" },
-  profileRole: { fontSize: 12, color: "rgba(255,255,255,0.72)" },
+  profileName: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  profileRole: { fontSize: 13, color: "rgba(255,255,255,0.75)" },
   profileBadge: {
     backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "flex-start",
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 2,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 3,
   },
-  profileBadgeText: { fontSize: 10, fontWeight: "700", color: "#fff" },
+  profileBadgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
   profileEdit: { padding: 6 },
 
   // Section
   sectionLabel: {
-    fontSize: 11, fontWeight: "700", letterSpacing: 0.8,
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 7,
+    fontSize: 12, fontWeight: "700", letterSpacing: 0.8,
+    paddingHorizontal: 20, paddingTop: 22, paddingBottom: 8,
   },
   group: {
-    marginHorizontal: 14, borderRadius: 14, overflow: "hidden",
-    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+    marginHorizontal: 14, borderRadius: 16, overflow: "hidden",
+    shadowColor: "#0A1929", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
   },
 
   // Row
   row: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 12,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 15, gap: 14,
     borderBottomWidth: 0.5, borderBottomColor: "rgba(0,0,0,0.06)",
+    minHeight: 52,
   },
-  rowIcon: { width: 34, height: 34, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  rowIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   rowContent: { flex: 1 },
-  rowLabel: { fontSize: 14, fontWeight: "500" },
-  rowValue: { fontSize: 12, marginTop: 1 },
+  rowLabel: { fontSize: 15, fontWeight: "600" },
+  rowValue: { fontSize: 13, marginTop: 2 },
 
   // Footer
   footer: { alignItems: "center", paddingTop: 20, gap: 4 },

@@ -311,15 +311,15 @@ const styles = StyleSheet.create<{
   // Brand
   brandSection: { alignItems: "center", paddingTop: 40, paddingBottom: 28, gap: 8 },
   logoWrap: {
-    width: 80, height: 80, borderRadius: 20,
+    width: 88, height: 88, borderRadius: 24,
     backgroundColor: NVC_BLUE,
     alignItems: "center", justifyContent: "center",
-    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 16, elevation: 8, marginBottom: 4,
+    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38, shadowRadius: 20, elevation: 10, marginBottom: 6,
   },
-  logoImg: { width: 56, height: 56 },
-  brandTitle: { fontSize: 30, fontWeight: "900", color: "#1A1E2A", letterSpacing: -0.8 },
-  brandSubtitle: { fontSize: 14, color: "#6B7280", textAlign: "center" },
+  logoImg: { width: 62, height: 62 },
+  brandTitle: { fontSize: 32, fontWeight: "900", color: "#1A1E2A", letterSpacing: -1 },
+  brandSubtitle: { fontSize: 15, color: "#6B7280", textAlign: "center" },
 
   // Card
   card: {
@@ -333,15 +333,15 @@ const styles = StyleSheet.create<{
   socialSection: { gap: 12, marginBottom: 4 },
   socialBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    height: 52, borderRadius: 12, gap: 10,
+    height: 56, borderRadius: 14, gap: 12,
   },
   googleBtn: { backgroundColor: "#F9FAFB", borderWidth: 1.5, borderColor: "#E5E7EB" },
-  googleIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff", borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
-  googleIconText: { fontSize: 13, fontWeight: "800", color: "#4285F4" },
-  googleBtnText: { fontSize: 15, fontWeight: "600", color: "#374151" },
-  appleBtn: { width: "100%", height: 52 },
+  googleIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
+  googleIconText: { fontSize: 14, fontWeight: "800", color: "#4285F4" },
+  googleBtnText: { fontSize: 16, fontWeight: "600", color: "#374151" },
+  appleBtn: { width: "100%", height: 56 },
   appleWebBtn: { backgroundColor: "#000" },
-  appleBtnText: { fontSize: 15, fontWeight: "600", color: "#fff" },
+  appleBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
 
   // Divider
   divider: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 20 },
@@ -349,20 +349,20 @@ const styles = StyleSheet.create<{
   dividerText: { fontSize: 12, fontWeight: "500", color: "#9CA3AF" },
 
   // Form
-  form: { gap: 12 },
+  form: { gap: 14 },
   inputWrapper: {
-    flexDirection: "row", alignItems: "center", height: 52,
-    borderRadius: 12, borderWidth: 1.5, borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB", paddingHorizontal: 14, gap: 10,
+    flexDirection: "row", alignItems: "center", height: 56,
+    borderRadius: 14, borderWidth: 1.5, borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB", paddingHorizontal: 16, gap: 12,
   },
-  input: { flex: 1, fontSize: 15, color: "#1A1E2A" },
+  input: { flex: 1, fontSize: 16, color: "#1A1E2A" },
   forgotBtn: { alignSelf: "flex-end" },
-  forgotText: { fontSize: 13, fontWeight: "600", color: NVC_BLUE },
+  forgotText: { fontSize: 14, fontWeight: "600", color: NVC_BLUE },
   loginBtn: {
-    height: 52, borderRadius: 12, backgroundColor: NVC_BLUE,
-    alignItems: "center", justifyContent: "center", marginTop: 4,
+    height: 56, borderRadius: 14, backgroundColor: NVC_BLUE,
+    alignItems: "center", justifyContent: "center", marginTop: 6,
   },
-  loginBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  loginBtnText: { fontSize: 17, fontWeight: "700", color: "#fff" },
 
   // Demo
   demoToggle: {
@@ -374,12 +374,13 @@ const styles = StyleSheet.create<{
   demoSectionTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.8, textAlign: "center", color: "#9CA3AF", marginBottom: 4 },
   demoChip: {
     flexDirection: "row", alignItems: "center",
-    padding: 12, borderRadius: 12, borderWidth: 1, gap: 10,
+    padding: 14, borderRadius: 14, borderWidth: 1.5, gap: 12,
+    minHeight: 56,
   },
-  demoChipDot: { width: 8, height: 8, borderRadius: 4 },
+  demoChipDot: { width: 10, height: 10, borderRadius: 5 },
   demoChipInfo: { flex: 1 },
-  demoChipRole: { fontSize: 12, fontWeight: "700" },
-  demoChipEmail: { fontSize: 11, marginTop: 1, color: "#9CA3AF" },
+  demoChipRole: { fontSize: 13, fontWeight: "700" },
+  demoChipEmail: { fontSize: 12, marginTop: 2, color: "#9CA3AF" },
 
   // Footer
   footer: { alignItems: "center", gap: 6, marginTop: 16 },

@@ -286,27 +286,30 @@ const styles = StyleSheet.create<{
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerStat: { fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600" },
   addBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: "#E85D04", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#E85D04", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+    minHeight: 36,
   },
   mapBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16,
+    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+    minHeight: 36,
   },
-  mapBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  mapBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
   // Filter bar
   filterBar: { backgroundColor: "#1A5FA8", paddingBottom: 8 },
   filterList: { paddingHorizontal: 14, paddingTop: 8, gap: 6 },
   filterTab: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1, gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, gap: 5,
+    minHeight: 34,
   },
-  filterDot: { width: 6, height: 6, borderRadius: 3 },
-  filterTabText: { fontSize: 11, fontWeight: "600" },
-  filterCount: { paddingHorizontal: 5, borderRadius: 7, minWidth: 16, alignItems: "center" },
-  filterCountText: { fontSize: 10, fontWeight: "700" },
+  filterDot: { width: 7, height: 7, borderRadius: 3.5 },
+  filterTabText: { fontSize: 12, fontWeight: "700" },
+  filterCount: { paddingHorizontal: 6, borderRadius: 8, minWidth: 18, alignItems: "center" },
+  filterCountText: { fontSize: 11, fontWeight: "700" },
 
   // List
   listContent: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 32 },
@@ -314,18 +317,18 @@ const styles = StyleSheet.create<{
   // Card
   card: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: WIDGET_SURFACE_LIGHT, borderRadius: 14,
-    marginBottom: 8, overflow: "hidden",
-    paddingVertical: 10, paddingRight: 10, gap: 10,
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
+    backgroundColor: WIDGET_SURFACE_LIGHT, borderRadius: 16,
+    marginBottom: 10, overflow: "hidden",
+    paddingVertical: 12, paddingRight: 12, gap: 12,
+    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10, shadowRadius: 12, elevation: 4,
   },
   cardAccent: { width: 4, alignSelf: "stretch" },
   avatar: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 44, height: 44, borderRadius: 22,
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  avatarText: { fontSize: 13, fontWeight: "800", letterSpacing: 0.3 },
+  avatarText: { fontSize: 14, fontWeight: "800", letterSpacing: 0.3 },
   statusDot: {
     position: "absolute", bottom: 0, right: 0,
     width: 10, height: 10, borderRadius: 5, borderWidth: 2,
@@ -334,15 +337,15 @@ const styles = StyleSheet.create<{
   // Info
   info: { flex: 1, gap: 3 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: { fontSize: 13, fontWeight: "700", flex: 1, color: "#1A1E2A" },
+  name: { fontSize: 14, fontWeight: "800", flex: 1, color: "#1A1E2A", letterSpacing: -0.1 },
   statusPill: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, flexShrink: 0,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 9, paddingVertical: 3, borderRadius: 8, borderWidth: 1.5, flexShrink: 0,
   },
-  pillDot: { width: 5, height: 5, borderRadius: 3 },
-  statusPillText: { fontSize: 10, fontWeight: "700" },
-  metaText: { fontSize: 11, color: "#6B7280" },
-  metaTextMuted: { fontSize: 11, color: "#9CA3AF", fontStyle: "italic" },
+  pillDot: { width: 6, height: 6, borderRadius: 3 },
+  statusPillText: { fontSize: 11, fontWeight: "700" },
+  metaText: { fontSize: 12, color: "#6B7280" },
+  metaTextMuted: { fontSize: 12, color: "#9CA3AF", fontStyle: "italic" },
   statsRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   stat: { flexDirection: "row", alignItems: "center", gap: 3 },
   statDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: "#D1D5DB" },
@@ -351,7 +354,7 @@ const styles = StyleSheet.create<{
   // Actions
   actions: { gap: 6, flexShrink: 0 },
   actionBtn: {
-    width: 30, height: 30, borderRadius: 9, borderWidth: 1,
+    width: 36, height: 36, borderRadius: 10, borderWidth: 1.5,
     alignItems: "center", justifyContent: "center",
   },
 
