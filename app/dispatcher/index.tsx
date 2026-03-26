@@ -346,7 +346,7 @@ export default function DispatcherDashboard() {
   return (
     <ScreenContainer edges={["top", "left", "right"]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.accent }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Dispatcher Dashboard</Text>
           <Text style={styles.headerSub}>NVC360 · Live Operations</Text>

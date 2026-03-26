@@ -320,7 +320,7 @@ export default function IntegrationsScreen() {
   return (
     <ScreenContainer edges={["top", "left", "right"]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.accent }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <Pressable
           style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
           onPress={() => router.back()}

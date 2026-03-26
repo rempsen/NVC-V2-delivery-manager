@@ -78,7 +78,7 @@ export default function SettingsScreen() {
 
   return (
     <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.accent }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 

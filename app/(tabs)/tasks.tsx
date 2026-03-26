@@ -113,7 +113,7 @@ export default function TasksScreen() {
 
   return (
     <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.accent }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <Text style={styles.headerTitle}>Work Orders</Text>
         <Pressable
           style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }]}

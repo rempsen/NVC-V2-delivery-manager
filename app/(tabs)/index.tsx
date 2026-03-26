@@ -162,7 +162,7 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* ── Header ── */}
-        <View style={[styles.header, { backgroundColor: colors.accent }]}>
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
           <View>
             <Text style={styles.headerGreeting}>Good morning</Text>
             <Text style={styles.headerTitle}>NVC360 Dispatch</Text>

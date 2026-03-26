@@ -18,6 +18,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { createTask, MOCK_AGENTS } from "@/lib/tookan";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 // ─── Workflow Templates ───────────────────────────────────────────────────────
 
@@ -127,7 +128,21 @@ export default function CreateTaskScreen() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [description, setDescription] = useState("");
   const [orderId, setOrderId] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<"date" | "time">("date");
+  const [tempDate, setTempDate] = useState(new Date());
+
+  const formatScheduledDate = (d: Date | null) => {
+    if (!d) return "";
+    return d.toLocaleString("en-CA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [priority, setPriority] = useState("Normal");
 
@@ -161,7 +176,7 @@ export default function CreateTaskScreen() {
         job_description: `[${selectedTemplate.label}] ${description.trim()}`,
         order_id: orderId.trim() || undefined,
         fleet_id: selectedAgent ?? undefined,
-        scheduled_time: scheduledTime.trim() || undefined,
+        scheduled_time: scheduledDate ? scheduledDate.toISOString() : undefined,
         has_pickup: pickupAddress.trim() ? 1 : 0,
         has_delivery: 1,
       });
@@ -274,7 +289,99 @@ export default function CreateTaskScreen() {
               <FormField label="Order / Reference #" value={orderId} onChangeText={setOrderId} placeholder="NVC-2026-XXX" />
             )}
             {hasField("scheduled_time") && (
-              <FormField label="Scheduled Date & Time" value={scheduledTime} onChangeText={setScheduledTime} placeholder="e.g. 2026-04-15 10:00 AM" />
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: colors.muted }]}>Scheduled Date &amp; Time</Text>
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setTempDate(scheduledDate ?? new Date());
+                    setDatePickerMode("date");
+                    setShowDatePicker(true);
+                  }}
+                  style={[styles.datePickerBtn, { backgroundColor: colors.background, borderColor: scheduledDate ? colors.primary : colors.border }]}
+                >
+                  <IconSymbol name="calendar" size={18} color={scheduledDate ? colors.primary : colors.muted} />
+                  <Text style={[styles.datePickerText, { color: scheduledDate ? colors.foreground : colors.muted }]}>
+                    {scheduledDate ? formatScheduledDate(scheduledDate) : "Tap to select date & time"}
+                  </Text>
+                  {scheduledDate && (
+                    <Pressable
+                      onPress={(e) => { e.stopPropagation?.(); setScheduledDate(null); }}
+                      style={{ padding: 4 }}
+                    >
+                      <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                    </Pressable>
+                  )}
+                </Pressable>
+
+                {/* iOS native spinner — shown inline as a sheet */}
+                {showDatePicker && Platform.OS === "ios" && (
+                  <View style={[styles.pickerSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+                      <Pressable
+                        onPress={() => setShowDatePicker(false)}
+                        style={({ pressed }) => [styles.pickerHeaderBtn, { opacity: pressed ? 0.6 : 1 }]}
+                      >
+                        <Text style={[styles.pickerCancelText, { color: colors.muted }]}>Cancel</Text>
+                      </Pressable>
+                      <Text style={[styles.pickerTitle, { color: colors.foreground }]}>
+                        {datePickerMode === "date" ? "Select Date" : "Select Time"}
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          if (datePickerMode === "date") {
+                            // After picking date, move to time
+                            setDatePickerMode("time");
+                          } else {
+                            setScheduledDate(tempDate);
+                            setShowDatePicker(false);
+                            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          }
+                        }}
+                        style={({ pressed }) => [styles.pickerHeaderBtn, { opacity: pressed ? 0.6 : 1 }]}
+                      >
+                        <Text style={[styles.pickerDoneText, { color: colors.primary }]}>
+                          {datePickerMode === "date" ? "Next" : "Done"}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    <DateTimePicker
+                      value={tempDate}
+                      mode={datePickerMode}
+                      display="spinner"
+                      onChange={(_event: DateTimePickerEvent, selected?: Date) => {
+                        if (selected) setTempDate(selected);
+                      }}
+                      minimumDate={new Date()}
+                      style={{ height: 200 }}
+                      themeVariant="dark"
+                    />
+                  </View>
+                )}
+
+                {/* Android / Web fallback — modal picker */}
+                {showDatePicker && Platform.OS !== "ios" && (
+                  <DateTimePicker
+                    value={tempDate}
+                    mode={datePickerMode}
+                    display="default"
+                    onChange={(_event: DateTimePickerEvent, selected?: Date) => {
+                      if (selected) {
+                        setTempDate(selected);
+                        if (datePickerMode === "date") {
+                          setDatePickerMode("time");
+                        } else {
+                          setScheduledDate(selected);
+                          setShowDatePicker(false);
+                        }
+                      } else {
+                        setShowDatePicker(false);
+                      }
+                    }}
+                    minimumDate={new Date()}
+                  />
+                )}
+              </View>
             )}
             {hasField("priority") && (
               <View style={styles.fieldGroup}>
@@ -457,4 +564,34 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   submitBtnText: { fontSize: 17, fontWeight: "700" },
+  // Date picker styles
+  datePickerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 44,
+  },
+  datePickerText: { flex: 1, fontSize: 15 },
+  pickerSheet: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  pickerHeaderBtn: { minWidth: 60 },
+  pickerCancelText: { fontSize: 15 },
+  pickerTitle: { fontSize: 15, fontWeight: "600" },
+  pickerDoneText: { fontSize: 15, fontWeight: "700", textAlign: "right" },
 });

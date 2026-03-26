@@ -139,7 +139,7 @@ export default function AgentsScreen() {
 
   return (
     <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.accent }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View>
           <Text style={styles.headerTitle}>Field Team</Text>
           <Text style={styles.headerSub}>

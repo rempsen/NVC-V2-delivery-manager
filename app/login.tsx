@@ -14,15 +14,12 @@ import {
 } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-
-WebBrowser.maybeCompleteAuthSession();
 
 // ─── Role Definitions ─────────────────────────────────────────────────────────
 
@@ -178,37 +175,21 @@ export default function LoginScreen() {
   const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   // ── Google OAuth ──────────────────────────────────────────────────────────
+  // NOTE: expo-auth-session requires a native build (not available in Expo Go).
+  // In production, configure GOOGLE_CLIENT_ID and use expo-auth-session with a
+  // custom development build. For now, the button simulates a successful login.
 
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: "nvc360" });
-
-  const [googleRequest, googleResponse, promptGoogleAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
-      redirectUri,
-      scopes: ["openid", "profile", "email"],
-      responseType: AuthSession.ResponseType.Token,
-    },
-    GOOGLE_DISCOVERY,
-  );
-
-  React.useEffect(() => {
-    if (googleResponse?.type === "success") {
-      const { access_token } = googleResponse.params;
-      handleGoogleToken(access_token);
-    } else if (googleResponse?.type === "error") {
-      Alert.alert("Google Sign-In Failed", "Please try again or use email login.");
-      setLoadingProvider(null);
-    }
-  }, [googleResponse]);
-
-  const handleGoogleToken = async (token: string) => {
+  const handleGoogleSignIn = async () => {
+    setLoadingProvider("google");
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      // In production: exchange token with your backend to verify and create session
-      // For demo: simulate a successful Google login
+      // In production: open Google OAuth via expo-auth-session in a custom dev build
+      // For Expo Go demo: simulate successful Google login after a short delay
+      await new Promise((r) => setTimeout(r, 900));
       const mockUser: AuthUser = {
         id: "u-google-001",
-        name: "Google User",
-        email: "user@gmail.com",
+        name: "Google Demo User",
+        email: "demo@gmail.com",
         role: "dispatcher",
         tenantId: "t-001",
         tenantName: "Acme HVAC Services",
@@ -350,27 +331,7 @@ export default function LoginScreen() {
                 styles.socialBtn,
                 { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
               ]}
-              onPress={async () => {
-                setLoadingProvider("google");
-                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                // In production, this would use the real Google OAuth flow
-                // For demo, simulate success
-                await new Promise((r) => setTimeout(r, 800));
-                const mockUser: AuthUser = {
-                  id: "u-google-demo",
-                  name: "Google Demo User",
-                  email: "demo@gmail.com",
-                  role: "dispatcher",
-                  tenantId: "t-001",
-                  tenantName: "Acme HVAC Services",
-                  tenantColor: "#3B82F6",
-                  tenantLogo: null,
-                  avatarUrl: null,
-                  provider: "google",
-                };
-                await saveAndNavigate(mockUser);
-                setLoadingProvider(null);
-              }}
+              onPress={handleGoogleSignIn}
               disabled={loadingProvider !== null || loading}
             >
               {loadingProvider === "google" ? (

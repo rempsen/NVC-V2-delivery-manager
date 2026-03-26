@@ -203,3 +203,9 @@
 - [x] Client Dashboard: Invite employee via email with role pre-assignment
 - [x] Navigation: Super-Admin → Client drill-down → Customer/Employee management
 - [x] Demo data: seed realistic clients, customers, and employees for testing
+
+## Bug Fixes
+- [x] Fix login.tsx crash: "Cannot find native module 'ExpoCryptoAES'" — removed expo-auth-session import, replaced with Expo Go-compatible handleGoogleSignIn function
+- [ ] Fix white-on-white navigation header on agent detail and all sub-screens (back button invisible)
+- [x] Fix white-on-white navigation headers (colors.accent undefined → use colors.primary)
+- [x] Replace plain text date/time input in Create Work Order with native iOS spinning wheel date picker bottom sheet
