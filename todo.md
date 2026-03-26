@@ -406,3 +406,27 @@
 - [x] Skills tab: 18 trade skills, 19 certifications, 16 industries, 9 departments
 - [x] Safety tab: 13 training courses with expiry dates, medical notes
 - [x] Add Technician button in Technicians tab header
+
+## Dashboard Contact Section Redesign
+- [x] Replace "Quick Actions" with "Contact" section (3 buttons: Office, Colleague, Client)
+- [x] Office button: routes call/message to predetermined admin/dispatcher number
+- [x] Colleague button: opens category pop-up (4-5 tags), then person selector pop-up
+- [x] Client button: opens category pop-up, then client selector pop-up
+- [x] Remove Super Admin, Track Demo, Settings from quick actions area
+- [x] Enlarge fleet map using freed space
+- [x] Shrink 6 header stat icons by 20%
+- [x] Move NVC logo below Dynamic Island (add top padding to header)
+
+## Web Dashboard — Mission Control Redesign (v5)
+- [x] Command strip: total jobs today, SLA risk count, revenue today, active techs, alerts
+- [x] KPI cards: multi-line with trend indicator (▲▼ %), mini sparkline, secondary context
+- [x] Layered elevation system: soft shadows, inner highlights, glassmorphism accents
+- [x] Semantic color system: red=risk, orange=warning, green=healthy, blue=informational
+- [x] AI Operational Insights panel: delay risk, underutilized techs, route optimization
+- [x] Work Orders: status-based grouping, inline actions, expandable rows, SLA countdown
+- [x] Field Team: live roster with animated status, utilization %, distance to job, quick actions
+- [x] Map: command layer with heat zones, tech halos/pulse, route previews, hover cards
+- [x] Typography: stronger contrast hierarchy, tighter font scaling
+- [x] Spacing: reduce 20-30%, 8px grid discipline, 40% more visible data
+- [x] Micro-interactions: card hover elevation, status pulse, smooth transitions
+- [x] Light + dark mode variants

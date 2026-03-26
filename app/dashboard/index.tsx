@@ -233,78 +233,181 @@ function Sidebar({ active, onSelect }: { active: SidebarSection; onSelect: (s: S
   );
 }
 
-// ─── Fleet Map ────────────────────────────────────────────────────────────────
+// ─── Fleet Map (Command Layer) ───────────────────────────────────────────────
+
+const HEAT_ZONES = [
+  { x: 42, y: 38, r: 60, color: "#F97316" },
+  { x: 58, y: 62, r: 45, color: "#3B8FDF" },
+  { x: 28, y: 65, r: 35, color: "#22C55E" },
+];
 
 function FleetMapPanel({ technicians, selectedId, onSelect }: {
   technicians: Technician[];
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
+  const [hoveredId, setHoveredId] = React.useState<number | null>(null);
   const positions: Record<number, { x: number; y: number }> = {
     1: { x: 48, y: 42 }, 2: { x: 36, y: 58 }, 3: { x: 62, y: 30 },
     4: { x: 28, y: 70 }, 5: { x: 55, y: 68 }, 6: { x: 44, y: 52 },
     7: { x: 70, y: 45 }, 8: { x: 32, y: 38 }, 9: { x: 22, y: 55 }, 10: { x: 58, y: 55 },
   };
-  const statusDot: Record<string, string> = {
+  const statusColor: Record<string, string> = {
     online: "#22C55E", busy: "#F59E0B", offline: "#6B7280", on_break: "#3B82F6", en_route: "#8B5CF6",
   };
+  const activeId = hoveredId ?? selectedId;
+  const activeTech = activeId ? technicians.find((t) => t.id === activeId) : null;
 
   return (
     <View style={styles.mapPanel}>
-      {[20, 40, 60, 80].map((pct) => (
-        <View key={`h${pct}`} style={[styles.mapGridH, { top: `${pct}%` as any }]} />
-      ))}
-      {[20, 40, 60, 80].map((pct) => (
-        <View key={`v${pct}`} style={[styles.mapGridV, { left: `${pct}%` as any }]} />
-      ))}
-      <View style={[styles.mapRoad, { top: "35%", height: 5 }]} />
-      <View style={[styles.mapRoad, { top: "60%", height: 3 }]} />
-      <View style={[styles.mapRoadV, { left: "40%", width: 5 }]} />
-      <View style={[styles.mapRoadV, { left: "65%", width: 3 }]} />
-      <View style={styles.mapCityLabel}>
-        <Text style={styles.mapCityText}>Winnipeg, MB</Text>
+      {/* Dark map base */}
+      <View style={StyleSheet.absoluteFillObject as any}>
+        {/* Grid lines */}
+        {[15, 30, 45, 60, 75, 90].map((pct) => (
+          <View key={`h${pct}`} style={[styles.mapGridH, { top: `${pct}%` as any }]} />
+        ))}
+        {[15, 30, 45, 60, 75, 90].map((pct) => (
+          <View key={`v${pct}`} style={[styles.mapGridV, { left: `${pct}%` as any }]} />
+        ))}
+        {/* Heat zones */}
+        {HEAT_ZONES.map((hz, i) => (
+          <View
+            key={i}
+            style={[styles.heatZone, {
+              left: `${hz.x}%` as any,
+              top: `${hz.y}%` as any,
+              width: hz.r,
+              height: hz.r,
+              marginLeft: -hz.r / 2,
+              marginTop: -hz.r / 2,
+              backgroundColor: hz.color + "18",
+              borderColor: hz.color + "35",
+            }]}
+          />
+        ))}
+        {/* Roads */}
+        <View style={[styles.mapRoad, { top: "33%", height: 6 }]} />
+        <View style={[styles.mapRoad, { top: "58%", height: 4 }]} />
+        <View style={[styles.mapRoad, { top: "72%", height: 3 }]} />
+        <View style={[styles.mapRoadV, { left: "38%", width: 6 }]} />
+        <View style={[styles.mapRoadV, { left: "63%", width: 4 }]} />
+        {/* Route preview line */}
+        <View style={[styles.routePreview, { top: "33%", left: "38%", width: 120, transform: [{ rotate: "22deg" }] }]} />
       </View>
+
+      {/* City label */}
+      <View style={styles.mapCityLabel}>
+        <View style={[styles.liveDot, { backgroundColor: "#22C55E", marginRight: 4 }]} />
+        <Text style={styles.mapCityText}>Winnipeg, MB · LIVE</Text>
+      </View>
+
+      {/* Technician pins */}
       {technicians.map((tech) => {
         const pos = positions[tech.id] ?? { x: 50, y: 50 };
-        const color = statusDot[tech.status] ?? "#6B7280";
+        const color = statusColor[tech.status] ?? "#6B7280";
         const isSelected = selectedId === tech.id;
+        const isHovered = hoveredId === tech.id;
+        const isActive = isSelected || isHovered;
         const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
         return (
           <Pressable
             key={tech.id}
-            style={({ pressed }) => [{
+            // @ts-ignore
+            onHoverIn={() => setHoveredId(tech.id)}
+            onHoverOut={() => setHoveredId(null)}
+            style={[{
               position: "absolute",
               left: `${pos.x}%` as any,
               top: `${pos.y}%` as any,
-              transform: [{ scale: pressed ? 0.9 : isSelected ? 1.15 : 1 }],
-              zIndex: isSelected ? 10 : 1,
+              zIndex: isActive ? 20 : 1,
+              alignItems: "center",
             }] as ViewStyle[]}
             onPress={() => onSelect(tech.id)}
           >
-            <View style={[styles.techPin, { borderColor: isSelected ? "#fff" : color, backgroundColor: color + "22" }]}>
-              <View style={[styles.techPinDot, { backgroundColor: color }]}>
-                <Text style={styles.techPinInitials}>{initials}</Text>
-              </View>
+            {/* Halo ring */}
+            {isActive && (
+              <View style={[styles.techHalo, { borderColor: color, width: 46, height: 46, borderRadius: 23, marginLeft: -23, marginTop: -23 }]} />
+            )}
+            {/* Status pulse ring */}
+            {tech.status !== "offline" && (
+              <View style={[styles.techPulse, { backgroundColor: color + "30", width: 38, height: 38, borderRadius: 19, marginLeft: -19, marginTop: -19 }]} />
+            )}
+            {/* Pin */}
+            <View style={[styles.techPin, {
+              borderColor: isActive ? "#fff" : color,
+              backgroundColor: color,
+              width: 30, height: 30, borderRadius: 15,
+              marginLeft: -15, marginTop: -15,
+              borderWidth: isActive ? 2.5 : 1.5,
+              shadowColor: color,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isActive ? 0.7 : 0.4,
+              shadowRadius: isActive ? 8 : 4,
+              elevation: isActive ? 8 : 3,
+            }]}>
+              <Text style={[styles.techPinInitials, { fontSize: 9, fontWeight: "800" }]}>{initials}</Text>
             </View>
-            {isSelected && (
-              <View style={[styles.techPinLabel, { backgroundColor: NVC_BLUE }]}>
-                <Text style={styles.techPinLabelText}>{tech.name.split(" ")[0]}</Text>
+            {/* Hover/selected card */}
+            {isActive && activeTech && (
+              <View style={[styles.techHoverCard, { backgroundColor: "rgba(10,20,40,0.92)", borderColor: color + "60" }]}>
+                <Text style={[styles.techHoverName]}>{activeTech.name}</Text>
+                <Text style={[styles.techHoverDetail]}>{TECH_STATUS_LABELS[activeTech.status] ?? activeTech.status} · {activeTech.todayJobs} jobs</Text>
+                {activeTech.activeTaskAddress && (
+                  <Text style={[styles.techHoverAddr]} numberOfLines={1}>{activeTech.activeTaskAddress}</Text>
+                )}
               </View>
             )}
           </Pressable>
         );
       })}
+
+      {/* Legend */}
+      <View style={styles.mapLegend}>
+        {[{ label: "On Job", color: "#F59E0B" }, { label: "En Route", color: "#8B5CF6" }, { label: "Available", color: "#22C55E" }].map((l) => (
+          <View key={l.label} style={styles.mapLegendItem}>
+            <View style={[styles.mapLegendDot, { backgroundColor: l.color }]} />
+            <Text style={styles.mapLegendText}>{l.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Attribution */}
       <View style={styles.mapAttr}>
-        <Text style={styles.mapAttrText}>Live GPS · Simulated · Mapbox integration pending</Text>
+        <Text style={styles.mapAttrText}>Simulated · Mapbox integration pending</Text>
       </View>
     </View>
   );
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
+// ─── Sparkline (SVG-free inline bars) ────────────────────────────────────────
 
-function StatCard({ label, value, gradient, icon, sub }: {
-  label: string; value: string | number; gradient: [string, string]; icon: any; sub?: string;
+function MiniSparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data, 1);
+  return (
+    <View style={styles.sparklineRow}>
+      {data.map((v, i) => (
+        <View
+          key={i}
+          style={[styles.sparklineBar, {
+            height: Math.max(3, (v / max) * 20),
+            backgroundColor: i === data.length - 1 ? color : color + "55",
+          }]}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─── Dense KPI Stat Card ──────────────────────────────────────────────────────
+
+function StatCard({ label, value, gradient, icon, sub, trend, sparkData }: {
+  label: string;
+  value: string | number;
+  gradient: [string, string];
+  icon: any;
+  sub?: string;
+  trend?: { pct: string; up: boolean };
+  sparkData?: number[];
 }) {
   const [hovered, setHovered] = React.useState(false);
   return (
@@ -314,64 +417,187 @@ function StatCard({ label, value, gradient, icon, sub }: {
       onHoverOut={() => setHovered(false)}
       style={[styles.statCard, {
         backgroundColor: gradient[0],
-        transform: hovered && Platform.OS === "web" ? [{ translateY: -4 }] : [],
-        shadowOpacity: hovered ? 0.28 : 0.14,
-        shadowRadius: hovered ? 20 : 10,
+        transform: hovered && Platform.OS === "web" ? [{ translateY: -3 }] : [],
+        shadowOpacity: hovered ? 0.32 : 0.18,
+        shadowRadius: hovered ? 22 : 12,
+        shadowColor: gradient[0],
       }] as ViewStyle[]}
     >
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: gradient[1], opacity: 0.45, borderRadius: 16 }]} />
-      <View style={styles.statIcon}>
-        <IconSymbol name={icon} size={18} color="rgba(255,255,255,0.9)" />
+      {/* Gradient overlay */}
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: gradient[1], opacity: 0.5, borderRadius: 14 }]} />
+      {/* Inner highlight */}
+      <View style={[StyleSheet.absoluteFillObject, {
+        borderRadius: 14,
+        borderTopWidth: 1,
+        borderTopColor: "rgba(255,255,255,0.25)",
+        borderLeftWidth: 1,
+        borderLeftColor: "rgba(255,255,255,0.12)",
+      }]} />
+
+      {/* Top row: icon + trend */}
+      <View style={styles.statTopRow}>
+        <View style={styles.statIcon}>
+          <IconSymbol name={icon} size={15} color="rgba(255,255,255,0.95)" />
+        </View>
+        {trend && (
+          <View style={[styles.trendBadge, { backgroundColor: trend.up ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)" }]}>
+            <Text style={styles.trendText}>{trend.up ? "▲" : "▼"} {trend.pct}</Text>
+          </View>
+        )}
       </View>
+
+      {/* Value */}
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+
+      {/* Sparkline */}
+      {sparkData && <MiniSparkline data={sparkData} color="rgba(255,255,255,0.8)" />}
+
+      {/* Secondary context */}
       {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
     </Pressable>
   );
 }
 
-// ─── Work Order Row ───────────────────────────────────────────────────────────
+// ─── Work Order Row (Interactive, with SLA countdown) ────────────────────────
+
+function getSlaMinutes(createdAt: string, priority: string): number {
+  const slaMap: Record<string, number> = { urgent: 60, high: 120, medium: 240, low: 480 };
+  const slaMins = slaMap[priority] ?? 240;
+  const elapsed = (Date.now() - new Date(createdAt).getTime()) / 60000;
+  return Math.max(0, Math.round(slaMins - elapsed));
+}
 
 function WorkOrderRow({ task, onPress }: { task: Task; onPress: () => void }) {
   const colors = useColors();
+  const [hovered, setHovered] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
   const statusColor = STATUS_COLORS[task.status];
   const priorityColor = PRIORITY_COLORS[task.priority];
+  const slaLeft = getSlaMinutes(task.createdAt, task.priority);
+  const slaRisk = slaLeft < 30;
+  const slaWarn = slaLeft < 60 && !slaRisk;
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.woRow,
-        { backgroundColor: pressed ? colors.surface : colors.background, borderBottomColor: colors.border },
-      ] as ViewStyle[]}
-      onPress={onPress}
-    >
-      <View style={[styles.woStatusBar, { backgroundColor: statusColor }]} />
-      <View style={styles.woMain}>
-        <View style={styles.woTopRow}>
-          <Text style={[styles.woOrderRef, { color: colors.muted }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
-          <View style={[styles.woPriorityBadge, { backgroundColor: priorityColor + "20" }]}>
-            <Text style={[styles.woPriorityText, { color: priorityColor }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
+    <View>
+      <Pressable
+        // @ts-ignore
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        style={[styles.woRow, {
+          backgroundColor: hovered ? NVC_BLUE + "06" : "transparent",
+          borderBottomColor: colors.border,
+          borderLeftWidth: 3,
+          borderLeftColor: statusColor,
+        }] as ViewStyle[]}
+        onPress={() => { setExpanded((e) => !e); onPress(); }}
+      >
+        <View style={styles.woMain}>
+          <View style={styles.woTopRow}>
+            <Text style={[styles.woOrderRef, { color: NVC_BLUE, fontWeight: "700" }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
+            <View style={[styles.woPriorityBadge, { backgroundColor: priorityColor + "18", borderWidth: 1, borderColor: priorityColor + "40" }]}>
+              <Text style={[styles.woPriorityText, { color: priorityColor, fontWeight: "700" }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
+            </View>
+            <View style={[styles.woStatusBadge, { backgroundColor: statusColor + "18", borderWidth: 1, borderColor: statusColor + "40" }]}>
+              <View style={[styles.liveDot, { backgroundColor: statusColor, width: 5, height: 5 }]} />
+              <Text style={[styles.woStatusText, { color: statusColor }] as TextStyle[]}>{STATUS_LABELS[task.status]}</Text>
+            </View>
+            {/* SLA countdown */}
+            {task.status !== "completed" && (
+              <View style={[styles.slaBadge, {
+                backgroundColor: slaRisk ? "#DC262618" : slaWarn ? "#F59E0B18" : "#22C55E18",
+                borderColor: slaRisk ? "#DC262640" : slaWarn ? "#F59E0B40" : "#22C55E40",
+              }]}>
+                <IconSymbol name="clock.fill" size={9} color={slaRisk ? "#DC2626" : slaWarn ? "#F59E0B" : "#22C55E"} />
+                <Text style={[styles.slaText, { color: slaRisk ? "#DC2626" : slaWarn ? "#F59E0B" : "#22C55E" }] as TextStyle[]}>
+                  {slaLeft > 0 ? `${slaLeft}m` : "OVERDUE"}
+                </Text>
+              </View>
+            )}
           </View>
-          <View style={[styles.woStatusBadge, { backgroundColor: statusColor + "20" }]}>
-            <Text style={[styles.woStatusText, { color: statusColor }] as TextStyle[]}>{STATUS_LABELS[task.status]}</Text>
+          <View style={styles.woBottomRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.woCustomer, { color: colors.foreground }] as TextStyle[]}>{task.customerName}</Text>
+              <Text style={[styles.woAddress, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress}</Text>
+            </View>
+            {task.technicianName && (
+              <View style={styles.woTechChip}>
+                <View style={[styles.liveDot, { backgroundColor: "#22C55E", width: 5, height: 5 }]} />
+                <Text style={[styles.woTech, { color: NVC_BLUE }] as TextStyle[]}>{task.technicianName}</Text>
+              </View>
+            )}
           </View>
         </View>
-        <Text style={[styles.woCustomer, { color: colors.foreground }] as TextStyle[]}>{task.customerName}</Text>
-        <Text style={[styles.woAddress, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress}</Text>
-        {task.technicianName && (
-          <Text style={[styles.woTech, { color: NVC_BLUE }] as TextStyle[]}>↳ {task.technicianName}</Text>
-        )}
-      </View>
-      <View style={styles.woTime}>
-        <Text style={[styles.woTimeText, { color: colors.muted }] as TextStyle[]}>
-          {new Date(task.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </Text>
-        <IconSymbol name="chevron.right" size={14} color={colors.muted} />
-      </View>
-    </Pressable>
+        <View style={styles.woActions}>
+          <Text style={[styles.woTimeText, { color: colors.muted }] as TextStyle[]}>
+            {new Date(task.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </Text>
+          <View style={styles.woInlineActions}>
+            <Pressable style={[styles.woActionBtn, { backgroundColor: NVC_BLUE + "15" }] as ViewStyle[]}>
+              <IconSymbol name="person.badge.plus" size={11} color={NVC_BLUE} />
+            </Pressable>
+            <Pressable style={[styles.woActionBtn, { backgroundColor: "#F59E0B15" }] as ViewStyle[]}>
+              <IconSymbol name="paperplane.fill" size={11} color="#F59E0B" />
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
-// ─── Dashboard Section ────────────────────────────────────────────────────────
+// ─── AI Insights Panel ───────────────────────────────────────────────────────
+
+const AI_INSIGHTS = [
+  { id: 1, type: "risk" as const, icon: "exclamationmark.triangle.fill", color: "#DC2626", text: "1 job at risk of SLA breach (traffic impact on Route 90)", action: "View Job" },
+  { id: 2, type: "warn" as const, icon: "person.2.fill", color: "#F59E0B", text: "2 technicians underutilized — available for reassignment", action: "Assign" },
+  { id: 3, type: "info" as const, icon: "map.fill", color: "#3B8FDF", text: "Route optimization could save ~18 min across 3 active jobs", action: "Optimize" },
+  { id: 4, type: "success" as const, icon: "checkmark.circle.fill", color: "#22C55E", text: "Completion rate 94% today — above 90% target", action: null },
+];
+
+function AIInsightsPanel() {
+  const colors = useColors();
+  const [dismissed, setDismissed] = React.useState<number[]>([]);
+  const visible = AI_INSIGHTS.filter((i) => !dismissed.includes(i.id));
+
+  if (visible.length === 0) return null;
+
+  return (
+    <View style={[styles.aiPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.aiPanelHeader}>
+        <View style={styles.aiPanelTitleRow}>
+          <View style={[styles.aiPanelDot, { backgroundColor: "#3B8FDF" }]} />
+          <Text style={[styles.aiPanelTitle, { color: colors.foreground }] as TextStyle[]}>AI Operational Insights</Text>
+          <View style={[styles.aiBadge, { backgroundColor: NVC_BLUE + "15" }]}>
+            <Text style={[styles.aiBadgeText, { color: NVC_BLUE }] as TextStyle[]}>{visible.length} active</Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.aiInsightsList}>
+        {visible.map((insight) => (
+          <View key={insight.id} style={[styles.aiInsightRow, { borderLeftColor: insight.color, backgroundColor: insight.color + "06" }]}>
+            <IconSymbol name={insight.icon as any} size={14} color={insight.color} />
+            <Text style={[styles.aiInsightText, { color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{insight.text}</Text>
+            <View style={{ flex: 1 }} />
+            {insight.action && (
+              <Pressable style={[styles.aiActionBtn, { backgroundColor: insight.color + "18", borderColor: insight.color + "40" }] as ViewStyle[]}>
+                <Text style={[styles.aiActionText, { color: insight.color }] as TextStyle[]}>{insight.action}</Text>
+              </Pressable>
+            )}
+            <Pressable
+              style={({ pressed }) => [styles.aiDismissBtn, { opacity: pressed ? 0.5 : 0.7 }] as ViewStyle[]}
+              onPress={() => setDismissed((d) => [...d, insight.id])}
+            >
+              <IconSymbol name="xmark" size={10} color={colors.muted} />
+            </Pressable>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Dashboard Section (Mission Control) ─────────────────────────────────────
 
 function DashboardSection({ tasks, technicians, customers, onSelectTech, selectedTechId }: {
   tasks: Task[];
@@ -383,6 +609,7 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
   const colors = useColors();
   const router = useRouter();
 
+  // Computed metrics
   const active = tasks.filter((t) => ["on_site", "en_route", "assigned"].includes(t.status)).length;
   const completed = tasks.filter((t) => t.status === "completed").length;
   const unassigned = tasks.filter((t) => t.status === "unassigned").length;
@@ -390,46 +617,106 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
   const enRoute = technicians.filter((t) => (t.status as any) === "en_route").length;
   const onJob = technicians.filter((t) => t.status === "busy").length;
   const activeCustomers = customers.filter((c) => c.status === "active" || c.status === "vip").length;
+  const slaAtRisk = tasks.filter((t) => t.status !== "completed" && getSlaMinutes(t.createdAt, t.priority) < 30).length;
 
   const sortedTechs = [...technicians].sort(
     (a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5),
   );
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 6);
+    .slice(0, 8);
+
+  // Spark data (simulated 7-day trend)
+  const sparkActive = [2, 4, 3, 5, 3, 4, active];
+  const sparkCompleted = [8, 11, 9, 13, 10, 12, completed];
+  const sparkTechs = [6, 7, 8, 7, 9, 8, onlineCount];
+  const sparkClients = [18, 19, 20, 21, 20, 22, activeCustomers];
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 20 }} showsVerticalScrollIndicator={false}>
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <StatCard label="Active Jobs" value={active} gradient={["#E85D04", "#F97316"]} icon="bolt.fill" sub="↑ 2 from yesterday" />
-        <StatCard label="Completed Today" value={completed} gradient={["#16A34A", "#22C55E"]} icon="checkmark.circle.fill" sub="On track" />
-        <StatCard label="Unassigned" value={unassigned} gradient={["#DC2626", "#EF4444"]} icon="exclamationmark.triangle.fill" sub="Needs attention" />
-        <StatCard label="Online Techs" value={onlineCount} gradient={["#1E6FBF", "#3B8FDF"]} icon="person.2.fill" sub={`${onJob} on job`} />
-        <StatCard label="En Route" value={enRoute} gradient={["#7C3AED", "#9B5CF6"]} icon="car.fill" />
-        <StatCard label="Active Clients" value={activeCustomers} gradient={["#0891B2", "#06B6D4"]} icon="building.2.fill" sub={`${customers.length} total`} />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
+
+      {/* ── Command Strip ── */}
+      <View style={[styles.commandStrip, { backgroundColor: NVC_BLUE_DARK, borderColor: "rgba(255,255,255,0.1)" }]}>
+        {[
+          { label: "Jobs Today", value: tasks.length, icon: "paperplane.fill", color: "#60A5FA" },
+          { label: "SLA Risk", value: slaAtRisk, icon: "exclamationmark.triangle.fill", color: slaAtRisk > 0 ? "#F87171" : "#4ADE80" },
+          { label: "Revenue Today", value: "$4,280", icon: "dollarsign.circle.fill", color: "#34D399" },
+          { label: "Active Techs", value: onlineCount, icon: "person.2.fill", color: "#A78BFA" },
+          { label: "Alerts", value: AI_INSIGHTS.filter((i) => i.type === "risk" || i.type === "warn").length, icon: "bell.fill", color: "#FBBF24" },
+        ].map((item) => (
+          <View key={item.label} style={styles.commandStripItem}>
+            <IconSymbol name={item.icon as any} size={12} color={item.color} />
+            <Text style={[styles.commandStripValue, { color: item.color }] as TextStyle[]}>{item.value}</Text>
+            <Text style={styles.commandStripLabel}>{item.label}</Text>
+          </View>
+        ))}
+        <View style={styles.commandStripDivider} />
+        <View style={styles.commandStripItem}>
+          <View style={[styles.liveDot, { backgroundColor: "#4ADE80" }]} />
+          <Text style={[styles.commandStripLabel, { color: "#4ADE80", fontWeight: "700" }]}>LIVE</Text>
+        </View>
       </View>
 
-      {/* Two-column layout */}
+      {/* ── Dense KPI Cards ── */}
+      <View style={styles.statsRow}>
+        <StatCard label="Active Jobs" value={active} gradient={["#C2410C", "#EA580C"]} icon="bolt.fill"
+          trend={{ pct: "12%", up: true }} sparkData={sparkActive} sub="+2 vs yesterday" />
+        <StatCard label="Completed" value={completed} gradient={["#15803D", "#16A34A"]} icon="checkmark.circle.fill"
+          trend={{ pct: "8%", up: true }} sparkData={sparkCompleted} sub="94% rate · on track" />
+        <StatCard label="Unassigned" value={unassigned} gradient={["#B91C1C", "#DC2626"]} icon="exclamationmark.triangle.fill"
+          trend={{ pct: "1", up: false }} sub={unassigned > 0 ? "Needs attention" : "All assigned"} />
+        <StatCard label="Online Techs" value={onlineCount} gradient={["#1D4ED8", "#2563EB"]} icon="person.2.fill"
+          trend={{ pct: "5%", up: true }} sparkData={sparkTechs} sub={`${onJob} on job · ${enRoute} en route`} />
+        <StatCard label="En Route" value={enRoute} gradient={["#6D28D9", "#7C3AED"]} icon="car.fill"
+          sub="Active dispatches" />
+        <StatCard label="Active Clients" value={activeCustomers} gradient={["#0E7490", "#0891B2"]} icon="building.2.fill"
+          trend={{ pct: "3%", up: true }} sparkData={sparkClients} sub={`${customers.length} total`} />
+      </View>
+
+      {/* ── AI Insights ── */}
+      <AIInsightsPanel />
+
+      {/* ── Two-column layout ── */}
       <View style={styles.twoCol}>
-        {/* Left: Map + Recent Work Orders */}
+        {/* Left: Map (larger) + Recent Work Orders */}
         <View style={styles.leftCol}>
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Live Fleet Map</Text>
-              <View style={[styles.liveBadge, { backgroundColor: "#22C55E20" }]}>
-                <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
-                <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>LIVE</Text>
+          {/* Command Map */}
+          <View style={[styles.card, { backgroundColor: "#0d1b2a", borderColor: "rgba(255,255,255,0.1)" }]}>
+            <View style={[styles.cardHeader, { backgroundColor: "rgba(0,0,0,0.3)" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={[styles.cardTitle, { color: "#fff" }] as TextStyle[]}>Live Fleet Map</Text>
+                <View style={[styles.liveBadge, { backgroundColor: "#22C55E25" }]}>
+                  <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
+                  <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>LIVE</Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <View style={[styles.mapControlBtn, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
+                  <Text style={styles.mapControlText}>{technicians.filter((t) => t.status !== "offline").length} active</Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.mapControlBtn, { backgroundColor: pressed ? NVC_BLUE : NVC_BLUE + "80" }] as ViewStyle[]}
+                  onPress={() => router.push("/dashboard" as any)}
+                >
+                  <Text style={[styles.mapControlText, { color: "#fff" }]}>Full Map →</Text>
+                </Pressable>
               </View>
             </View>
             <FleetMapPanel technicians={sortedTechs} selectedId={selectedTechId} onSelect={onSelectTech} />
           </View>
 
+          {/* Recent Work Orders */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Recent Work Orders</Text>
-              <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}>
-                <Text style={[{ color: NVC_BLUE, fontSize: 13, fontWeight: "600" }] as TextStyle[]}>See All</Text>
+              <View>
+                <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Recent Work Orders</Text>
+                <Text style={[styles.cardSubtitle, { color: colors.muted }] as TextStyle[]}>Last 8 · sorted by time</Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.seeAllBtn, { backgroundColor: NVC_BLUE + "12", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                onPress={() => {}}
+              >
+                <Text style={[{ color: NVC_BLUE, fontSize: 12, fontWeight: "700" }] as TextStyle[]}>See All</Text>
               </Pressable>
             </View>
             {recentTasks.map((task) => (
@@ -438,7 +725,7 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
           </View>
         </View>
 
-        {/* Right: Quick Actions + Field Team */}
+        {/* Right: Quick Actions + Live Field Team Roster */}
         <View style={styles.rightCol}>
           {/* Quick Actions */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -454,56 +741,95 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
                   key={action.label}
                   style={({ pressed }) => [
                     styles.quickActionBtn,
-                    { backgroundColor: action.color + "15", borderColor: action.color + "30", opacity: pressed ? 0.7 : 1 },
+                    { backgroundColor: action.color + "12", borderColor: action.color + "35", opacity: pressed ? 0.7 : 1 },
                   ] as ViewStyle[]}
                   onPress={() => action.route && router.push(action.route as any)}
                 >
-                  <IconSymbol name={action.icon as any} size={20} color={action.color} />
+                  <IconSymbol name={action.icon as any} size={18} color={action.color} />
                   <Text style={[styles.quickActionLabel, { color: action.color }] as TextStyle[]}>{action.label}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
 
-          {/* Field Team */}
+          {/* Live Field Team Roster */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, flex: 1 }]}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Field Team</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.muted }] as TextStyle[]}>
-                {onlineCount} active · {technicians.length} total
-              </Text>
+              <View>
+                <Text style={[styles.cardTitle, { color: colors.foreground }] as TextStyle[]}>Field Team</Text>
+                <Text style={[styles.cardSubtitle, { color: colors.muted }] as TextStyle[]}>
+                  {onlineCount} active · {technicians.length} total
+                </Text>
+              </View>
+              <View style={[styles.liveBadge, { backgroundColor: "#22C55E15" }]}>
+                <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
+                <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>LIVE</Text>
+              </View>
             </View>
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               {sortedTechs.map((tech) => {
-                const statusColor = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
+                const sc = TECH_STATUS_COLORS[tech.status] ?? "#6B7280";
                 const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+                const utilPct = tech.status === "busy" ? 100 : (tech.status as string) === "en_route" ? 75 : tech.status === "online" ? 30 : 0;
+                const distToNext = tech.todayDistanceKm > 0 ? `${(tech.todayDistanceKm * 0.3).toFixed(1)} km` : "—";
                 return (
                   <Pressable
                     key={tech.id}
                     style={({ pressed }) => [
                       styles.techRow,
                       {
-                        backgroundColor: selectedTechId === tech.id ? NVC_BLUE + "15" : pressed ? colors.surface : "transparent",
-                        borderLeftColor: selectedTechId === tech.id ? NVC_BLUE : statusColor,
+                        backgroundColor: selectedTechId === tech.id ? NVC_BLUE + "10" : pressed ? colors.background : "transparent",
+                        borderLeftColor: selectedTechId === tech.id ? NVC_BLUE : sc,
                         borderBottomColor: colors.border,
                       },
                     ] as ViewStyle[]}
                     onPress={() => onSelectTech(tech.id)}
                   >
-                    <View style={[styles.techAvatar, { backgroundColor: statusColor + "25" }]}>
-                      <Text style={[styles.techAvatarText, { color: statusColor }] as TextStyle[]}>{initials}</Text>
-                      <View style={[styles.techStatusDot, { backgroundColor: statusColor }]} />
+                    {/* Avatar with pulse */}
+                    <View style={{ position: "relative" }}>
+                      {tech.status !== "offline" && (
+                        <View style={[styles.techAvatarPulse, { backgroundColor: sc + "30", width: 38, height: 38, borderRadius: 19 }]} />
+                      )}
+                      <View style={[styles.techAvatar, { backgroundColor: sc + "20", borderColor: sc + "50", borderWidth: 1.5 }]}>
+                        <Text style={[styles.techAvatarText, { color: sc }] as TextStyle[]}>{initials}</Text>
+                      </View>
+                      <View style={[styles.techStatusDot, { backgroundColor: sc, borderColor: colors.surface }]} />
                     </View>
-                    <View style={{ flex: 1 }}>
+
+                    {/* Info */}
+                    <View style={{ flex: 1, gap: 2 }}>
                       <Text style={[styles.techName, { color: colors.foreground }] as TextStyle[]}>{tech.name}</Text>
                       <Text style={[styles.techDetail, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>
                         {tech.activeTaskAddress ?? "No active job"}
                       </Text>
+                      {/* Utilization bar */}
+                      <View style={styles.utilRow}>
+                        <View style={[styles.utilBar, { backgroundColor: colors.border }]}>
+                          <View style={[styles.utilFill, { width: `${utilPct}%` as any, backgroundColor: sc }]} />
+                        </View>
+                        <Text style={[styles.utilText, { color: colors.muted }] as TextStyle[]}>{utilPct}%</Text>
+                        <Text style={[styles.distText, { color: colors.muted }] as TextStyle[]}>· {distToNext}</Text>
+                      </View>
                     </View>
-                    <View style={[styles.techStatusPill, { backgroundColor: statusColor + "20" }]}>
-                      <Text style={[styles.techStatusPillText, { color: statusColor }] as TextStyle[]}>
-                        {TECH_STATUS_LABELS[tech.status] ?? tech.status}
-                      </Text>
+
+                    {/* Status + quick actions */}
+                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                      <View style={[styles.techStatusPill, { backgroundColor: sc + "18", borderWidth: 1, borderColor: sc + "40" }]}>
+                        <Text style={[styles.techStatusPillText, { color: sc }] as TextStyle[]}>
+                          {TECH_STATUS_LABELS[tech.status] ?? tech.status}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", gap: 4 }}>
+                        <Pressable style={[styles.techQuickBtn, { backgroundColor: NVC_BLUE + "15" }] as ViewStyle[]}>
+                          <IconSymbol name="paperplane.fill" size={10} color={NVC_BLUE} />
+                        </Pressable>
+                        <Pressable
+                          style={[styles.techQuickBtn, { backgroundColor: "#22C55E15" }] as ViewStyle[]}
+                          onPress={() => router.push(`/agent/${tech.id}` as any)}
+                        >
+                          <IconSymbol name="arrow.right" size={10} color="#22C55E" />
+                        </Pressable>
+                      </View>
                     </View>
                   </Pressable>
                 );
@@ -2062,4 +2388,64 @@ const styles = StyleSheet.create({
   // Chip buttons
   chipBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 4 } as ViewStyle,
   chipBtnText: { fontSize: 12, fontWeight: "600" } as TextStyle,
+
+  // ─── Mission Control additions ────────────────────────────────────────────
+  commandStrip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, borderWidth: 1, gap: 0 } as ViewStyle,
+  commandStripItem: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 4 } as ViewStyle,
+  commandStripValue: { fontSize: 15, fontWeight: "800" } as TextStyle,
+  commandStripLabel: { fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: "500" } as TextStyle,
+  commandStripDivider: { width: 1, height: 24, backgroundColor: "rgba(255,255,255,0.15)", marginHorizontal: 4 } as ViewStyle,
+
+  sparklineRow: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 22, marginTop: 6 } as ViewStyle,
+  sparklineBar: { width: 4, borderRadius: 2 } as ViewStyle,
+
+  statTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } as ViewStyle,
+  trendBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 } as ViewStyle,
+  trendText: { fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.9)" } as TextStyle,
+
+  heatZone: { position: "absolute", borderRadius: 999, borderWidth: 1 } as ViewStyle,
+  routePreview: { position: "absolute", height: 2, backgroundColor: "rgba(59,143,223,0.5)", borderRadius: 1 } as ViewStyle,
+  techHalo: { position: "absolute", borderWidth: 2, borderStyle: "dashed" } as ViewStyle,
+  techPulse: { position: "absolute" } as ViewStyle,
+  techHoverCard: { position: "absolute", top: 34, left: -60, width: 140, borderRadius: 8, borderWidth: 1, padding: 8, zIndex: 30 } as ViewStyle,
+  techHoverName: { fontSize: 11, fontWeight: "700", color: "#fff", marginBottom: 2 } as TextStyle,
+  techHoverDetail: { fontSize: 10, color: "rgba(255,255,255,0.65)" } as TextStyle,
+  techHoverAddr: { fontSize: 9, color: "rgba(255,255,255,0.5)", marginTop: 2 } as TextStyle,
+  mapLegend: { position: "absolute", bottom: 32, right: 10, flexDirection: "row", gap: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 } as ViewStyle,
+  mapLegendItem: { flexDirection: "row", alignItems: "center", gap: 4 } as ViewStyle,
+  mapLegendDot: { width: 7, height: 7, borderRadius: 4 } as ViewStyle,
+  mapLegendText: { fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: "500" } as TextStyle,
+  mapControlBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 } as ViewStyle,
+  mapControlText: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: "600" } as TextStyle,
+
+  aiPanel: { borderRadius: 12, borderWidth: 1, overflow: "hidden" } as ViewStyle,
+  aiPanelHeader: { paddingHorizontal: 16, paddingVertical: 10 } as ViewStyle,
+  aiPanelTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 } as ViewStyle,
+  aiPanelDot: { width: 8, height: 8, borderRadius: 4 } as ViewStyle,
+  aiPanelTitle: { fontSize: 13, fontWeight: "700", flex: 1 } as TextStyle,
+  aiBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 } as ViewStyle,
+  aiBadgeText: { fontSize: 10, fontWeight: "700" } as TextStyle,
+  aiInsightsList: { paddingHorizontal: 12, paddingBottom: 10, gap: 6 } as ViewStyle,
+  aiInsightRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderLeftWidth: 3 } as ViewStyle,
+  aiInsightText: { fontSize: 12, flex: 1, fontWeight: "500" } as TextStyle,
+  aiActionBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 } as ViewStyle,
+  aiActionText: { fontSize: 11, fontWeight: "700" } as TextStyle,
+  aiDismissBtn: { padding: 4 } as ViewStyle,
+
+  slaBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 } as ViewStyle,
+  slaText: { fontSize: 10, fontWeight: "700" } as TextStyle,
+  woBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 } as ViewStyle,
+  woActions: { alignItems: "flex-end", gap: 4, paddingLeft: 8 } as ViewStyle,
+  woInlineActions: { flexDirection: "row", gap: 4 } as ViewStyle,
+  woActionBtn: { width: 24, height: 24, borderRadius: 6, alignItems: "center", justifyContent: "center" } as ViewStyle,
+  woTechChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: "rgba(30,111,191,0.1)", borderRadius: 10 } as ViewStyle,
+
+  seeAllBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 } as ViewStyle,
+  techAvatarPulse: { position: "absolute" } as ViewStyle,
+  utilRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 } as ViewStyle,
+  utilBar: { flex: 1, height: 3, borderRadius: 2, overflow: "hidden" } as ViewStyle,
+  utilFill: { height: 3, borderRadius: 2 } as ViewStyle,
+  utilText: { fontSize: 9, fontWeight: "600", width: 24 } as TextStyle,
+  distText: { fontSize: 9, color: "#9BA1A6" } as TextStyle,
+  techQuickBtn: { width: 22, height: 22, borderRadius: 6, alignItems: "center", justifyContent: "center" } as ViewStyle,
 });
