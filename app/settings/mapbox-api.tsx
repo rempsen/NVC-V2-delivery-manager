@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TextInput, Pressable, StyleSheet,
   Alert, Platform, ActivityIndicator, KeyboardAvoidingView, Linking,
@@ -12,6 +12,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE } from "@/constants/brand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
 
 const STORAGE_KEY = "nvc360_mapbox_api";
 
@@ -22,6 +23,7 @@ export default function MapboxApiScreen() {
   const [testing, setTesting] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "success" | "error">("idle");
   const [showKey, setShowKey] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const [apiKey, setApiKey] = useState("");
   const [styleUrl, setStyleUrl] = useState("mapbox://styles/mapbox/streets-v12");
@@ -29,8 +31,44 @@ export default function MapboxApiScreen() {
   const [defaultLng, setDefaultLng] = useState("-97.1384");
   const [defaultZoom, setDefaultZoom] = useState("11");
 
+  // Load server-configured token first, then fall back to AsyncStorage override
+  const { data: serverConfig } = trpc.system.getPublicConfig.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const config = JSON.parse(stored);
+          setApiKey(config.apiKey ?? "");
+          setStyleUrl(config.styleUrl ?? "mapbox://styles/mapbox/streets-v12");
+          setDefaultLat(config.defaultLat ?? "49.8951");
+          setDefaultLng(config.defaultLng ?? "-97.1384");
+          setDefaultZoom(config.defaultZoom ?? "11");
+        } else if (serverConfig?.mapboxAccessToken) {
+          // Pre-populate from server env var (read-only display)
+          setApiKey(serverConfig.mapboxAccessToken);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoaded(true);
+      }
+    };
+    if (serverConfig !== undefined) {
+      loadConfig();
+    }
+  }, [serverConfig]);
+
+  // If server has a token and no local override, show it as pre-configured
+  const isServerConfigured = !!(serverConfig?.mapboxAccessToken && !apiKey.startsWith("pk.") === false);
+  const isConfigured = apiKey.startsWith("pk.") && apiKey.length > 20;
+
   const handleTest = async () => {
-    if (!apiKey.trim()) {
+    const keyToTest = apiKey.trim() || serverConfig?.mapboxAccessToken;
+    if (!keyToTest) {
       Alert.alert("API Key Required", "Please enter your Mapbox public token first.");
       return;
     }
@@ -38,16 +76,15 @@ export default function MapboxApiScreen() {
     setTesting(true);
     setTestStatus("idle");
     try {
-      // Test by fetching a simple geocoding result
       const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/Winnipeg.json?access_token=${apiKey.trim()}&limit=1`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/Winnipeg.json?access_token=${keyToTest}&limit=1`
       );
       if (res.ok) {
         const data = await res.json();
         if (data.features && data.features.length > 0) {
           setTestStatus("success");
           if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Connection Successful", "Your Mapbox API key is valid and working.");
+          Alert.alert("Connection Successful ✓", "Your Mapbox API key is valid and working. Live maps are active.");
         } else {
           setTestStatus("error");
           Alert.alert("Invalid Response", "The API key returned an unexpected response.");
@@ -55,7 +92,7 @@ export default function MapboxApiScreen() {
       } else {
         setTestStatus("error");
         const err = await res.json().catch(() => ({}));
-        Alert.alert("Connection Failed", err.message ?? `HTTP ${res.status}: Invalid API key or insufficient permissions.`);
+        Alert.alert("Connection Failed", (err as any).message ?? `HTTP ${res.status}: Invalid API key or insufficient permissions.`);
       }
     } catch {
       setTestStatus("error");
@@ -95,6 +132,19 @@ export default function MapboxApiScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Configured status banner */}
+          {isConfigured && (
+            <View style={[styles.configuredBanner, { backgroundColor: "#22C55E12", borderColor: "#22C55E30" }]}>
+              <IconSymbol name="checkmark.circle.fill" size={20} color="#22C55E" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.configuredTitle, { color: "#22C55E" }]}>Mapbox Configured</Text>
+                <Text style={[styles.configuredSub, { color: "#22C55E" }]}>
+                  Live fleet maps, technician tracking, and customer ETA pages are active.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Info */}
           <View style={[styles.infoBanner, { backgroundColor: NVC_BLUE + "12", borderColor: NVC_BLUE + "30" }]}>
             <IconSymbol name="map.fill" size={18} color={NVC_BLUE} />
@@ -104,7 +154,7 @@ export default function MapboxApiScreen() {
               </Text>
               <Pressable onPress={() => Linking.openURL("https://account.mapbox.com/access-tokens/")}>
                 <Text style={[styles.infoLink, { color: NVC_BLUE }]}>
-                  Get your free API key at account.mapbox.com →
+                  Manage tokens at account.mapbox.com →
                 </Text>
               </Pressable>
             </View>
@@ -113,28 +163,32 @@ export default function MapboxApiScreen() {
           {/* API Key */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>API Key</Text>
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.muted }]}>PUBLIC ACCESS TOKEN</Text>
-              <View style={[styles.inputWrap, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                <TextInput
-                  value={apiKey}
-                  onChangeText={setApiKey}
-                  placeholder="pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJ..."
-                  placeholderTextColor={colors.muted + "60"}
-                  secureTextEntry={!showKey}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={[styles.input, { color: colors.foreground }]}
-                  returnKeyType="done"
-                />
-                <Pressable onPress={() => setShowKey(!showKey)} style={styles.eyeBtn}>
-                  <IconSymbol name={showKey ? "eye.slash.fill" : "eye.fill"} size={18} color={colors.muted} />
-                </Pressable>
+            {!loaded ? (
+              <ActivityIndicator color={NVC_BLUE} style={{ marginVertical: 16 }} />
+            ) : (
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: colors.muted }]}>PUBLIC ACCESS TOKEN</Text>
+                <View style={[styles.inputWrap, { backgroundColor: colors.background, borderColor: isConfigured ? "#22C55E50" : colors.border }]}>
+                  <TextInput
+                    value={apiKey}
+                    onChangeText={setApiKey}
+                    placeholder="pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJ..."
+                    placeholderTextColor={colors.muted + "60"}
+                    secureTextEntry={!showKey}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={[styles.input, { color: colors.foreground }]}
+                    returnKeyType="done"
+                  />
+                  <Pressable onPress={() => setShowKey(!showKey)} style={styles.eyeBtn}>
+                    <IconSymbol name={showKey ? "eye.slash.fill" : "eye.fill"} size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+                <Text style={[styles.hint, { color: colors.muted }]}>
+                  Use a public token (starts with "pk.") — never share your secret token
+                </Text>
               </View>
-              <Text style={[styles.hint, { color: colors.muted }]}>
-                Use a public token (starts with "pk.") — never share your secret token
-              </Text>
-            </View>
+            )}
 
             {/* Status indicator */}
             {testStatus !== "idle" && (
@@ -151,7 +205,7 @@ export default function MapboxApiScreen() {
                   color={testStatus === "success" ? "#22C55E" : "#EF4444"}
                 />
                 <Text style={{ color: testStatus === "success" ? "#22C55E" : "#EF4444", fontSize: 13, fontWeight: "600" }}>
-                  {testStatus === "success" ? "API key verified — connection working" : "API key invalid or connection failed"}
+                  {testStatus === "success" ? "API key verified — live maps active" : "API key invalid or connection failed"}
                 </Text>
               </View>
             )}
@@ -285,6 +339,12 @@ export default function MapboxApiScreen() {
 
 const styles = StyleSheet.create({
   scroll: { padding: 16, gap: 16 },
+  configuredBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    borderRadius: 12, padding: 14, borderWidth: 1,
+  },
+  configuredTitle: { fontSize: 14, fontWeight: "700" },
+  configuredSub: { fontSize: 12, lineHeight: 16, marginTop: 2 },
   infoBanner: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderRadius: 12, padding: 14, borderWidth: 1,

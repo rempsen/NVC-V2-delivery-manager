@@ -882,3 +882,16 @@
 - [x] Agent Task: billing pencil icon → haptic feedback (TextInput already editable)
 - [x] Zero empty onPress(() => {}) handlers remaining in entire app
 - [x] TypeScript: 0 errors
+
+## Google Maps Full Integration
+
+- [x] Store GOOGLE_OAUTH_CLIENT_ID secret (fixes Google Calendar OAuth)
+- [x] Store MAPBOX_ACCESS_TOKEN secret (Mapbox maps now configured)
+- [x] Store GOOGLE_MAPS_API_KEY (AIzaSyBmW8a43bZiApE5ejzjBb92CbhHSQOAqjo) — validated 7/7 tests pass
+- [x] Add server-side maps router: Distance Matrix API (live ETAs), Routes API (optimized sequencing)
+- [x] Upgrade Dispatcher Dashboard: live ETA badges on technician map markers
+- [x] Upgrade Dispatcher Dashboard: traffic-aware road-following route polylines on fleet map
+- [x] Add "Optimize Routes" button in Dispatcher that reorders tasks by travel time
+- [x] Wire route optimization results back to polylines and ETA badges
+- [x] Mapbox API settings screen pre-populates from server config (shows Configured status)
+- [x] TypeScript: 0 errors, 94/95 tests pass

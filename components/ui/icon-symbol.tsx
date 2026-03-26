@@ -184,6 +184,8 @@ const MAPPING = {
   // Map-first dashboard
   "sidebar.left": "menu",
   "arrow.up.left.and.arrow.down.right": "open-in-full",
+  // Route optimization
+  "arrow.triangle.turn.up.right.diamond.fill": "alt-route",
 } as unknown as IconMapping;
 
 export function IconSymbol({

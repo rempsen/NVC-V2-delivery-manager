@@ -5,6 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { adminRouter } from "./adminRouter";
+import { mapsRouter } from "./mapsRouter";
 import crypto from "crypto";
 import * as gemini from "./gemini";
 import { Expo } from "expo-server-sdk";
@@ -1171,6 +1172,9 @@ export const appRouter = router({
       .input(z.object({ taskId: z.number() }))
       .query(({ input }) => db.getLocationHistoryForTask(input.taskId)),
   }),
+
+  // ─── Maps & Routing ──────────────────────────────────────────────────────
+  maps: mapsRouter,
 
   // ── NVC Super Admin (nvc_manager / super_admin roles only) ────────────────
   admin: adminRouter,

@@ -34,5 +34,6 @@ export const systemRouter = router({
   getPublicConfig: publicProcedure.query(() => ({
     googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
     googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? "",
+    mapboxAccessToken: process.env.MAPBOX_ACCESS_TOKEN ?? "",
   })),
 });

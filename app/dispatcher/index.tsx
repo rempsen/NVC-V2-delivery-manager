@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,9 +26,10 @@ import {
   type Task,
   type TaskStatus,
 } from "@/lib/nvc-types";
-import { GoogleMapView } from "@/components/google-map-view";
+import { GoogleMapView, type RoutePolyline } from "@/components/google-map-view";
 import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { trpc } from "@/lib/trpc";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -346,6 +347,12 @@ const TASK_FILTERS: { key: TaskStatus | "all"; label: string }[] = [
   { key: "completed", label: "Done" },
 ];
 
+// ─── ETA Refresh Interval ────────────────────────────────────────────────────
+const ETA_REFRESH_MS = 60_000; // refresh ETAs every 60 seconds
+
+// Technician route colors
+const ROUTE_COLORS = ["#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444", "#22C55E", "#06B6D4", "#EC4899", "#84CC16"];
+
 export default function DispatcherDashboard() {
   const colors = useColors();
   const router = useRouter();
@@ -355,6 +362,138 @@ export default function DispatcherDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [teamSort, setTeamSort] = useState<TeamSortKey>("name");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+
+  // ── Live ETA state ──────────────────────────────────────────────────────────
+  const [etaData, setEtaData] = useState<Record<number, number>>({}); // techId → minutes
+  const [routePolylines, setRoutePolylines] = useState<RoutePolyline[]>([]);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState<string | null>(null);
+  const [lastOptimized, setLastOptimized] = useState<Date | null>(null);
+  // Active technicians (online/busy/en_route) with their active task locations
+  const activeTechs = useMemo(() =>
+    MOCK_TECHNICIANS.filter((t) => t.status === "busy" || (t.status as string) === "en_route" || t.status === "online"),
+  []);
+
+  const activeTechTasks = useMemo(() => {
+    return activeTechs.map((tech) => {
+      const task = MOCK_TASKS.find(
+        (t) => t.technicianId === tech.id && (t.status === "en_route" || t.status === "on_site" || t.status === "assigned"),
+      );
+      return { tech, task };
+    }).filter((x) => x.task !== undefined) as Array<{ tech: Technician; task: Task }>;
+  }, [activeTechs]);
+
+  // tRPC mutations
+  const getEtasMutation = trpc.maps.getEtas.useQuery(
+    {
+      origins: activeTechTasks.map((x) => ({ lat: x.tech.latitude, lng: x.tech.longitude })),
+      destinations: activeTechTasks.map((x) => ({ lat: x.task.jobLatitude, lng: x.task.jobLongitude })),
+    },
+    {
+      enabled: Platform.OS === "web" && activeTechTasks.length > 0,
+      staleTime: ETA_REFRESH_MS,
+      refetchInterval: ETA_REFRESH_MS,
+    },
+  );
+
+  const optimizeRoutesMutation = trpc.maps.optimizeRoutes.useMutation();
+
+  // Process ETA query results
+  useEffect(() => {
+    if (!getEtasMutation.data) return;
+    const { results } = getEtasMutation.data;
+    const newEtaData: Record<number, number> = {};
+    const newPolylines: RoutePolyline[] = [];
+
+    activeTechTasks.forEach((x, idx) => {
+      // Find the diagonal element: origin idx → destination idx (1:1 mapping)
+      const el = results.find((r) => r.originIndex === idx && r.destinationIndex === idx);
+      if (el && el.status === "OK") {
+        const secs = el.durationInTrafficSeconds ?? el.durationSeconds;
+        newEtaData[x.tech.id] = Math.round(secs / 60);
+
+        // Build route polyline (straight-line; GoogleMapView will road-follow via Directions API)
+        newPolylines.push({
+          techId: x.tech.id,
+          color: ROUTE_COLORS[idx % ROUTE_COLORS.length],
+          waypoints: [
+            { lat: x.tech.latitude, lng: x.tech.longitude },
+            { lat: x.task.jobLatitude, lng: x.task.jobLongitude },
+          ],
+        });
+      }
+    });
+
+    setEtaData(newEtaData);
+    setRoutePolylines(newPolylines);
+  }, [getEtasMutation.data, activeTechTasks]);
+
+  // Optimize routes handler — calls server-side Route Optimization API
+  const handleOptimizeRoutes = useCallback(async () => {
+    if (isOptimizing || activeTechTasks.length === 0) return;
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      return;
+    }
+
+    setIsOptimizing(true);
+    setOptimizeError(null);
+
+    try {
+      // Group tasks by technician and optimize each tech's route
+      const techTaskGroups = new Map<number, Array<{ taskId: number; lat: number; lng: number; address?: string }>>();
+      activeTechTasks.forEach(({ tech, task }) => {
+        if (!techTaskGroups.has(tech.id)) techTaskGroups.set(tech.id, []);
+        techTaskGroups.get(tech.id)!.push({
+          taskId: task.id,
+          lat: task.jobLatitude,
+          lng: task.jobLongitude,
+          address: task.jobAddress,
+        });
+      });
+
+      const newPolylines: RoutePolyline[] = [];
+      const newEtaData: Record<number, number> = { ...etaData };
+
+      let colorIdx = 0;
+      for (const [techId, waypoints] of techTaskGroups) {
+        const tech = MOCK_TECHNICIANS.find((t) => t.id === techId);
+        if (!tech || waypoints.length === 0) continue;
+
+        const result = await optimizeRoutesMutation.mutateAsync({
+          origin: { lat: tech.latitude, lng: tech.longitude },
+          waypoints,
+        });
+
+        // Build multi-stop polyline from optimized order
+        const orderedWaypoints = [
+          { lat: tech.latitude, lng: tech.longitude },
+          ...result.orderedTasks.map((t) => ({ lat: t.lat, lng: t.lng })),
+        ];
+
+        newPolylines.push({
+          techId,
+          color: ROUTE_COLORS[colorIdx % ROUTE_COLORS.length],
+          waypoints: orderedWaypoints,
+        });
+
+        // Update ETA for first stop
+        if (result.orderedTasks.length > 0) {
+          newEtaData[techId] = Math.round(result.orderedTasks[0].durationSeconds / 60);
+        }
+
+        colorIdx++;
+      }
+
+      setRoutePolylines(newPolylines);
+      setEtaData(newEtaData);
+      setLastOptimized(new Date());
+    } catch (err) {
+      setOptimizeError(err instanceof Error ? err.message : "Route optimization failed");
+    } finally {
+      setIsOptimizing(false);
+    }
+  }, [isOptimizing, activeTechTasks, etaData, optimizeRoutesMutation]);
 
   const selectedTech = selectedTechId
     ? MOCK_TECHNICIANS.find((t) => t.id === selectedTechId) ?? null
@@ -419,11 +558,45 @@ export default function DispatcherDashboard() {
         <View style={styles.mapSection}>
           <View style={styles.mapSectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Live Fleet</Text>
-            <View style={[styles.liveBadge, { backgroundColor: "#22C55E20", borderColor: "#22C55E40" }]}>
-              <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
-              <Text style={[styles.liveText, { color: "#22C55E" }]}>LIVE</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {/* ETA loading indicator */}
+              {getEtasMutation.isFetching && (
+                <View style={[styles.liveBadge, { backgroundColor: "#3B82F620", borderColor: "#3B82F640" }]}>
+                  <View style={[styles.liveDot, { backgroundColor: "#3B82F6" }]} />
+                  <Text style={[styles.liveText, { color: "#3B82F6" }]}>UPDATING ETAs</Text>
+                </View>
+              )}
+              {/* Optimize Routes button */}
+              {Platform.OS === "web" && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.optimizeBtn,
+                    { opacity: pressed || isOptimizing ? 0.7 : 1, backgroundColor: isOptimizing ? "#8B5CF620" : "#8B5CF610" },
+                  ] as ViewStyle[]}
+                  onPress={handleOptimizeRoutes}
+                  disabled={isOptimizing}
+                >
+                  <IconSymbol name="arrow.triangle.turn.up.right.diamond.fill" size={12} color="#8B5CF6" />
+                  <Text style={[styles.optimizeBtnText, { color: "#8B5CF6" }]}>
+                    {isOptimizing ? "Optimizing…" : "Optimize Routes"}
+                  </Text>
+                </Pressable>
+              )}
+              <View style={[styles.liveBadge, { backgroundColor: "#22C55E20", borderColor: "#22C55E40" }]}>
+                <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
+                <Text style={[styles.liveText, { color: "#22C55E" }]}>LIVE</Text>
+              </View>
             </View>
           </View>
+          {/* Last optimized timestamp */}
+          {lastOptimized && (
+            <Text style={[styles.lastOptimizedText, { color: colors.muted }]}>
+              Routes optimized at {lastOptimized.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          )}
+          {optimizeError && (
+            <Text style={[styles.optimizeErrorText, { color: "#EF4444" }]}>{optimizeError}</Text>
+          )}
           <View style={[styles.mapContainer, { height: mapHeight }]}>
             <GoogleMapView
               technicians={MOCK_TECHNICIANS.map((t) => ({
@@ -431,11 +604,21 @@ export default function DispatcherDashboard() {
                 latitude: t.latitude, longitude: t.longitude,
                 status: t.status, transportType: t.transportType,
               }))}
+              tasks={MOCK_TASKS.filter((t) => t.status !== "completed" && t.status !== "cancelled").map((t) => ({
+                id: t.id,
+                jobLatitude: t.jobLatitude,
+                jobLongitude: t.jobLongitude,
+                status: t.status,
+                customerName: t.customerName,
+                jobAddress: t.jobAddress,
+              }))}
               selectedId={selectedTechId}
               onSelectTech={(id) => setSelectedTechId(selectedTechId === id ? null : id)}
               center={{ lat: 49.8951, lng: -97.1384 }}
               zoom={11}
               height={mapHeight}
+              etaData={etaData}
+              routePolylines={routePolylines}
             />
           </View>
         </View>
@@ -649,6 +832,16 @@ const styles = StyleSheet.create({
   // Map
   mapSection: { margin: 16, marginTop: 14 },
   mapSectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  optimizeBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    borderRadius: 10, borderWidth: 1.5, borderColor: "#8B5CF640",
+    paddingHorizontal: 10, paddingVertical: 6,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  optimizeBtnText: { fontSize: 11, fontWeight: "700" as const },
+  lastOptimizedText: { fontSize: 10, marginBottom: 6, marginTop: -4 },
+  optimizeErrorText: { fontSize: 11, marginBottom: 6, marginTop: -4 },
   liveBadge: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, borderWidth: 1, gap: 5,
