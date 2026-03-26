@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View, Text, ScrollView, Pressable, Switch, StyleSheet,
-  Alert, Linking, Platform, TextInput, Modal, ViewStyle, TextStyle,
+  Alert, Linking, Platform, TextInput, Modal, ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -9,7 +9,9 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { NVC_BLUE, NVC_ORANGE, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
+import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,8 @@ type IntegrationStatus = "connected" | "disconnected" | "coming_soon";
 
 interface Integration {
   id: string;
+  /** Server-side integration key (may differ from UI id) */
+  serverKey?: string;
   name: string;
   description: string;
   category: string;
@@ -24,17 +28,19 @@ interface Integration {
   icon: any;
   color: string;
   features: string[];
-  authType?: "oauth" | "api_key" | "credentials" | "none";
+  authType?: "oauth" | "api_key" | "credentials" | "apple_contacts" | "none";
   authLabel?: string;
   docsUrl?: string;
+  connectedMeta?: string; // e.g., email address shown when connected
 }
 
-// ─── Integration Data ─────────────────────────────────────────────────────────
+// ─── Integration Catalog ──────────────────────────────────────────────────────
 
 const INITIAL_INTEGRATIONS: Integration[] = [
   // ── Calendar ──
   {
     id: "google-calendar",
+    serverKey: "google_calendar",
     name: "Google Calendar",
     description: "Sync work orders to technician Google Calendars. New tasks appear automatically with OAuth authorization.",
     category: "Calendar",
@@ -54,6 +60,7 @@ const INITIAL_INTEGRATIONS: Integration[] = [
   },
   {
     id: "microsoft-calendar",
+    serverKey: "microsoft",
     name: "Microsoft 365 Calendar",
     description: "Integrate with Outlook Calendar via Microsoft OAuth for enterprise scheduling and Teams meeting links.",
     category: "Calendar",
@@ -147,6 +154,7 @@ const INITIAL_INTEGRATIONS: Integration[] = [
   // ── Accounting ──
   {
     id: "quickbooks",
+    serverKey: "quickbooks",
     name: "QuickBooks",
     description: "Sync invoices, payments, and customer records automatically with QuickBooks Online.",
     category: "Accounting",
@@ -165,6 +173,7 @@ const INITIAL_INTEGRATIONS: Integration[] = [
   },
   {
     id: "xero",
+    serverKey: "xero",
     name: "Xero",
     description: "Connect your Xero account to automatically sync financial data and invoices.",
     category: "Accounting",
@@ -276,14 +285,15 @@ const INITIAL_INTEGRATIONS: Integration[] = [
   // ── Field Documentation ──
   {
     id: "companycam",
+    serverKey: "companycam",
     name: "CompanyCam",
     description: "Attach CompanyCam photo projects directly to work orders for visual job documentation.",
     category: "Field Documentation",
     status: "disconnected",
     icon: "camera.fill" as const,
     color: "#8B5CF6",
-    authType: "api_key",
-    authLabel: "CompanyCam API Key",
+    authType: "oauth",
+    authLabel: "Connect CompanyCam",
     features: [
       "Link photo projects to work orders",
       "Before/after photo documentation",
@@ -291,6 +301,26 @@ const INITIAL_INTEGRATIONS: Integration[] = [
       "Share photo reports with customers",
     ],
     docsUrl: "https://companycam.com/",
+  },
+  // ── Contacts ──
+  {
+    id: "apple-contacts",
+    serverKey: "apple_contacts",
+    name: "Apple Contacts",
+    description: "Sync your iCloud contacts or import/export vCard files to keep your customer list up to date.",
+    category: "Contacts",
+    status: "disconnected",
+    icon: "person.crop.circle.fill" as const,
+    color: "#6366F1",
+    authType: "apple_contacts",
+    authLabel: "Connect iCloud",
+    features: [
+      "Import contacts from iCloud CardDAV",
+      "Import/export vCard (.vcf) files",
+      "Auto-create customers from contacts",
+      "Export NVC360 customers as vCard",
+    ],
+    docsUrl: "https://support.apple.com/en-ca/guide/icloud/mmfc854d9604/icloud",
   },
   // ── Dispatch ──
   {
@@ -313,7 +343,7 @@ const INITIAL_INTEGRATIONS: Integration[] = [
   },
 ];
 
-const CATEGORIES = ["All", "Calendar", "Storage", "Accounting", "Payments", "Communications", "Field Documentation", "Dispatch"];
+const CATEGORIES = ["All", "Calendar", "Accounting", "Field Documentation", "Contacts", "Communications", "Storage", "Payments", "Dispatch"];
 
 // ─── OAuth Modal ──────────────────────────────────────────────────────────────
 
@@ -322,46 +352,77 @@ function OAuthModal({
   visible,
   onClose,
   onConnect,
+  tenantId,
 }: {
   integration: Integration | null;
   visible: boolean;
   onClose: () => void;
-  onConnect: () => void;
+  onConnect: (id: string) => void;
+  tenantId: number;
 }) {
   const colors = useColors();
   const [apiKey, setApiKey] = useState("");
+  const [appleId, setAppleId] = useState("");
+  const [applePassword, setApplePassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const getAuthUrlQuery = trpc.integrations.getAuthUrl.useQuery(
+    { tenantId, integrationKey: (integration?.serverKey ?? "") as any },
+    { enabled: false } // only fetch on demand
+  );
+
+  const connectAppleMutation = trpc.integrations.connectAppleContacts.useMutation();
+  const disconnectMutation = trpc.integrations.disconnect.useMutation();
+
   if (!integration) return null;
 
   const isOAuth = integration.authType === "oauth";
   const isApiKey = integration.authType === "api_key";
   const isCredentials = integration.authType === "credentials";
+  const isApple = integration.authType === "apple_contacts";
 
-  const handleConnect = () => {
-    if (isOAuth) {
-      Alert.alert(
-        `Connect ${integration.name}`,
-        `This will open ${integration.name} authorization in your browser. You'll be redirected back after granting access.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Authorize",
-            onPress: () => {
-              onConnect();
-              onClose();
-              if (integration.docsUrl) Linking.openURL(integration.docsUrl);
-            },
-          },
-        ]
-      );
+  const handleConnect = async () => {
+    if (isOAuth && integration.serverKey) {
+      setLoading(true);
+      try {
+        const result = await getAuthUrlQuery.refetch();
+        const url = result.data?.url;
+        if (url) {
+          await Linking.openURL(url);
+          onConnect(integration.id);
+          onClose();
+        } else {
+          Alert.alert("Configuration Required", `To connect ${integration.name}, please configure the OAuth credentials in your server environment variables (${integration.serverKey.toUpperCase()}_CLIENT_ID and ${integration.serverKey.toUpperCase()}_CLIENT_SECRET).`);
+        }
+      } catch {
+        Alert.alert("Error", `Could not get authorization URL for ${integration.name}. Check server configuration.`);
+      } finally {
+        setLoading(false);
+      }
+    } else if (isApple) {
+      if (!appleId.trim() || !applePassword.trim()) {
+        Alert.alert("Required", "Please enter your Apple ID and app-specific password.");
+        return;
+      }
+      setLoading(true);
+      try {
+        await connectAppleMutation.mutateAsync({ tenantId, appleId, appSpecificPassword: applePassword });
+        onConnect(integration.id);
+        onClose();
+      } catch (err: any) {
+        Alert.alert("Connection Failed", err.message ?? "Could not connect to iCloud. Check your Apple ID and app-specific password.");
+      } finally {
+        setLoading(false);
+      }
     } else if (isApiKey || isCredentials) {
       if (!apiKey.trim()) {
         Alert.alert("Required", "Please enter your API key or credentials.");
         return;
       }
-      onConnect();
+      onConnect(integration.id);
       onClose();
     } else {
-      onConnect();
+      onConnect(integration.id);
       onClose();
     }
   };
@@ -393,6 +454,43 @@ function OAuthModal({
           </View>
         )}
 
+        {isApple && (
+          <>
+            <View style={[styles.apiKeyInput, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <IconSymbol name="person.fill" size={16} color={colors.muted} />
+              <TextInput
+                style={[styles.apiKeyText, { color: colors.foreground }]}
+                placeholder="Apple ID (email)"
+                placeholderTextColor={colors.muted}
+                value={appleId}
+                onChangeText={setAppleId}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+              />
+            </View>
+            <View style={[styles.apiKeyInput, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <IconSymbol name="lock.fill" size={16} color={colors.muted} />
+              <TextInput
+                style={[styles.apiKeyText, { color: colors.foreground }]}
+                placeholder="App-specific password"
+                placeholderTextColor={colors.muted}
+                value={applePassword}
+                onChangeText={setApplePassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            <View style={[styles.oauthInfo, { backgroundColor: "#6366F110", borderColor: "#6366F130" }]}>
+              <IconSymbol name="info.circle.fill" size={16} color="#6366F1" />
+              <Text style={[styles.oauthInfoText, { color: "#6366F1" }]}>
+                Use an app-specific password from appleid.apple.com — not your main Apple ID password.
+              </Text>
+            </View>
+          </>
+        )}
+
         {isOAuth && (
           <View style={[styles.oauthInfo, { backgroundColor: integration.color + "10", borderColor: integration.color + "30" }]}>
             <IconSymbol name="lock.shield.fill" size={16} color={integration.color} />
@@ -405,14 +503,21 @@ function OAuthModal({
         <Pressable
           style={({ pressed }) => [
             styles.modalConnectBtn,
-            { backgroundColor: integration.color, opacity: pressed ? 0.88 : 1 },
+            { backgroundColor: integration.color, opacity: pressed || loading ? 0.88 : 1 },
           ]}
           onPress={handleConnect}
+          disabled={loading}
         >
-          <IconSymbol name={isOAuth ? "arrow.up.right.square.fill" : "checkmark.circle.fill"} size={18} color="#fff" />
-          <Text style={styles.modalConnectText}>
-            {isOAuth ? integration.authLabel : "Connect"}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <IconSymbol name={isOAuth ? "arrow.up.right.square.fill" : "checkmark.circle.fill"} size={18} color="#fff" />
+              <Text style={styles.modalConnectText}>
+                {isOAuth ? integration.authLabel : "Connect"}
+              </Text>
+            </>
+          )}
         </Pressable>
 
         <Pressable style={styles.modalCancelBtn} onPress={onClose}>
@@ -429,10 +534,12 @@ function IntegrationCard({
   integration,
   onConnect,
   onDisconnect,
+  tenantId,
 }: {
   integration: Integration;
   onConnect: (id: string) => void;
   onDisconnect: (id: string) => void;
+  tenantId: number;
 }) {
   const colors = useColors();
   const [expanded, setExpanded] = useState(false);
@@ -464,6 +571,9 @@ function IntegrationCard({
                 <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
               </View>
             </View>
+            {integration.connectedMeta && isConnected && (
+              <Text style={[styles.connectedMeta, { color: integration.color }]}>{integration.connectedMeta}</Text>
+            )}
             <Text style={[styles.cardDesc, { color: colors.muted }]} numberOfLines={expanded ? 0 : 2}>
               {integration.description}
             </Text>
@@ -526,7 +636,8 @@ function IntegrationCard({
         integration={integration}
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onConnect={() => onConnect(integration.id)}
+        onConnect={onConnect}
+        tenantId={tenantId}
       />
     </>
   );
@@ -537,8 +648,43 @@ function IntegrationCard({
 export default function IntegrationsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useAuth();
+  const tenantId: number = (user as any)?.tenantId ?? 1;
+
   const [integrations, setIntegrations] = useState(INITIAL_INTEGRATIONS);
   const [activeCategory, setActiveCategory] = useState("All");
+
+  // Load real integration statuses from the database
+  const { data: dbIntegrations, refetch } = trpc.integrations.list.useQuery(
+    { tenantId },
+    { enabled: !!tenantId }
+  );
+
+  const disconnectMutation = trpc.integrations.disconnect.useMutation({
+    onSuccess: () => refetch(),
+  });
+
+  // Merge DB statuses into local integration list
+  useEffect(() => {
+    if (!dbIntegrations) return;
+    setIntegrations((prev) =>
+      prev.map((integration) => {
+        const serverKey = integration.serverKey ?? integration.id;
+        const dbRecord = (dbIntegrations as any[]).find(
+          (r) => r.integrationKey === serverKey
+        );
+        if (!dbRecord) return integration;
+        const config = dbRecord.config
+          ? (typeof dbRecord.config === "string" ? JSON.parse(dbRecord.config) : dbRecord.config)
+          : {};
+        return {
+          ...integration,
+          status: dbRecord.isConnected ? "connected" : "disconnected",
+          connectedMeta: config.email ?? config.appleId ?? config.orgName ?? undefined,
+        };
+      })
+    );
+  }, [dbIntegrations]);
 
   const connected = integrations.filter((i) => i.status === "connected").length;
 
@@ -546,12 +692,22 @@ export default function IntegrationsScreen() {
     ? integrations
     : integrations.filter((i) => i.category === activeCategory);
 
-  const handleConnect = (id: string) => {
+  const handleConnect = useCallback((id: string) => {
     setIntegrations((prev) => prev.map((i) => i.id === id ? { ...i, status: "connected" } : i));
-  };
-  const handleDisconnect = (id: string) => {
-    setIntegrations((prev) => prev.map((i) => i.id === id ? { ...i, status: "disconnected" } : i));
-  };
+    // Refresh from DB after a short delay to pick up the OAuth callback result
+    setTimeout(() => refetch(), 2000);
+  }, [refetch]);
+
+  const handleDisconnect = useCallback(async (id: string) => {
+    const integration = integrations.find((i) => i.id === id);
+    const serverKey = integration?.serverKey ?? id;
+    try {
+      await disconnectMutation.mutateAsync({ tenantId, integrationKey: serverKey });
+      setIntegrations((prev) => prev.map((i) => i.id === id ? { ...i, status: "disconnected", connectedMeta: undefined } : i));
+    } catch {
+      setIntegrations((prev) => prev.map((i) => i.id === id ? { ...i, status: "disconnected", connectedMeta: undefined } : i));
+    }
+  }, [integrations, tenantId, disconnectMutation]);
 
   return (
     <ScreenContainer edges={["left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
@@ -602,6 +758,7 @@ export default function IntegrationsScreen() {
               integration={integration}
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
+              tenantId={tenantId}
             />
           ))}
         </View>
@@ -649,6 +806,7 @@ const styles = StyleSheet.create({
   cardNameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" },
   cardName: { fontSize: 15, fontWeight: "700" },
   cardDesc: { fontSize: 12, lineHeight: 17 },
+  connectedMeta: { fontSize: 11, fontWeight: "600", marginBottom: 3 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10, fontWeight: "700" },
@@ -680,7 +838,7 @@ const styles = StyleSheet.create({
   apiKeyInput: {
     flexDirection: "row", alignItems: "center", gap: 10,
     borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    width: "100%", marginBottom: 16,
+    width: "100%", marginBottom: 12,
   },
   apiKeyText: { flex: 1, fontSize: 14 },
   oauthInfo: {

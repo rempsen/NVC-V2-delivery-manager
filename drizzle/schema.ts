@@ -419,3 +419,77 @@ export const consentRecords = mysqlTable("consentRecords", {
 });
 export type ConsentRecord = typeof consentRecords.$inferSelect;
 export type InsertConsentRecord = typeof consentRecords.$inferInsert;
+
+// ─── Task Checklists ──────────────────────────────────────────────────────────
+/**
+ * A checklist template attached to a task (work order).
+ * One task can have multiple checklists (e.g., Pre-Work, During, Post-Work).
+ */
+export const taskChecklists = mysqlTable("taskChecklists", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  taskId: int("taskId").notNull(),
+  title: varchar("title", { length: 255 }).notNull().default("Work Order Checklist"),
+  /** Workflow template name this checklist was generated from */
+  templateName: varchar("templateName", { length: 128 }),
+  isCompleted: boolean("isCompleted").default(false).notNull(),
+  completedAt: timestamp("completedAt"),
+  completedByUserId: int("completedByUserId"),
+  /** Customer signature as base64 data URL or S3 URL */
+  signatureUrl: text("signatureUrl"),
+  signedAt: timestamp("signedAt"),
+  signedByName: varchar("signedByName", { length: 255 }),
+  /** Payment authorization captured during execution */
+  paymentAuthorized: boolean("paymentAuthorized").default(false),
+  paymentAmountCents: int("paymentAmountCents"),
+  paymentMethod: varchar("paymentMethod", { length: 64 }),
+  paymentAuthorizedAt: timestamp("paymentAuthorizedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TaskChecklist = typeof taskChecklists.$inferSelect;
+export type InsertTaskChecklist = typeof taskChecklists.$inferInsert;
+
+// ─── Checklist Items ──────────────────────────────────────────────────────────
+/**
+ * Individual items within a task checklist.
+ * Supports text confirmation, photo attachment, and sub-notes.
+ */
+export const checklistItems = mysqlTable("checklistItems", {
+  id: int("id").autoincrement().primaryKey(),
+  checklistId: int("checklistId").notNull(),
+  tenantId: int("tenantId").notNull(),
+  /** Display order within the checklist */
+  sortOrder: int("sortOrder").default(0).notNull(),
+  label: varchar("label", { length: 512 }).notNull(),
+  /** Whether this item must be completed before the checklist can be closed */
+  required: boolean("required").default(false).notNull(),
+  /** Item type: checkbox, photo, voice, note, signature, payment */
+  itemType: mysqlEnum("itemType", ["checkbox", "photo", "voice", "note", "signature", "payment"]).default("checkbox").notNull(),
+  isChecked: boolean("isChecked").default(false).notNull(),
+  checkedAt: timestamp("checkedAt"),
+  checkedByUserId: int("checkedByUserId"),
+  /** Free-text note attached to this item */
+  note: text("note"),
+  /** S3 URL of attached photo */
+  photoUrl: text("photoUrl"),
+  /** S3 URL of attached voice note */
+  voiceNoteUrl: text("voiceNoteUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type InsertChecklistItem = typeof checklistItems.$inferInsert;
+
+// ─── Technician Skills (normalized) ──────────────────────────────────────────
+export const technicianSkills = mysqlTable("technicianSkills", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  technicianId: int("technicianId").notNull(),
+  skill: varchar("skill", { length: 128 }).notNull(),
+  proficiencyLevel: mysqlEnum("proficiencyLevel", ["beginner", "intermediate", "expert"]).default("intermediate"),
+  certifiedAt: timestamp("certifiedAt"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type TechnicianSkill = typeof technicianSkills.$inferSelect;

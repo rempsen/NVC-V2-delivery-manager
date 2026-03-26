@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { rateLimit } from "express-rate-limit";
 import { registerOAuthRoutes } from "./oauth";
+import { registerIntegrationCallbacks } from "../integrations/oauth-callbacks";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
@@ -102,6 +103,7 @@ async function startServer() {
   app.use("/api", generalLimiter);
 
   registerOAuthRoutes(app);
+  registerIntegrationCallbacks(app);
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });

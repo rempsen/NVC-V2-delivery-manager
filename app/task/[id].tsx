@@ -13,7 +13,7 @@ import {
   MOCK_TASKS, MOCK_TECHNICIANS, STATUS_COLORS, STATUS_LABELS,
   PRIORITY_COLORS, formatDuration, getETA, type Task, type TaskStatus,
 } from "@/lib/nvc-types";
-import { GoogleMapView } from "@/components/google-map-view";
+import { NativeMapView } from "@/components/native-map-view";
 
 const STATUS_FLOW: TaskStatus[] = ["unassigned", "assigned", "en_route", "on_site", "completed"];
 
@@ -196,46 +196,28 @@ export default function TaskDetailScreen() {
 
         {/* Live Map */}
         <View style={[styles.mapCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {Platform.OS === "web" ? (
-            <GoogleMapView
-              technicians={
-                technician
-                  ? [{
-                      id: technician.id,
-                      name: technician.name,
-                      latitude: technician.latitude,
-                      longitude: technician.longitude,
-                      status: currentStatus === "en_route" ? "en_route" : currentStatus === "on_site" ? "on_job" : "available",
-                      transportType: "van",
-                    }]
-                  : []
-              }
-              tasks={[{
-                id: task.id,
-                jobAddress: task.jobAddress,
-                jobLatitude: task.jobLatitude,
-                jobLongitude: task.jobLongitude,
-                status: currentStatus,
-                customerName: task.customerName,
-              }]}
-              center={{ lat: task.jobLatitude, lng: task.jobLongitude }}
-              zoom={14}
-              height={200}
-            />
-          ) : (
-            <View style={[styles.mapPlaceholder, { backgroundColor: "#0f1f3d" }]}>
-              <IconSymbol name="map.fill" size={32} color="#3B82F6" />
-              <Text style={styles.mapLabel}>Live Technician Tracking</Text>
-              {technician && (
-                <View style={styles.mapTechBadge}>
-                  <View style={[styles.mapTechDot, { backgroundColor: "#22C55E" }]} />
-                  <Text style={styles.mapTechName}>{technician.name}</Text>
-                  {eta && <Text style={styles.mapEta}>· {eta} min away</Text>}
-                </View>
-              )}
-              <Text style={styles.mapNote}>Live tracking active in production</Text>
-            </View>
-          )}
+          <NativeMapView
+            technicians={
+              technician
+                ? [{
+                    id: technician.id,
+                    name: technician.name,
+                    latitude: technician.latitude,
+                    longitude: technician.longitude,
+                    status: currentStatus === "en_route" ? "en_route" : currentStatus === "on_site" ? "on_job" : "available",
+                    transportType: "van",
+                  }]
+                : []
+            }
+            destination={{
+              lat: task.jobLatitude,
+              lng: task.jobLongitude,
+              label: task.jobAddress,
+            }}
+            center={{ lat: task.jobLatitude, lng: task.jobLongitude }}
+            zoom={14}
+            height={200}
+          />
           <Pressable
             style={({ pressed }) => [
               styles.trackingLinkBtn,

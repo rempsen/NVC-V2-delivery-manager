@@ -508,6 +508,173 @@ export const appRouter = router({
     disconnect: protectedProcedure
       .input(z.object({ tenantId: z.number(), integrationKey: z.string() }))
       .mutation(({ input }) => db.disconnectIntegration(input.tenantId, input.integrationKey)),
+
+    // Get OAuth authorization URL for a given integration
+    getAuthUrl: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        integrationKey: z.enum(["quickbooks", "xero", "companycam", "microsoft", "google_calendar"]),
+      }))
+      .query(async ({ input }) => {
+        const { integrationKey, tenantId } = input;
+        let url = "";
+        if (integrationKey === "quickbooks") {
+          const qb = await import("./integrations/quickbooks");
+          url = qb.getAuthorizationUrl(tenantId);
+        } else if (integrationKey === "xero") {
+          const xero = await import("./integrations/xero");
+          url = xero.getAuthorizationUrl(tenantId);
+        } else if (integrationKey === "companycam") {
+          const cc = await import("./integrations/companycam");
+          url = cc.getAuthorizationUrl(tenantId);
+        } else if (integrationKey === "microsoft") {
+          const ms = await import("./integrations/microsoft");
+          url = ms.getAuthorizationUrl(tenantId);
+        } else if (integrationKey === "google_calendar") {
+          const gcal = await import("./integrations/google-calendar");
+          url = gcal.getAuthorizationUrl(tenantId);
+        }
+        return { url };
+      }),
+
+    // Get connection status for a specific integration
+    getStatus: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        integrationKey: z.enum(["quickbooks", "xero", "companycam", "microsoft", "google_calendar", "apple_contacts"]),
+      }))
+      .query(async ({ input }) => {
+        const { integrationKey, tenantId } = input;
+        if (integrationKey === "quickbooks") {
+          const qb = await import("./integrations/quickbooks");
+          return qb.getConnectionStatus(tenantId);
+        } else if (integrationKey === "xero") {
+          const xero = await import("./integrations/xero");
+          return xero.getConnectionStatus(tenantId);
+        } else if (integrationKey === "companycam") {
+          const cc = await import("./integrations/companycam");
+          return cc.getConnectionStatus(tenantId);
+        } else if (integrationKey === "microsoft") {
+          const ms = await import("./integrations/microsoft");
+          return ms.getConnectionStatus(tenantId);
+        } else if (integrationKey === "google_calendar") {
+          const gcal = await import("./integrations/google-calendar");
+          return gcal.getConnectionStatus(tenantId);
+        } else {
+          const ac = await import("./integrations/apple-contacts");
+          return ac.getConnectionStatus(tenantId);
+        }
+      }),
+
+    // Connect Apple Contacts (app-specific password flow)
+    connectAppleContacts: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        appleId: z.string().email(),
+        appSpecificPassword: z.string().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const ac = await import("./integrations/apple-contacts");
+        return ac.connect(input.tenantId, {
+          appleId: input.appleId,
+          appSpecificPassword: input.appSpecificPassword,
+        });
+      }),
+
+    // Import vCard file content
+    importVCard: protectedProcedure
+      .input(z.object({ tenantId: z.number(), vcardContent: z.string() }))
+      .mutation(async ({ input }) => {
+        const ac = await import("./integrations/apple-contacts");
+        return ac.importVCardFile(input.tenantId, input.vcardContent);
+      }),
+
+    // Export customers as vCard
+    exportVCard: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .query(async ({ input }) => {
+        const ac = await import("./integrations/apple-contacts");
+        const content = await ac.exportCustomersAsVCard(input.tenantId);
+        return { content };
+      }),
+
+    // QuickBooks: create invoice from work order
+    qbCreateInvoice: protectedProcedure
+      .input(z.object({ tenantId: z.number(), taskId: z.number() }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        if (!task) throw new Error("Task not found");
+        const qb = await import("./integrations/quickbooks");
+        return qb.createInvoiceFromWorkOrder(input.tenantId, {
+          customerName: (task as any).customerName ?? "Unknown",
+          customerEmail: (task as any).customerEmail ?? undefined,
+          customerPhone: (task as any).customerPhone ?? undefined,
+          description: (task as any).description ?? "Field Service Work Order",
+          totalCents: (task as any).totalPriceCents ?? 0,
+          jobRef: (task as any).orderRef ?? String(input.taskId),
+          completedAt: (task as any).completedAt?.toISOString(),
+        });
+      }),
+
+    // Xero: create invoice from work order
+    xeroCreateInvoice: protectedProcedure
+      .input(z.object({ tenantId: z.number(), taskId: z.number() }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        if (!task) throw new Error("Task not found");
+        const xero = await import("./integrations/xero");
+        return xero.createInvoiceFromWorkOrder(input.tenantId, {
+          customerName: (task as any).customerName ?? "Unknown",
+          customerEmail: (task as any).customerEmail ?? undefined,
+          customerPhone: (task as any).customerPhone ?? undefined,
+          description: (task as any).description ?? "Field Service Work Order",
+          totalCents: (task as any).totalPriceCents ?? 0,
+          jobRef: (task as any).orderRef ?? String(input.taskId),
+          completedAt: (task as any).completedAt?.toISOString(),
+        });
+      }),
+
+    // CompanyCam: sync work order to project
+    ccSyncProject: protectedProcedure
+      .input(z.object({ tenantId: z.number(), taskId: z.number() }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        if (!task) throw new Error("Task not found");
+        const cc = await import("./integrations/companycam");
+        return cc.syncWorkOrderToProject(input.tenantId, {
+          id: input.taskId,
+          customerName: (task as any).customerName ?? "Unknown",
+          jobAddress: (task as any).jobAddress ?? "",
+          jobRef: (task as any).orderRef ?? undefined,
+        });
+      }),
+
+    // Calendar sync (Microsoft or Google) for a work order
+    syncToCalendar: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        taskId: z.number(),
+        provider: z.enum(["microsoft", "google_calendar"]),
+      }))
+      .mutation(async ({ input }) => {
+        const task = await db.getTaskById_NVC(input.taskId);
+        if (!task) throw new Error("Task not found");
+        const workOrder = {
+          id: input.taskId,
+          customerName: (task as any).customerName ?? "Unknown",
+          jobAddress: (task as any).jobAddress ?? "",
+          description: (task as any).description ?? undefined,
+          scheduledAt: (task as any).scheduledAt?.toISOString() ?? undefined,
+          customerEmail: (task as any).customerEmail ?? undefined,
+        };
+        if (input.provider === "microsoft") {
+          const ms = await import("./integrations/microsoft");
+          return ms.syncWorkOrderToCalendar(input.tenantId, workOrder);
+        } else {
+          const gcal = await import("./integrations/google-calendar");
+          return gcal.syncWorkOrderToCalendar(input.tenantId, workOrder);
+        }
+      }),
   }),
 
   // ─── Notifications ─────────────────────────────────────────────────────────
@@ -652,6 +819,76 @@ export const appRouter = router({
           : undefined;
         return gemini.assessDelayRisk(taskSummary, techSummary);
       }),
+  }),
+
+  // ─── Checklists ───────────────────────────────────────────────────────────
+  checklist: router({
+    getByTask: protectedProcedure
+      .input(z.object({ taskId: z.number(), tenantId: z.number() }))
+      .query(({ input }) => db.getChecklistsByTask(input.taskId, input.tenantId)),
+    getWithItems: protectedProcedure
+      .input(z.object({ checklistId: z.number(), tenantId: z.number() }))
+      .query(({ input }) => db.getChecklistWithItems(input.checklistId, input.tenantId)),
+    create: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        taskId: z.number(),
+        title: z.string().optional(),
+        templateName: z.string().optional(),
+        items: z.array(z.object({
+          label: z.string(),
+          required: z.boolean().default(false),
+          itemType: z.enum(["checkbox", "photo", "voice", "note", "signature", "payment"]).default("checkbox"),
+          sortOrder: z.number().default(0),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const result = await db.createChecklist({
+          tenantId: input.tenantId,
+          taskId: input.taskId,
+          title: input.title ?? "Work Order Checklist",
+          templateName: input.templateName,
+        });
+        const insertedId = (result as any).insertId as number;
+        if (input.items.length > 0) {
+          await db.addChecklistItems(
+            input.items.map((item, i) => ({
+              checklistId: insertedId,
+              tenantId: input.tenantId,
+              label: item.label,
+              required: item.required,
+              itemType: item.itemType,
+              sortOrder: item.sortOrder ?? i,
+            }))
+          );
+        }
+        return { checklistId: insertedId };
+      }),
+    toggleItem: protectedProcedure
+      .input(z.object({
+        itemId: z.number(),
+        tenantId: z.number(),
+        checked: z.boolean(),
+        userId: z.number().optional(),
+      }))
+      .mutation(({ input }) =>
+        db.toggleChecklistItem(input.itemId, input.tenantId, input.checked, input.userId)
+      ),
+    updateItemNote: protectedProcedure
+      .input(z.object({ itemId: z.number(), tenantId: z.number(), note: z.string() }))
+      .mutation(({ input }) => db.updateChecklistItemNote(input.itemId, input.tenantId, input.note)),
+    complete: protectedProcedure
+      .input(z.object({
+        checklistId: z.number(),
+        tenantId: z.number(),
+        signatureUrl: z.string().optional(),
+        signedByName: z.string().optional(),
+        paymentAuthorized: z.boolean().optional(),
+        paymentAmountCents: z.number().optional(),
+        paymentMethod: z.string().optional(),
+        completedByUserId: z.number().optional(),
+      }))
+      .mutation(({ input }) => db.completeChecklist(input.checklistId, input.tenantId, input)),
   }),
 
   // ─── Location ──────────────────────────────────────────────────────────────

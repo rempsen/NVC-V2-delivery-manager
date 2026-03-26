@@ -17,6 +17,8 @@ import {
   fileAttachments, InsertFileAttachment,
   notifications, InsertNotification,
   consentRecords, InsertConsentRecord,
+  taskChecklists, InsertTaskChecklist,
+  checklistItems, InsertChecklistItem,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -662,4 +664,103 @@ export async function deleteTechnician(id: number, tenantId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(technicians).where(and(eq(technicians.id, id), eq(technicians.tenantId, tenantId)));
+}
+
+// ─── Task Checklists ──────────────────────────────────────────────────────────
+
+export async function getChecklistsByTask(taskId: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(taskChecklists)
+    .where(and(eq(taskChecklists.taskId, taskId), eq(taskChecklists.tenantId, tenantId)));
+}
+
+export async function getChecklistWithItems(checklistId: number, tenantId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [checklist] = await db
+    .select()
+    .from(taskChecklists)
+    .where(and(eq(taskChecklists.id, checklistId), eq(taskChecklists.tenantId, tenantId)));
+  if (!checklist) return null;
+  const items = await db
+    .select()
+    .from(checklistItems)
+    .where(eq(checklistItems.checklistId, checklistId))
+    .orderBy(checklistItems.sortOrder);
+  return { ...checklist, items };
+}
+
+export async function createChecklist(data: InsertTaskChecklist) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(taskChecklists).values(data);
+  return result;
+}
+
+export async function addChecklistItems(items: InsertChecklistItem[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (items.length === 0) return;
+  await db.insert(checklistItems).values(items);
+}
+
+export async function toggleChecklistItem(
+  itemId: number,
+  tenantId: number,
+  checked: boolean,
+  userId?: number,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(checklistItems)
+    .set({
+      isChecked: checked,
+      checkedAt: checked ? new Date() : null,
+      checkedByUserId: checked ? (userId ?? null) : null,
+    })
+    .where(and(eq(checklistItems.id, itemId), eq(checklistItems.tenantId, tenantId)));
+}
+
+export async function updateChecklistItemNote(itemId: number, tenantId: number, note: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(checklistItems)
+    .set({ note })
+    .where(and(eq(checklistItems.id, itemId), eq(checklistItems.tenantId, tenantId)));
+}
+
+export async function completeChecklist(
+  checklistId: number,
+  tenantId: number,
+  data: {
+    signatureUrl?: string;
+    signedByName?: string;
+    paymentAuthorized?: boolean;
+    paymentAmountCents?: number;
+    paymentMethod?: string;
+    completedByUserId?: number;
+  },
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(taskChecklists)
+    .set({
+      isCompleted: true,
+      completedAt: new Date(),
+      completedByUserId: data.completedByUserId ?? null,
+      signatureUrl: data.signatureUrl ?? null,
+      signedAt: data.signatureUrl ? new Date() : null,
+      signedByName: data.signedByName ?? null,
+      paymentAuthorized: data.paymentAuthorized ?? false,
+      paymentAmountCents: data.paymentAmountCents ?? null,
+      paymentMethod: data.paymentMethod ?? null,
+      paymentAuthorizedAt: data.paymentAuthorized ? new Date() : null,
+    })
+    .where(and(eq(taskChecklists.id, checklistId), eq(taskChecklists.tenantId, tenantId)));
 }

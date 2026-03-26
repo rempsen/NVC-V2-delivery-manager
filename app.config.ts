@@ -93,6 +93,13 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "react-native-maps",
+      {
+        androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
+        iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
+      },
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",

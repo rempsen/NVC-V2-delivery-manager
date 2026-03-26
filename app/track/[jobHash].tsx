@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { GoogleMapView } from "@/components/google-map-view";
+import { NativeMapView } from "@/components/native-map-view";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -387,31 +387,27 @@ export default function CustomerTrackingScreen() {
             </View>
           )}
 
-          {/* Map */}
-          {Platform.OS === "web" ? (
-            <GoogleMapView
-              technicians={[
-                {
-                  id: 1,
-                  name: tracking.technician.name,
-                  latitude: tracking.technician.latitude,
-                  longitude: tracking.technician.longitude,
-                  status: tracking.status === "en_route" ? "en_route" : tracking.status === "arrived" ? "on_job" : "available",
-                  transportType: "van",
-                },
-              ]}
-              center={{ lat: tracking.technician.latitude, lng: tracking.technician.longitude }}
-              zoom={14}
-              height={220}
-            />
-          ) : (
-            <TrackingMap
-              techLat={tracking.technician.latitude}
-              techLng={tracking.technician.longitude}
-              status={tracking.status}
-              companyColor={companyColor}
-            />
-          )}
+          {/* Map — live on all platforms */}
+          <NativeMapView
+            technicians={[
+              {
+                id: 1,
+                name: tracking.technician.name,
+                latitude: tracking.technician.latitude,
+                longitude: tracking.technician.longitude,
+                status: tracking.status === "en_route" ? "en_route" : tracking.status === "arrived" ? "on_job" : "available",
+                transportType: "van",
+              },
+            ]}
+            destination={{
+              lat: 49.8851,
+              lng: -97.1484,
+              label: tracking.jobAddress,
+            }}
+            center={{ lat: tracking.technician.latitude, lng: tracking.technician.longitude }}
+            zoom={14}
+            height={220}
+          />
 
           {/* Status Steps */}
           <View style={[styles.stepsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

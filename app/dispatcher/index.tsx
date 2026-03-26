@@ -17,15 +17,13 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import {
-  MOCK_TASKS,
-  MOCK_TECHNICIANS,
-  STATUS_COLORS,
-  STATUS_LABELS,
+  MOCK_TASKS, MOCK_TECHNICIANS, STATUS_COLORS, STATUS_LABELS,
   PRIORITY_COLORS,
   type Technician,
   type Task,
   type TaskStatus,
 } from "@/lib/nvc-types";
+import { GoogleMapView } from "@/components/google-map-view";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const IS_WIDE = SCREEN_WIDTH >= 768;
@@ -66,81 +64,23 @@ function FleetMap({
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
-  const colors = useColors();
-  const STATUS_DOT: Record<string, string> = {
-    online: "#22C55E",
-    busy: "#F59E0B",
-    offline: "#94A3B8",
-    on_break: "#3B82F6",
-  };
-
-  // Simulate a map using a dark background with technician pins
   return (
-    <View style={[styles.mapContainer, { backgroundColor: "#0d1b2a" }]}>
-      {/* Map grid lines */}
-      {[...Array(6)].map((_, i) => (
-        <View
-          key={`h${i}`}
-          style={[styles.mapGridH, { top: `${(i + 1) * 14}%` as any, borderColor: "#ffffff08" }]}
-        />
-      ))}
-      {[...Array(8)].map((_, i) => (
-        <View
-          key={`v${i}`}
-          style={[styles.mapGridV, { left: `${(i + 1) * 11}%` as any, borderColor: "#ffffff08" }]}
-        />
-      ))}
-
-      {/* Road lines */}
-      <View style={[styles.mapRoad, { top: "35%", backgroundColor: "#1e3a5f" }]} />
-      <View style={[styles.mapRoad, { top: "60%", backgroundColor: "#1e3a5f" }]} />
-      <View style={[styles.mapRoadV, { left: "30%", backgroundColor: "#1e3a5f" }]} />
-      <View style={[styles.mapRoadV, { left: "65%", backgroundColor: "#1e3a5f" }]} />
-
-      {/* Technician pins */}
-      {technicians.map((tech) => {
-        // Normalize lat/lng to screen position (Winnipeg area: ~49.8-49.9 lat, -97.1 to -97.2 lng)
-        const x = ((tech.longitude + 97.25) / 0.25) * 80 + 5;
-        const y = ((tech.latitude - 49.85) / 0.1) * 70 + 10;
-        const dotColor = STATUS_DOT[tech.status] ?? "#94A3B8";
-        const isSelected = selectedId === tech.id;
-
-        return (
-          <Pressable
-            key={tech.id}
-            style={[
-              styles.techPin,
-              {
-                left: `${Math.max(5, Math.min(90, x))}%` as any,
-                top: `${Math.max(5, Math.min(85, y))}%` as any,
-                backgroundColor: isSelected ? dotColor : dotColor + "CC",
-                borderColor: isSelected ? "#fff" : "transparent",
-                borderWidth: isSelected ? 2 : 0,
-                transform: [{ scale: isSelected ? 1.3 : 1 }],
-              },
-            ]}
-            onPress={() => onSelect(tech.id)}
-          >
-            <Text style={styles.techPinText}>{tech.name.charAt(0)}</Text>
-          </Pressable>
-        );
-      })}
-
-      {/* Map label */}
-      <View style={styles.mapLabel}>
-        <IconSymbol name="map.fill" size={12} color="rgba(255,255,255,0.4)" />
-        <Text style={styles.mapLabelText}>Live Fleet Map · Winnipeg, MB</Text>
-      </View>
-
-      {/* Legend */}
-      <View style={[styles.mapLegend, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
-        {Object.entries(STATUS_DOT).map(([status, color]) => (
-          <View key={status} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: color }]} />
-            <Text style={styles.legendText}>{status.replace("_", " ")}</Text>
-          </View>
-        ))}
-      </View>
+    <View style={styles.mapContainer}>
+      <GoogleMapView
+        technicians={technicians.map((t) => ({
+          id: t.id,
+          name: t.name,
+          latitude: t.latitude,
+          longitude: t.longitude,
+          status: t.status,
+          transportType: t.transportType,
+        }))}
+        selectedId={selectedId}
+        onSelectTech={onSelect}
+        center={{ lat: 49.8951, lng: -97.1384 }}
+        zoom={11}
+        height={280}
+      />
     </View>
   );
 }

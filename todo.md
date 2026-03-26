@@ -588,3 +588,63 @@
 - [x] Wire mobile task detail screen map to real Google Maps (replace simulated map)
 - [x] Add Gemini-powered SMS drafting to job create/update flow on web dashboard
 - [x] Add SMS draft preview with edit-before-send capability
+
+## Sprint: Integrations + Interactive Tasks + Live Maps (Mar 26)
+
+### Map Standardization
+- [x] Replace all remaining simulated/SVG maps with live GoogleMapView on web
+- [x] Add react-native-maps on native (iOS/Android) for live map on mobile
+- [x] Wire execute-task screen map to live Google Maps
+- [x] Wire customer tracking page map to live Google Maps (already done on web, confirm native)
+- [x] Confirm task detail screen map is live on both web and native
+
+### Interactive Task Checklist
+- [x] Add taskChecklists table to schema (id, taskId, title, items JSON, createdAt)
+- [x] Add checklistItems table (id, checklistId, label, completed, completedBy, completedAt, signatureUrl, photoUrl)
+- [x] Backend CRUD router for checklists and checklist items
+- [x] Interactive checklist UI component (check/uncheck, photo attach, signature capture)
+- [x] Checklist panel on task detail screen (mobile)
+- [ ] Checklist panel on work order detail (web dashboard)
+- [ ] Checklist templates per workflow type (Delivery, Installation, Service Call, Inspection)
+
+### QuickBooks Integration
+- [x] QuickBooks OAuth 2.0 flow (authorization URL, callback, token storage)
+- [x] QuickBooks: sync completed jobs as invoices
+- [x] QuickBooks: sync customers
+- [ ] QuickBooks: webhook for payment status updates
+
+### Xero Integration
+- [x] Xero OAuth 2.0 flow (authorization URL, callback, token storage)
+- [x] Xero: sync completed jobs as invoices
+- [x] Xero: sync customers/contacts
+- [ ] Xero: webhook for payment status updates
+
+### CompanyCam Integration
+- [x] CompanyCam OAuth 2.0 flow
+- [x] CompanyCam: create project per job
+- [x] CompanyCam: attach photos from job to CompanyCam project
+- [ ] CompanyCam: pull photos back into job detail view
+
+### Calendar Integrations
+- [x] Google Calendar OAuth 2.0 flow (authorization URL, callback, token storage)
+- [x] Google Calendar: create event when job is scheduled
+- [x] Google Calendar: update event when job is rescheduled/completed
+- [x] Office 365 / Outlook Calendar OAuth 2.0 flow (Microsoft identity platform)
+- [x] Office 365: create calendar event per job
+- [x] Office 365: update/delete event on job changes
+
+### Apple Contacts
+- [x] Apple Contacts: iCloud CardDAV connector (connect with Apple ID + app-specific password)
+- [x] Apple Contacts: vCard import (import contacts as NVC360 customers)
+- [x] Apple Contacts: vCard export (export customers as .vcf file)
+- [ ] expo-contacts permission request on mobile (native device contacts)
+- [ ] Apple Contacts: import contact to pre-fill customer form on mobile
+
+### Integrations Settings UI
+- [x] Integrations screen wired to real tRPC API (live connect/disconnect)
+- [x] OAuth redirect handler for all providers (Express callback routes)
+- [x] Apple Contacts credential form (Apple ID + app-specific password)
+- [x] Connected account metadata shown (email, org name)
+- [x] Disconnect persisted to database
+- [ ] Sync status and last-synced timestamp per integration card
+- [ ] Integration health check (token validity indicator)

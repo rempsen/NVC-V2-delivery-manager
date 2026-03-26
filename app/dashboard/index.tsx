@@ -248,135 +248,23 @@ function FleetMapPanel({ technicians, selectedId, onSelect }: {
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
-  const [hoveredId, setHoveredId] = React.useState<number | null>(null);
-  const positions: Record<number, { x: number; y: number }> = {
-    1: { x: 48, y: 42 }, 2: { x: 36, y: 58 }, 3: { x: 62, y: 30 },
-    4: { x: 28, y: 70 }, 5: { x: 55, y: 68 }, 6: { x: 44, y: 52 },
-    7: { x: 70, y: 45 }, 8: { x: 32, y: 38 }, 9: { x: 22, y: 55 }, 10: { x: 58, y: 55 },
-  };
-  const statusColor: Record<string, string> = {
-    online: "#22C55E", busy: "#F59E0B", offline: "#6B7280", on_break: "#3B82F6", en_route: "#8B5CF6",
-  };
-  const activeId = hoveredId ?? selectedId;
-  const activeTech = activeId ? technicians.find((t) => t.id === activeId) : null;
-
   return (
     <View style={styles.mapPanel}>
-      {/* Dark map base */}
-      <View style={StyleSheet.absoluteFillObject as any}>
-        {/* Grid lines */}
-        {[15, 30, 45, 60, 75, 90].map((pct) => (
-          <View key={`h${pct}`} style={[styles.mapGridH, { top: `${pct}%` as any }]} />
-        ))}
-        {[15, 30, 45, 60, 75, 90].map((pct) => (
-          <View key={`v${pct}`} style={[styles.mapGridV, { left: `${pct}%` as any }]} />
-        ))}
-        {/* Heat zones */}
-        {HEAT_ZONES.map((hz, i) => (
-          <View
-            key={i}
-            style={[styles.heatZone, {
-              left: `${hz.x}%` as any,
-              top: `${hz.y}%` as any,
-              width: hz.r,
-              height: hz.r,
-              marginLeft: -hz.r / 2,
-              marginTop: -hz.r / 2,
-              backgroundColor: hz.color + "18",
-              borderColor: hz.color + "35",
-            }]}
-          />
-        ))}
-        {/* Roads */}
-        <View style={[styles.mapRoad, { top: "33%", height: 6 }]} />
-        <View style={[styles.mapRoad, { top: "58%", height: 4 }]} />
-        <View style={[styles.mapRoad, { top: "72%", height: 3 }]} />
-        <View style={[styles.mapRoadV, { left: "38%", width: 6 }]} />
-        <View style={[styles.mapRoadV, { left: "63%", width: 4 }]} />
-        {/* Route preview line */}
-        <View style={[styles.routePreview, { top: "33%", left: "38%", width: 120, transform: [{ rotate: "22deg" }] }]} />
-      </View>
-
-      {/* City label */}
-      <View style={styles.mapCityLabel}>
-        <View style={[styles.liveDot, { backgroundColor: "#22C55E", marginRight: 4 }]} />
-        <Text style={styles.mapCityText}>Winnipeg, MB · LIVE</Text>
-      </View>
-
-      {/* Technician pins */}
-      {technicians.map((tech) => {
-        const pos = positions[tech.id] ?? { x: 50, y: 50 };
-        const color = statusColor[tech.status] ?? "#6B7280";
-        const isSelected = selectedId === tech.id;
-        const isHovered = hoveredId === tech.id;
-        const isActive = isSelected || isHovered;
-        const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
-        return (
-          <Pressable
-            key={tech.id}
-            // @ts-ignore
-            onHoverIn={() => setHoveredId(tech.id)}
-            onHoverOut={() => setHoveredId(null)}
-            style={[{
-              position: "absolute",
-              left: `${pos.x}%` as any,
-              top: `${pos.y}%` as any,
-              zIndex: isActive ? 20 : 1,
-              alignItems: "center",
-            }] as ViewStyle[]}
-            onPress={() => onSelect(tech.id)}
-          >
-            {/* Halo ring */}
-            {isActive && (
-              <View style={[styles.techHalo, { borderColor: color, width: 46, height: 46, borderRadius: 23, marginLeft: -23, marginTop: -23 }]} />
-            )}
-            {/* Status pulse ring */}
-            {tech.status !== "offline" && (
-              <View style={[styles.techPulse, { backgroundColor: color + "30", width: 38, height: 38, borderRadius: 19, marginLeft: -19, marginTop: -19 }]} />
-            )}
-            {/* Pin */}
-            <View style={[styles.techPin, {
-              borderColor: isActive ? "#fff" : color,
-              backgroundColor: color,
-              width: 30, height: 30, borderRadius: 15,
-              marginLeft: -15, marginTop: -15,
-              borderWidth: isActive ? 2.5 : 1.5,
-              shadowColor: color,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isActive ? 0.7 : 0.4,
-              shadowRadius: isActive ? 8 : 4,
-              elevation: isActive ? 8 : 3,
-            }]}>
-              <Text style={[styles.techPinInitials, { fontSize: 9, fontWeight: "800" }]}>{initials}</Text>
-            </View>
-            {/* Hover/selected card */}
-            {isActive && activeTech && (
-              <View style={[styles.techHoverCard, { backgroundColor: "rgba(10,20,40,0.92)", borderColor: color + "60" }]}>
-                <Text style={[styles.techHoverName]}>{activeTech.name}</Text>
-                <Text style={[styles.techHoverDetail]}>{TECH_STATUS_LABELS[activeTech.status] ?? activeTech.status} · {activeTech.todayJobs} jobs</Text>
-                {activeTech.activeTaskAddress && (
-                  <Text style={[styles.techHoverAddr]} numberOfLines={1}>{activeTech.activeTaskAddress}</Text>
-                )}
-              </View>
-            )}
-          </Pressable>
-        );
-      })}
-
-      {/* Legend */}
-      <View style={styles.mapLegend}>
-        {[{ label: "On Job", color: "#F59E0B" }, { label: "En Route", color: "#8B5CF6" }, { label: "Available", color: "#22C55E" }].map((l) => (
-          <View key={l.label} style={styles.mapLegendItem}>
-            <View style={[styles.mapLegendDot, { backgroundColor: l.color }]} />
-            <Text style={styles.mapLegendText}>{l.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Attribution */}
-      <View style={styles.mapAttr}>
-        <Text style={styles.mapAttrText}>Simulated · Mapbox integration pending</Text>
-      </View>
+      <GoogleMapView
+        technicians={technicians.map((t) => ({
+          id: t.id,
+          name: t.name,
+          latitude: t.latitude,
+          longitude: t.longitude,
+          status: t.status,
+          transportType: (t as any).transportType,
+        }))}
+        selectedId={selectedId}
+        onSelectTech={onSelect}
+        center={{ lat: 49.8951, lng: -97.1384 }}
+        zoom={11}
+        height={340}
+      />
     </View>
   );
 }
