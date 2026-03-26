@@ -780,3 +780,12 @@
 - [x] Map: show per-leg drive-time ETA on route polylines
 - [x] Dashboard: "×" unassign button on each active job chip in right panel roster
 - [x] Dashboard: reassign flow — click job chip to open technician picker modal
+
+## Sprint: Notification History, ETA Auto-Refresh, Deep-Link (v5.8)
+- [x] Server: store last 20 assignment push notifications in DB notifications table
+- [x] Server: tRPC query notifications.dispatchHistory to fetch last 20 assignment notifications
+- [x] Dashboard: bell icon in header with unread badge count
+- [x] Dashboard: slide-over notification history panel showing last 20 push notifications
+- [x] Dashboard: route ETA auto-refresh every 30 seconds when overlay is active
+- [x] Mobile: handle push notification tap to deep-link to task detail screen
+- [x] Mobile: register push token on app launch and save to server

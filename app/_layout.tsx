@@ -1,13 +1,25 @@
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import * as Notifications from "expo-notifications";
+
+// Show notifications as alerts even when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -29,6 +41,8 @@ export const unstable_settings = {
 export default function RootLayout() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
+  const router = useRouter();
+  const notifResponseListener = useRef<Notifications.EventSubscription | null>(null);
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
@@ -37,6 +51,41 @@ export default function RootLayout() {
   useEffect(() => {
     initManusRuntime();
   }, []);
+
+  // Deep-link handler: tapping a push notification navigates to the task detail screen
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    // Handle notification tapped while app is open or in background
+    notifResponseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      const taskId = data?.taskId;
+      const deepLink = data?.deepLink as string | undefined;
+      if (deepLink) {
+        router.push(deepLink as any);
+      } else if (taskId) {
+        router.push(`/task/${taskId}` as any);
+      }
+    });
+
+    // Register for push notifications and log the token (technician saves it on login)
+    (async () => {
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status === "granted") {
+          const tokenData = await Notifications.getExpoPushTokenAsync();
+          // Token available at tokenData.data — saved to server via the technician profile flow
+          console.log("[NVC360] Expo push token:", tokenData.data);
+        }
+      } catch {
+        // Push token unavailable in Expo Go on Android SDK 53+ — silently ignore
+      }
+    })();
+
+    return () => {
+      notifResponseListener.current?.remove();
+    };
+  }, [router]);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
     setInsets(metrics.insets);

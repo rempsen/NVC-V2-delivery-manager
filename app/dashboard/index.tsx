@@ -632,10 +632,16 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
 
   // ETA ticker — re-renders every 30s
   const [now, setNow] = useState(() => new Date());
+  // Route ETA auto-refresh key — incrementing forces useMemo to re-run and re-fetch Directions API
+  const [routeRefreshKey, setRouteRefreshKey] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
+    const t = setInterval(() => {
+      setNow(new Date());
+      // Also bump the route refresh key every 30s when overlay is active
+      if (showRoutes) setRouteRefreshKey((k) => k + 1);
+    }, 30_000);
     return () => clearInterval(t);
-  }, []);
+  }, [showRoutes]);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -706,7 +712,8 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
         return { techId: tech.id, color: ROUTE_COLORS[idx % ROUTE_COLORS.length], waypoints };
       })
       .filter(Boolean) as import("@/components/google-map-view").RoutePolyline[];
-  }, [showRoutes, sortedTechs, tasks]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRoutes, sortedTechs, tasks, routeRefreshKey]);
 
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -2817,6 +2824,17 @@ export default function DesktopDashboard() {
     { refetchInterval: 30_000, staleTime: 15_000 },
   );
 
+  // Notification history panel state
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const notifHistoryQuery = trpc.notifications.dispatchHistory.useQuery(
+    { tenantId: DEMO_TENANT_ID, limit: 20 },
+    { refetchInterval: 30_000, staleTime: 15_000 },
+  );
+  const notifHistory: Array<{ id: number; title: string; body: string | null; createdAt: Date | string; entityId: number | null; pushStatus: string | null }> = useMemo(() => {
+    return (notifHistoryQuery.data ?? []) as any[];
+  }, [notifHistoryQuery.data]);
+  const unreadNotifCount = notifHistory.filter((n) => !(n as any).readAt).length;
+
   // Drag-to-assign mutation — persists to DB then refetches
   const assignMutation = trpc.tasks.assign.useMutation({
     onSuccess: () => {
@@ -2967,8 +2985,25 @@ export default function DesktopDashboard() {
             </Text>
           </View>
           <View style={styles.topBarRight}>
-            <Pressable style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.background, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}>
-              <IconSymbol name="bell.fill" size={18} color={colors.muted} />
+            <Pressable
+              style={({ pressed }) => [styles.topBarBtn, {
+                backgroundColor: showNotifPanel ? NVC_BLUE + "18" : colors.background,
+                opacity: pressed ? 0.7 : 1,
+              }] as ViewStyle[]}
+              onPress={() => setShowNotifPanel((v) => !v)}
+            >
+              <IconSymbol name="bell.fill" size={18} color={showNotifPanel ? NVC_BLUE : colors.muted} />
+              {unreadNotifCount > 0 && (
+                <View style={{
+                  position: "absolute", top: 4, right: 4,
+                  width: 16, height: 16, borderRadius: 8,
+                  backgroundColor: NVC_ORANGE, alignItems: "center", justifyContent: "center",
+                }}>
+                  <Text style={{ fontSize: 9, fontWeight: "700", color: "#fff" }}>
+                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                  </Text>
+                </View>
+              )}
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
@@ -2982,6 +3017,133 @@ export default function DesktopDashboard() {
 
         {renderContent()}
       </View>
+
+      {/* ── Notification History Slide-Over Panel ── */}
+      {showNotifPanel && Platform.OS === "web" && (
+        <View style={{
+          position: "absolute", top: 0, right: 0, bottom: 0,
+          width: 360, backgroundColor: colors.surface,
+          borderLeftWidth: 1, borderLeftColor: colors.border,
+          zIndex: 300, shadowColor: "#000", shadowOpacity: 0.18,
+          shadowRadius: 24, shadowOffset: { width: -4, height: 0 },
+        } as any}>
+          {/* Panel header */}
+          <View style={{
+            flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+            paddingHorizontal: 20, paddingVertical: 16,
+            borderBottomWidth: 1, borderBottomColor: colors.border,
+          }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <IconSymbol name="bell.fill" size={18} color={NVC_BLUE} />
+              <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground } as TextStyle}>
+                Dispatch Notifications
+              </Text>
+              {unreadNotifCount > 0 && (
+                <View style={{
+                  paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10,
+                  backgroundColor: NVC_ORANGE,
+                }}>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#fff" } as TextStyle}>
+                    {unreadNotifCount} new
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Pressable
+              style={({ pressed }) => [{ padding: 6, borderRadius: 8, opacity: pressed ? 0.6 : 1, backgroundColor: colors.background }] as ViewStyle[]}
+              onPress={() => setShowNotifPanel(false)}
+            >
+              <Text style={{ fontSize: 16, color: colors.muted, fontWeight: "600" } as TextStyle}>×</Text>
+            </Pressable>
+          </View>
+
+          {/* Notification list */}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12 }}>
+            {notifHistory.length === 0 ? (
+              <View style={{ alignItems: "center", paddingTop: 48 }}>
+                <IconSymbol name="bell.fill" size={32} color={colors.border} />
+                <Text style={{ fontSize: 13, color: colors.muted, marginTop: 12, textAlign: "center" } as TextStyle}>
+                  No dispatch notifications yet.{"\n"}They will appear here after you assign jobs.
+                </Text>
+              </View>
+            ) : (
+              notifHistory.map((notif) => {
+                const isRead = !!(notif as any).readAt;
+                const ts = notif.createdAt ? new Date(notif.createdAt) : null;
+                const timeStr = ts ? ts.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" }) : "";
+                const dateStr = ts ? ts.toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "";
+                const statusColor = notif.pushStatus === "sent" ? "#22C55E" : notif.pushStatus === "failed" ? "#EF4444" : "#9CA3AF";
+                return (
+                  <Pressable
+                    key={notif.id}
+                    style={({ pressed }) => ([{
+                      backgroundColor: pressed ? NVC_BLUE + "10" : isRead ? colors.background : NVC_BLUE + "08",
+                      borderRadius: 12, padding: 14, marginBottom: 8,
+                      borderWidth: 1, borderColor: isRead ? colors.border : NVC_BLUE + "30",
+                      flexDirection: "row", gap: 12, alignItems: "flex-start",
+                    }] as ViewStyle[])}
+                    onPress={() => {
+                      if (notif.entityId) router.push(`/task/${notif.entityId}` as any);
+                    }}
+                  >
+                    {/* Status dot */}
+                    <View style={{
+                      width: 8, height: 8, borderRadius: 4,
+                      backgroundColor: isRead ? colors.border : NVC_BLUE,
+                      marginTop: 5, flexShrink: 0,
+                    }} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={{ fontSize: 13, fontWeight: isRead ? "500" : "700", color: colors.foreground } as TextStyle}>
+                        {notif.title}
+                      </Text>
+                      {notif.body ? (
+                        <Text style={{ fontSize: 12, color: colors.muted, lineHeight: 17 } as TextStyle}>
+                          {notif.body}
+                        </Text>
+                      ) : null}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                        <Text style={{ fontSize: 11, color: colors.muted } as TextStyle}>
+                          {dateStr} · {timeStr}
+                        </Text>
+                        <View style={{
+                          paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+                          backgroundColor: statusColor + "20",
+                        }}>
+                          <Text style={{ fontSize: 10, fontWeight: "600", color: statusColor } as TextStyle}>
+                            {notif.pushStatus === "sent" ? "Delivered" : notif.pushStatus === "failed" ? "Failed" : "No token"}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <IconSymbol name="chevron.right" size={12} color={colors.muted} />
+                  </Pressable>
+                );
+              })
+            )}
+          </ScrollView>
+
+          {/* Footer: mark all read */}
+          {notifHistory.length > 0 && (
+            <View style={{
+              paddingHorizontal: 16, paddingVertical: 12,
+              borderTopWidth: 1, borderTopColor: colors.border,
+            }}>
+              <Pressable
+                style={({ pressed }) => ([{
+                  paddingVertical: 10, borderRadius: 10, alignItems: "center",
+                  backgroundColor: pressed ? colors.border : colors.background,
+                  borderWidth: 1, borderColor: colors.border,
+                }] as ViewStyle[])}
+                onPress={() => notifHistoryQuery.refetch()}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted } as TextStyle}>
+                  Refresh
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }

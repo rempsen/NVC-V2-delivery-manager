@@ -321,12 +321,33 @@ export const appRouter = router({
         const customerName = (task as any)?.customerName ?? "a customer";
         const address = (task as any)?.address ?? (task as any)?.jobAddress ?? "";
         const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
+        const pushTitle = "New Job Assigned 📋";
+        const pushBody = `${orderRef} — ${customerName}${address ? ` · ${address}` : ""}`;
+        const deepLink = `/task/${input.taskId}`;
+
         await sendPushToTech(
           (tech as any)?.pushToken,
-          "New Job Assigned 📋",
-          `${orderRef} — ${customerName}${address ? ` · ${address}` : ""}`,
-          { taskId: input.taskId, screen: "task-detail" },
+          pushTitle,
+          pushBody,
+          { taskId: input.taskId, screen: "task-detail", deepLink },
         );
+
+        // 4. Persist notification record for history panel
+        const tenantId = (task as any)?.tenantId ?? (tech as any)?.tenantId ?? 1;
+        const techUserId = (tech as any)?.tenantUserId ?? (tech as any)?.id ?? 0;
+        await db.createNotification({
+          tenantId,
+          recipientUserId: techUserId,
+          type: "job_assigned",
+          title: pushTitle,
+          body: pushBody,
+          deepLink,
+          entityType: "task",
+          entityId: input.taskId,
+          pushStatus: (tech as any)?.pushToken ? "sent" : "not_applicable",
+          pushToken: (tech as any)?.pushToken ?? null,
+          sentAt: new Date(),
+        } as any);
 
         return { success: true, taskId: input.taskId, technicianId: input.technicianId };
       }),
@@ -760,6 +781,11 @@ export const appRouter = router({
     markAllRead: protectedProcedure
       .input(z.object({ tenantId: z.number(), userId: z.number() }))
       .mutation(({ input }) => db.markAllNotificationsRead(input.tenantId, input.userId)),
+
+    /** Last 20 job_assigned notifications for the dispatcher history panel */
+    dispatchHistory: protectedProcedure
+      .input(z.object({ tenantId: z.number(), limit: z.number().default(20) }))
+      .query(({ input }) => db.getDispatchHistory(input.tenantId, input.limit)),
   }),
 
   // ─── File Attachments ──────────────────────────────────────────────────────

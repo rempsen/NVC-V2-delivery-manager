@@ -579,6 +579,18 @@ export async function getNotificationsForUser(tenantId: number, userId: number, 
     .limit(limit);
 }
 
+/** Fetch last N dispatch (job_assigned) notifications for a tenant — used by the history panel */
+export async function getDispatchHistory(tenantId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(notifications)
+    .where(and(eq(notifications.tenantId, tenantId), eq(notifications.type, "job_assigned")))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
+}
+
 export async function createNotification(data: InsertNotification) {
   const db = await getDb();
   if (!db) return;
