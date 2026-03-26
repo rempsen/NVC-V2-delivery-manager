@@ -12,6 +12,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE } from "@/constants/brand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 const STORAGE_KEY = "nvc360_email_smtp";
 
@@ -75,6 +77,8 @@ function SettingsField({
 export default function EmailSmtpScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
+  const updateOwnMutation = trpc.tenants.updateOwn.useMutation();
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
@@ -126,6 +130,14 @@ export default function EmailSmtpScreen() {
     try {
       const config = { host, port, useTls, username, password, fromEmail, fromName };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      // Persist SMTP config to the live DB under branding.smtp
+      if (tenantId) {
+        await updateOwnMutation.mutateAsync({
+          tenantId,
+          emailDomain: fromEmail.split("@")[1] || undefined,
+          branding: { smtp: { host, port, useTls, username, fromEmail, fromName } },
+        });
+      }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Saved", "SMTP configuration saved successfully.", [
         { text: "OK", onPress: () => router.back() },

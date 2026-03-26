@@ -19,6 +19,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -417,13 +419,40 @@ function PermissionEditor({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+const ROLES_STORAGE_KEY = "nvc360_role_permissions";
+
 export default function PermissionsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [tierFilter, setTierFilter] = useState<"all" | RoleTier>("all");
+
+  // Load persisted role permissions from AsyncStorage on mount
+  React.useEffect(() => {
+    if (!tenantId) return;
+    AsyncStorage.getItem(`${ROLES_STORAGE_KEY}_${tenantId}`).then((raw) => {
+      if (raw) {
+        try {
+          const saved: Role[] = JSON.parse(raw);
+          // Merge saved permissions into DEFAULT_ROLES so system roles stay current
+          setRoles((prev) => {
+            const savedMap = new Map(saved.map((r) => [r.id, r]));
+            const merged = prev.map((r) => savedMap.has(r.id) ? { ...r, permissions: savedMap.get(r.id)!.permissions } : r);
+            // Add any custom (non-system) roles from storage
+            const customRoles = saved.filter((r) => !r.isSystem && !prev.find((p) => p.id === r.id));
+            return [...merged, ...customRoles];
+          });
+        } catch {}
+      }
+    });
+  }, [tenantId]);
+
+  const persistRoles = (updated: Role[]) => {
+    if (tenantId) AsyncStorage.setItem(`${ROLES_STORAGE_KEY}_${tenantId}`, JSON.stringify(updated));
+  };
 
   const filteredRoles = roles.filter(
     (r) => tierFilter === "all" || r.tier === tierFilter,
@@ -433,7 +462,11 @@ export default function PermissionsScreen() {
   const clientRoles = filteredRoles.filter((r) => r.tier === "client_company");
 
   const handleSaveRole = (updated: Role) => {
-    setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    setRoles((prev) => {
+      const next = prev.map((r) => (r.id === updated.id ? updated : r));
+      persistRoles(next);
+      return next;
+    });
   };
 
   // ── Create Role Modal ──
@@ -458,7 +491,11 @@ export default function PermissionsScreen() {
       permissions: buildPermissions([]),
       isSystem: false,
     };
-    setRoles((prev) => [...prev, newRole]);
+    setRoles((prev) => {
+      const next = [...prev, newRole];
+      persistRoles(next);
+      return next;
+    });
     setNewRoleName("");
     setNewRoleDesc("");
     setCreateModalVisible(false);

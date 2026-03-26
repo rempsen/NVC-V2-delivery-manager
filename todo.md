@@ -1074,3 +1074,33 @@
 - [x] dashboard/index.tsx — remove dead MOCK_TASKS/MOCK_TECHNICIANS/MOCK_CUSTOMERS imports (already using live tRPC)
 - [x] super-admin/client/[id].tsx — remove dead MOCK_EMPLOYEES/MOCK_CUSTOMERS declarations (already using live tRPC)
 - [x] Confirmed 0 TypeScript errors after all migrations
+
+## Production Hardening Sprint — All Broken/Stub Flows Fixed (Mar 26)
+
+- [x] task/[id].tsx — wire status advance (Accept/Start/Complete) to tasks.updateStatus DB mutation
+- [x] task/[id].tsx — wire Cancel action to tasks.updateStatus DB mutation (status → cancelled)
+- [x] task/[id].tsx — wire Assign Technician to tasks.assign DB mutation with technician picker
+- [x] execute-task/[id].tsx — wire Complete button to tasks.completeTask DB mutation (saves notes, signature, payment)
+- [x] messages/[taskId].tsx — wire Send to messages.send DB mutation; load thread from messages.list query
+- [x] agent/[id].tsx — wire Save/Create to technicians.create/update DB mutations
+- [x] agent/[id].tsx — wire Delete to technicians.delete DB mutation with confirmation
+- [x] customer/[id].tsx — wire Save/Create to customers.create/update DB mutations
+- [x] customer/[id].tsx — wire Delete to customers.delete DB mutation with confirmation
+- [x] track/[jobHash].tsx — replace MOCK_TRACKING with live tasks.getByHash tRPC query
+- [x] track/[jobHash].tsx — wire message send to messages.send DB mutation
+- [x] pricing.tsx — wire Add/Edit/Delete rules to pricing.create/update/delete DB mutations
+- [x] pricing.tsx — load rules from pricing.getRules DB query
+- [x] super-admin/billing.tsx — wire plan save to tenants.update DB mutation
+- [x] super-admin/pricing-logic.tsx — wire rule CRUD to pricing.create/update/delete DB mutations
+- [x] permissions.tsx — wire role CRUD to AsyncStorage with tenant-scoped keys for persistence
+- [x] settings/company-profile.tsx — wire save to tenants.updateOwn DB mutation
+- [x] settings/white-label.tsx — wire save to tenants.updateOwn DB mutation (branding JSON)
+- [x] settings/email-smtp.tsx — wire save to tenants.updateOwn DB mutation (branding.smtp)
+- [x] settings/tracking-settings.tsx — wire save to tenants.updateOwn DB mutation (branding.tracking)
+- [x] login.tsx — remove demo hint from error message; use server-returned user data (no MOCK_USERS lookup)
+- [x] server emailLogin — support real tenantUser password auth (bcrypt verify); demo accounts remain as fallback
+- [x] server: add tenants.updateOwn protectedProcedure for merchant self-service settings
+- [x] server: add tasks.weeklyStats procedure for real 7-day trend data
+- [x] server: add getTenantUserByEmailAnyTenant DB function for cross-tenant email login
+- [x] dashboard/index.tsx — replace simulated spark arrays with live tasks.weeklyStats DB query
+- [x] TypeScript: 0 errors after all fixes

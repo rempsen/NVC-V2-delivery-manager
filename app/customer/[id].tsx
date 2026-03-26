@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet,
   Alert, Switch, ViewStyle, TextStyle,
@@ -163,6 +163,38 @@ export default function CustomerDetailScreen() {
   }, [existing]);
 
   const [sameAddress, setSameAddress] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // ── Mutations ────────────────────────────────────────────────────────────
+  const utils = trpc.useUtils();
+  const createMutation = trpc.customers.create.useMutation({
+    onSuccess: () => {
+      utils.customers.list.invalidate();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Customer Created", `${form.company} has been added to your customer database.`,
+        [{ text: "OK", onPress: () => router.back() }]);
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to create customer."),
+    onSettled: () => setSaving(false),
+  });
+  const updateMutation = trpc.customers.update.useMutation({
+    onSuccess: () => {
+      utils.customers.list.invalidate();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Customer Updated", `${form.company} has been updated.`,
+        [{ text: "OK", onPress: () => router.back() }]);
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to update customer."),
+    onSettled: () => setSaving(false),
+  });
+  const deleteMutation = trpc.customers.delete.useMutation({
+    onSuccess: () => {
+      utils.customers.list.invalidate();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      router.back();
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to delete customer."),
+  });
 
   const update = (key: keyof EditableCustomer, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -175,32 +207,50 @@ export default function CustomerDetailScreen() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!form.company.trim()) {
       Alert.alert("Required", "Company name is required.");
       return;
     }
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      isNew ? "Customer Created" : "Customer Updated",
-      `${form.company} has been ${isNew ? "added to" : "updated in"} your customer database.`,
-      [{ text: "OK", onPress: () => router.back() }]
-    );
-  };
+    setSaving(true);
+    const payload = {
+      tenantId: tenantId ?? 0,
+      company: form.company.trim(),
+      contactName: form.contactName?.trim() || undefined,
+      email: form.email?.trim() || undefined,
+      phone: form.phone?.trim() || undefined,
+      mailingStreet: form.mailingAddress?.trim() || undefined,
+      mailingCity: form.city?.trim() || undefined,
+      mailingProvince: form.province?.trim() || undefined,
+      mailingPostalCode: form.postalCode?.trim() || undefined,
+      mailingCountry: form.country?.trim() || "Canada",
+      physicalStreet: sameAddress ? (form.mailingAddress?.trim() || undefined) : (form.physicalAddress?.trim() || undefined),
+      physicalCity: sameAddress ? (form.city?.trim() || undefined) : undefined,
+      physicalProvince: sameAddress ? (form.province?.trim() || undefined) : undefined,
+      sameAsMailing: sameAddress,
+      industry: form.industry?.trim() || undefined,
+      status: form.status,
+      paymentTerms: form.terms?.toLowerCase().replace(" ", "_") || "net_30",
+      tags: form.tags.length > 0 ? form.tags.join(",") : undefined,
+      notes: form.notes?.trim() || undefined,
+    };
+    if (isNew) {
+      createMutation.mutate(payload);
+    } else {
+      updateMutation.mutate({ id: Number(id), ...payload });
+    }
+  }, [form, isNew, id, tenantId, sameAddress, createMutation, updateMutation]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Alert.alert("Delete Customer", `Permanently delete ${form.company}? This cannot be undone.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => {
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          router.back();
-        },
+        onPress: () => deleteMutation.mutate({ id: Number(id), tenantId: tenantId ?? 0 }),
       },
     ]);
-  };
+  }, [form.company, id, tenantId, deleteMutation]);
 
   return (
     <ScreenContainer edges={["left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">

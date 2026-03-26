@@ -19,32 +19,17 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NativeMapView } from "@/components/native-map-view";
+import { trpc } from "@/lib/trpc";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// ─── Mock Tracking Data ───────────────────────────────────────────────────────
-
-const MOCK_TRACKING = {
-  jobHash: "JH-2026-8821",
-  customerName: "Sarah Mitchell",
-  jobAddress: "742 Evergreen Terrace, Winnipeg, MB",
-  technician: {
-    name: "Marcus Johnson",
-    phone: "+1-204-555-0101",
-    vehicle: "White Ford Transit Van",
-    rating: 4.9,
-    completedJobs: 312,
-    latitude: 49.8901,
-    longitude: -97.1601,
-  },
-  status: "en_route" as "dispatched" | "en_route" | "arrived" | "completed",
-  etaMinutes: 12,
-  dispatchedAt: "2:30 PM",
-  companyName: "Arctic HVAC Services",
-  companyColor: "#1E6FBF",
-  companyLogo: "A",
-  serviceName: "HVAC Service Call",
-};
+// ─── Status mapping from DB to tracking UI ───────────────────────────────────
+function mapDbStatus(s: string): TrackStatus {
+  if (s === "en_route") return "en_route";
+  if (s === "on_site" || s === "arrived") return "arrived";
+  if (s === "completed") return "completed";
+  return "dispatched";
+}
 
 type TrackStatus = "dispatched" | "en_route" | "arrived" | "completed";
 
@@ -174,64 +159,86 @@ export default function CustomerTrackingScreen() {
   const { jobHash } = useLocalSearchParams<{ jobHash: string }>();
   const colors = useColors();
 
-  const [tracking, setTracking] = useState(MOCK_TRACKING);
-  const [etaMinutes, setEtaMinutes] = useState(MOCK_TRACKING.etaMinutes);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  // ── Live DB query (public — no auth needed for customer tracking) ──────────
+  const { data: rawTask, isLoading } = trpc.tasks.getByHash.useQuery(
+    { jobHash: jobHash ?? "" },
+    { enabled: !!jobHash, refetchInterval: 15_000 },
+  );
+  const { data: rawMessages, refetch: refetchMessages } = trpc.messages.list.useQuery(
+    { taskId: rawTask ? (rawTask as any).id : 0, tenantId: rawTask ? (rawTask as any).tenantId : 0 },
+    { enabled: !!rawTask, refetchInterval: 10_000 },
+  );
+  const sendMutation = trpc.messages.send.useMutation({
+    onSuccess: () => { setMessageText(""); refetchMessages(); setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150); },
+  });
+
+  // Normalize task into tracking shape
+  const tracking = rawTask ? {
+    jobHash: (rawTask as any).jobHash ?? jobHash ?? "",
+    customerName: (rawTask as any).customerName ?? "",
+    jobAddress: (rawTask as any).jobAddress ?? "",
+    technician: {
+      name: (rawTask as any).technicianName ?? "Your Technician",
+      phone: (rawTask as any).technicianPhone ?? "",
+      vehicle: (rawTask as any).vehicleInfo ?? "",
+      rating: 5.0,
+      completedJobs: 0,
+      latitude: parseFloat((rawTask as any).lastLatitude ?? "49.8951"),
+      longitude: parseFloat((rawTask as any).lastLongitude ?? "-97.1384"),
+    },
+    status: mapDbStatus((rawTask as any).status ?? "unassigned"),
+    etaMinutes: (rawTask as any).etaMinutes ?? 0,
+    dispatchedAt: (rawTask as any).dispatchedAt ? new Date((rawTask as any).dispatchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+    companyName: (rawTask as any).companyName ?? "NVC360",
+    companyColor: "#1E6FBF",
+    companyLogo: ((rawTask as any).companyName ?? "N").charAt(0).toUpperCase(),
+    serviceName: (rawTask as any).templateName ?? (rawTask as any).description ?? "Service Call",
+  } : null;
+
+  // Normalize messages
+  const messages: ChatMessage[] = (rawMessages as any[] ?? []).map((m) => ({
+    id: String(m.id),
+    text: m.content ?? m.text ?? "",
+    sender: (m.senderType === "technician" ? "technician" : "customer") as ChatMessage["sender"],
+    timestamp: m.createdAt ? new Date(m.createdAt) : new Date(),
+  }));
+
+  const [etaMinutes, setEtaMinutes] = useState(0);
   const [messageText, setMessageText] = useState("");
   const [showChat, setShowChat] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Simulate ETA countdown
+  // Sync ETA from live data
   useEffect(() => {
-    if (tracking.status !== "en_route") return;
-    const interval = setInterval(() => {
-      setEtaMinutes((prev) => {
-        if (prev <= 1) {
-          setTracking((t) => ({ ...t, status: "arrived" }));
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 10000); // Every 10s in real app, faster for demo
-    return () => clearInterval(interval);
-  }, [tracking.status]);
-
-  // Simulate incoming message
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!showChat) {
-        setUnreadCount((c) => c + 1);
-      }
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          text: "I'm about 2 streets away now. See you shortly!",
-          sender: "technician",
-          timestamp: new Date(),
-        },
-      ]);
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (tracking?.etaMinutes) setEtaMinutes(tracking.etaMinutes);
+  }, [tracking?.etaMinutes]);
 
   const handleSendMessage = () => {
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || !rawTask) return;
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        text: messageText.trim(),
-        sender: "customer",
-        timestamp: new Date(),
-      },
-    ]);
-    setMessageText("");
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    sendMutation.mutate({
+      tenantId: (rawTask as any).tenantId,
+      taskId: (rawTask as any).id,
+      senderType: "technician", // customer-facing portal sends as "technician" channel
+      senderName: tracking?.customerName ?? "Customer",
+      content: messageText.trim(),
+      attachmentType: "none",
+    });
   };
+
+  // Loading / not found guard
+  if (isLoading || !tracking) {
+    return (
+      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background">
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: colors.muted, fontSize: 16 }}>
+            {isLoading ? "Loading job details..." : "Job not found. Please check your tracking link."}
+          </Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   const currentStepIndex = STATUS_STEPS.findIndex((s) => s.key === tracking.status);
   const companyColor = tracking.companyColor;

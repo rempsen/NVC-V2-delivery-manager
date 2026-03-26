@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -313,7 +313,7 @@ export default function ExecuteTaskScreen() {
   const router = useRouter();
   const { tenantId } = useTenant();
 
-  // ── Live DB query ────────────────────────────────────────────────────────
+  // ── Live DB query + mutations ─────────────────────────────────────────────
   const { data: rawTask } = trpc.tasks.getById.useQuery(
     { id: Number(id), tenantId: tenantId ?? 0 },
     { enabled: !!id && tenantId !== null, staleTime: 30_000 },
@@ -330,6 +330,18 @@ export default function ExecuteTaskScreen() {
         description: (rawTask as any).description ?? "",
       }
     : undefined;
+
+  const completeTaskMutation = trpc.tasks.completeTask.useMutation({
+    onSuccess: () => {
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/(tabs)/tasks");
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to complete work order."),
+  });
+
+  const saveNotesMutation = trpc.tasks.saveTaskNotes.useMutation({
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to save notes."),
+  });
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>(MOCK_CHECKLIST);
   const [photos, setPhotos] = useState<PhotoAttachment[]>([]);
@@ -397,7 +409,7 @@ export default function ExecuteTaskScreen() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     if (!allMandatoryDone) {
       Alert.alert(
         "Incomplete Checklist",
@@ -409,6 +421,7 @@ export default function ExecuteTaskScreen() {
       Alert.alert("Signature Required", "Please capture the customer signature before completing.");
       return;
     }
+    if (!task) return;
     Alert.alert(
       "Complete Work Order",
       "Mark this work order as completed? All data will be saved and locked.",
@@ -416,15 +429,21 @@ export default function ExecuteTaskScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Complete",
-          onPress: () => {
-            if (Platform.OS !== "web")
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.replace("/(tabs)/tasks");
+          onPress: async () => {
+            const allNotes = fieldNotes.map((n) => (n.flagged ? `[FLAGGED] ${n.text}` : n.text)).join("\n");
+            await completeTaskMutation.mutateAsync({
+              taskId: task.id,
+              tenantId: tenantId ?? 0,
+              notes: allNotes || undefined,
+              signatureUri: signed ? "captured" : undefined,
+              paymentAmount: paymentAuthorized && paymentAmount ? parseFloat(paymentAmount) : undefined,
+              paymentMethod: paymentAuthorized ? paymentMethod : undefined,
+            });
           },
         },
       ],
     );
-  };
+  }, [allMandatoryDone, mandatoryItems.length, signed, task, fieldNotes, completeTaskMutation, tenantId, paymentAuthorized, paymentAmount, paymentMethod]);
 
   if (!task) {
     return (

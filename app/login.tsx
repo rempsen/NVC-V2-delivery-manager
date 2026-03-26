@@ -178,19 +178,29 @@ export default function LoginScreen() {
     if (!email.trim() || !password.trim()) { Alert.alert("Missing Fields", "Please enter your email and password."); return; }
     haptic(); setLoading(true);
     try {
-      // Step 1: Authenticate with server — returns a signed JWT token
+      // Authenticate with server — returns a signed JWT token and full user object
       const result = await emailLoginMutation.mutateAsync({ email: email.toLowerCase().trim(), password });
 
-      // Step 2 (web only): Call /api/auth/session DIRECTLY on the 3000-xxx domain
-      // so the cookie is scoped to .manus.computer (not 127.0.0.1 via Metro proxy)
+      // Web only: persist session cookie on the 3000-xxx domain
       if (Platform.OS === "web" && result.token) {
         await persistSessionCookie(result.token);
       }
 
-      // Step 3: Look up role for routing
-      const user = MOCK_USERS[email.toLowerCase().trim()];
-      if (!user) { Alert.alert("Login Failed", "Invalid credentials.\n\nHint: Use password 'demo123' with any demo account."); return; }
-      await saveAndNavigate(user, result.token);
+      // Use the user data returned from the server (no local MOCK_USERS lookup needed)
+      const serverUser = result.user;
+      const authUser: AuthUser = {
+        id: serverUser.id,
+        name: serverUser.name,
+        email: serverUser.email,
+        role: serverUser.role as AuthUser["role"],
+        tenantId: serverUser.tenantId,
+        tenantName: serverUser.tenantName,
+        tenantColor: serverUser.tenantColor,
+        tenantLogo: serverUser.tenantLogo,
+        avatarUrl: null,
+        provider: "email",
+      };
+      await saveAndNavigate(authUser, result.token);
     } catch (err: any) {
       const msg = err?.message ?? "Login failed. Please try again.";
       Alert.alert("Login Failed", msg);
@@ -204,8 +214,20 @@ export default function LoginScreen() {
       if (Platform.OS === "web" && result.token) {
         await persistSessionCookie(result.token);
       }
-      const user = MOCK_USERS[demoEmail];
-      if (user) await saveAndNavigate(user, result.token);
+      const serverUser = result.user;
+      const authUser: AuthUser = {
+        id: serverUser.id,
+        name: serverUser.name,
+        email: serverUser.email,
+        role: serverUser.role as AuthUser["role"],
+        tenantId: serverUser.tenantId,
+        tenantName: serverUser.tenantName,
+        tenantColor: serverUser.tenantColor,
+        tenantLogo: serverUser.tenantLogo,
+        avatarUrl: null,
+        provider: "email",
+      };
+      await saveAndNavigate(authUser, result.token);
     } catch (err: any) {
       Alert.alert("Login Failed", err?.message ?? "Could not log in with demo account.");
     } finally { setLoading(false); }

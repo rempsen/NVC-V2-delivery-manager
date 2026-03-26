@@ -12,6 +12,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE } from "@/constants/brand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 const STORAGE_KEY = "nvc360_company_profile";
 
@@ -145,6 +147,8 @@ function PickerField({
 export default function CompanyProfileScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
+  const updateOwnMutation = trpc.tenants.updateOwn.useMutation();
   const [saving, setSaving] = useState(false);
 
   const [companyName, setCompanyName] = useState("NVC360");
@@ -175,6 +179,15 @@ export default function CompanyProfileScreen() {
         timezone, industry, taxId,
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      // Persist company name and contact info to the live DB
+      if (tenantId) {
+        await updateOwnMutation.mutateAsync({
+          tenantId,
+          companyName: companyName.trim(),
+          emailDomain: email.trim() || undefined,
+          branding: { tagline, phone, website, address, city, province, postalCode, country, timezone, industry, taxId },
+        });
+      }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Saved", "Company profile updated successfully.", [
         { text: "OK", onPress: () => router.back() },

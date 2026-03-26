@@ -74,19 +74,64 @@ export const appRouter = router({
     emailLogin: publicProcedure
       .input(z.object({ email: z.string().email(), password: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        const DEMO_USERS: Record<string, { openId: string; name: string; email: string }> = {
-          "admin@nvc360.com":      { openId: "demo-nvc-001",  name: "Dan Rosenblat",  email: "admin@nvc360.com" },
-          "pm@nvc360.com":         { openId: "demo-nvc-002",  name: "Sarah Mitchell", email: "pm@nvc360.com" },
-          "dispatch@acmehvac.com": { openId: "demo-t1-001",   name: "James Chen",     email: "dispatch@acmehvac.com" },
-          "tech@acmehvac.com":     { openId: "demo-t1-002",   name: "Mike Torres",    email: "tech@acmehvac.com" },
-          "admin@plumbpro.com":    { openId: "demo-t2-001",   name: "Lisa Park",      email: "admin@plumbpro.com" },
-        };
         const emailLower = input.email.toLowerCase().trim();
+
+        // ── Step 1: Try real tenantUser authentication against the DB ──────────────
+        const tenantUser = await db.getTenantUserByEmailAnyTenant(emailLower);
+        if (tenantUser && tenantUser.passwordHash) {
+          const passwordValid = await bcrypt.compare(input.password, tenantUser.passwordHash);
+          if (!passwordValid) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password. Please check your credentials and try again." });
+          }
+          if (!tenantUser.isActive) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Your account has been deactivated. Please contact your administrator." });
+          }
+          // Fetch the tenant for company name and branding
+          const tenant = tenantUser.tenantId ? await db.getTenantById(tenantUser.tenantId) : null;
+          const openId = `tu-${tenantUser.id}`;
+          // Upsert into core users table so session middleware can find this user
+          await db.upsertUser({
+            openId,
+            name: tenantUser.name,
+            email: emailLower,
+            loginMethod: "email",
+            tenantId: tenantUser.tenantId ?? undefined,
+            lastSignedIn: new Date(),
+          });
+          const sessionToken = await sdk.createSessionToken(openId, {
+            name: tenantUser.name,
+            expiresInMs: 365 * 24 * 60 * 60 * 1000,
+          });
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+          return {
+            success: true,
+            token: sessionToken,
+            user: {
+              id: openId,
+              name: tenantUser.name,
+              email: emailLower,
+              role: tenantUser.role as string,
+              tenantId: tenantUser.tenantId ?? null,
+              tenantName: tenant?.companyName ?? null,
+              tenantColor: (tenant?.branding as any)?.primaryColor ?? null,
+              tenantLogo: (tenant?.branding as any)?.logoUrl ?? null,
+            },
+          } as const;
+        }
+
+        // ── Step 2: Demo account fallback (password = "demo123") ──────────────────
+        const DEMO_USERS: Record<string, { openId: string; name: string; email: string; role: string; tenantId: number | null; tenantName: string | null; tenantColor: string | null; tenantLogo: string | null }> = {
+          "admin@nvc360.com":      { openId: "demo-nvc-001",  name: "Dan Rosenblat",  email: "admin@nvc360.com",      role: "nvc_super_admin",    tenantId: 3, tenantName: "NVC360",              tenantColor: "#E85D04", tenantLogo: null },
+          "pm@nvc360.com":         { openId: "demo-nvc-002",  name: "Sarah Mitchell", email: "pm@nvc360.com",         role: "nvc_project_manager", tenantId: 3, tenantName: "NVC360",              tenantColor: "#8B5CF6", tenantLogo: null },
+          "dispatch@acmehvac.com": { openId: "demo-t1-001",   name: "James Chen",     email: "dispatch@acmehvac.com", role: "dispatcher",          tenantId: 1, tenantName: "Acme HVAC Services",  tenantColor: "#3B82F6", tenantLogo: null },
+          "tech@acmehvac.com":     { openId: "demo-t1-002",   name: "Mike Torres",    email: "tech@acmehvac.com",     role: "field_technician",    tenantId: 1, tenantName: "Acme HVAC Services",  tenantColor: "#3B82F6", tenantLogo: null },
+          "admin@plumbpro.com":    { openId: "demo-t2-001",   name: "Lisa Park",      email: "admin@plumbpro.com",    role: "company_admin",       tenantId: 2, tenantName: "PlumbPro Solutions", tenantColor: "#22C55E", tenantLogo: null },
+        };
         const demoUser = DEMO_USERS[emailLower];
         if (!demoUser || input.password !== "demo123") {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials. Use password 'demo123' with a demo account." });
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password. Please check your credentials and try again." });
         }
-        // Upsert the demo user so authenticateRequest can find them on subsequent requests
         await db.upsertUser({
           openId: demoUser.openId,
           name: demoUser.name,
@@ -94,18 +139,26 @@ export const appRouter = router({
           loginMethod: "email",
           lastSignedIn: new Date(),
         });
-        // Create a real signed JWT session token using the platform secret
         const sessionToken = await sdk.createSessionToken(demoUser.openId, {
           name: demoUser.name,
           expiresInMs: 365 * 24 * 60 * 60 * 1000,
         });
-        // Set the session cookie so the web auth guard (/api/auth/me) passes
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
-        // Return the token so the web client can call /api/auth/session on the
-        // Express server domain (3000-xxx) to get a properly-scoped cookie that
-        // the browser will send back with subsequent /api/auth/me requests.
-        return { success: true, token: sessionToken } as const;
+        return {
+          success: true,
+          token: sessionToken,
+          user: {
+            id: demoUser.openId,
+            name: demoUser.name,
+            email: emailLower,
+            role: demoUser.role,
+            tenantId: demoUser.tenantId,
+            tenantName: demoUser.tenantName,
+            tenantColor: demoUser.tenantColor,
+            tenantLogo: demoUser.tenantLogo,
+          },
+        } as const;
       }),
 
     /**
@@ -293,6 +346,7 @@ export const appRouter = router({
         z.object({
           id: z.number(),
           companyName: z.string().optional(),
+          plan: z.enum(["starter", "professional", "enterprise"]).optional(),
           branding: z.record(z.string(), z.unknown()).optional(),
           smsSenderName: z.string().optional(),
           emailDomain: z.string().optional(),
@@ -303,6 +357,23 @@ export const appRouter = router({
       .mutation(({ input }) => {
         const { id, ...data } = input;
         return db.updateTenant(id, data as any);
+      }),
+    /** Merchant-facing: authenticated users can update their own tenant's settings */
+    updateOwn: protectedProcedure
+      .input(
+        z.object({
+          tenantId: z.number(),
+          companyName: z.string().optional(),
+          branding: z.record(z.string(), z.unknown()).optional(),
+          smsSenderName: z.string().optional(),
+          emailDomain: z.string().optional(),
+        }),
+      )
+      .mutation(({ input, ctx }) => {
+        // Ensure the caller belongs to this tenant
+        if (ctx.user?.tenantId !== input.tenantId) throw new Error("Unauthorized");
+        const { tenantId, ...data } = input;
+        return db.updateTenant(tenantId, data as any);
       }),
   }),
 
@@ -690,6 +761,31 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 7-day task stats for dashboard spark charts */
+    weeklyStats: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .query(async ({ input }) => {
+        const allTasks = await db.getTasksByTenant(input.tenantId);
+        const now = new Date();
+        const days: { active: number; completed: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const dayStart = new Date(now);
+          dayStart.setDate(now.getDate() - i);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(dayStart);
+          dayEnd.setHours(23, 59, 59, 999);
+          const active = allTasks.filter((t: any) => {
+            const d = new Date(t.createdAt);
+            return d >= dayStart && d <= dayEnd && !['completed','failed','cancelled'].includes(t.status);
+          }).length;
+          const completed = allTasks.filter((t: any) => {
+            const d = t.completedAt ? new Date(t.completedAt) : null;
+            return d && d >= dayStart && d <= dayEnd;
+          }).length;
+          days.push({ active, completed });
+        }
+        return days;
+      }),
     /** Agent swipes to complete — set status=completed, record completedAt, geoClockOut */
     completeTask: tenantScopedProcedure
       .input(z.object({

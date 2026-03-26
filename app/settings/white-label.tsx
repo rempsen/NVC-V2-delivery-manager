@@ -12,6 +12,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 const STORAGE_KEY = "nvc360_white_label";
 
@@ -72,6 +74,8 @@ function SettingsField({
 export default function WhiteLabelScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
+  const updateOwnMutation = trpc.tenants.updateOwn.useMutation();
   const [saving, setSaving] = useState(false);
 
   const [brandName, setBrandName] = useState("NVC360");
@@ -95,6 +99,14 @@ export default function WhiteLabelScreen() {
         supportEmail, footerText, hideNvcBranding,
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      // Persist branding to the live DB
+      if (tenantId) {
+        await updateOwnMutation.mutateAsync({
+          tenantId,
+          smsSenderName: senderName.trim() || undefined,
+          branding: { brandName, logoUrl, faviconUrl, primaryColor, accentColor, customDomain, supportEmail, footerText, hideNvcBranding },
+        });
+      }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Saved", "White-label branding updated successfully.", [
         { text: "OK", onPress: () => router.back() },

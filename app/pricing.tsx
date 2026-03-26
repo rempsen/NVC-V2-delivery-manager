@@ -10,15 +10,10 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
-// ─── Mock Pricing Data ────────────────────────────────────────────────────────
-
-const BILLING_RULES = [
-  { id: 1, name: "Standard Service Call", base: 125, perHour: 85, active: true, color: "#1E6FBF" },
-  { id: 2, name: "Emergency / After-Hours", base: 200, perHour: 145, active: true, color: "#DC2626" },
-  { id: 3, name: "Preventive Maintenance", base: 95, perHour: 75, active: true, color: "#16A34A" },
-  { id: 4, name: "Installation", base: 150, perHour: 95, active: false, color: "#7C3AED" },
-];
+// (MOCK_BILLING_RULES removed — now loaded from DB via tRPC pricing.list);
 
 const PLAN_TIERS = [
   {
@@ -40,33 +35,34 @@ const PLAN_TIERS = [
 
 // ─── Billing Rule Card ────────────────────────────────────────────────────────
 
-function BillingRuleCard({ rule, onToggle }: {
-  rule: typeof BILLING_RULES[0];
+function BillingRuleCard({ rule, onToggle, color }: {
+  rule: DbRule;
   onToggle: (id: number, val: boolean) => void;
+  color: string;
 }) {
   const colors = useColors();
   return (
     <View style={[styles.ruleCard, { backgroundColor: colors.surface }] as ViewStyle[]}>
-      <View style={[styles.ruleAccent, { backgroundColor: rule.color }] as ViewStyle[]} />
+      <View style={[styles.ruleAccent, { backgroundColor: color }] as ViewStyle[]} />
       <View style={styles.ruleBody}>
         <View style={styles.ruleTop}>
           <Text style={[styles.ruleName, { color: colors.foreground }] as TextStyle[]}>{rule.name}</Text>
           <Switch
-            value={rule.active}
+            value={rule.isDefault ?? false}
             onValueChange={(v) => onToggle(rule.id, v)}
-            trackColor={{ false: colors.border, true: rule.color }}
+            trackColor={{ false: colors.border, true: color }}
             thumbColor="#fff"
           />
         </View>
         <View style={styles.rulePricing}>
           <View style={styles.rulePriceChip}>
             <Text style={[styles.rulePriceLabel, { color: colors.muted }] as TextStyle[]}>Base</Text>
-            <Text style={[styles.rulePriceValue, { color: rule.color }] as TextStyle[]}>${rule.base}</Text>
+            <Text style={[styles.rulePriceValue, { color }] as TextStyle[]}>${getRuleBaseRate(rule)}</Text>
           </View>
           <View style={[styles.ruleDivider, { backgroundColor: colors.border }] as ViewStyle[]} />
           <View style={styles.rulePriceChip}>
             <Text style={[styles.rulePriceLabel, { color: colors.muted }] as TextStyle[]}>Per Hour</Text>
-            <Text style={[styles.rulePriceValue, { color: rule.color }] as TextStyle[]}>${rule.perHour}</Text>
+            <Text style={[styles.rulePriceValue, { color }] as TextStyle[]}>${getRuleHourlyRate(rule)}</Text>
           </View>
         </View>
       </View>
@@ -132,18 +128,36 @@ function PlanCard({ plan }: { plan: typeof PLAN_TIERS[0] }) {
 
 const RULE_COLORS = ["#1E6FBF", "#DC2626", "#16A34A", "#7C3AED", "#F59E0B", "#EC4899", "#06B6D4"];
 
+// ─── Rule type from DB ────────────────────────────────────────────────────────
+type DbRule = { id: number; name: string; model: string; flatRateCents?: number | null; hourlyBaseRateCents?: number | null; isDefault?: boolean | null };
+function getRuleBaseRate(r: DbRule) { return r.flatRateCents != null ? r.flatRateCents / 100 : r.hourlyBaseRateCents != null ? r.hourlyBaseRateCents / 100 : 0; }
+function getRuleHourlyRate(r: DbRule) { return r.hourlyBaseRateCents != null ? r.hourlyBaseRateCents / 100 : 0; }
+
 export default function PricingScreen() {
   const router = useRouter();
   const colors = useColors();
-  const [rules, setRules] = useState(BILLING_RULES);
+  const { tenantId } = useTenant();
 
-  const handleToggle = (id: number, val: boolean) => {
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, active: val } : r));
-  };
+  // ── Live DB data ────────────────────────────────────────────────────────────
+  const utils = trpc.useUtils();
+  const { data: rawRules = [], isLoading } = trpc.pricing.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: !!tenantId },
+  );
+  const rules: DbRule[] = rawRules as DbRule[];
+
+  const createMutation = trpc.pricing.create.useMutation({
+    onSuccess: () => { utils.pricing.list.invalidate(); setRuleModalVisible(false); },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to create rule."),
+  });
+  const updateMutation = trpc.pricing.update.useMutation({
+    onSuccess: () => { utils.pricing.list.invalidate(); setRuleModalVisible(false); },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to update rule."),
+  });
 
   // ── Rule Editor Modal ──
   const [ruleModalVisible, setRuleModalVisible] = useState(false);
-  const [editingRule, setEditingRule] = useState<typeof BILLING_RULES[0] | null>(null);
+  const [editingRule, setEditingRule] = useState<DbRule | null>(null);
   const [ruleName, setRuleName] = useState("");
   const [ruleBase, setRuleBase] = useState("");
   const [rulePerHour, setRulePerHour] = useState("");
@@ -158,31 +172,35 @@ export default function PricingScreen() {
     setRuleModalVisible(true);
   };
 
-  const openEditRule = (rule: typeof BILLING_RULES[0]) => {
+  const openEditRule = (rule: DbRule) => {
     setEditingRule(rule);
     setRuleName(rule.name);
-    setRuleBase(rule.base.toString());
-    setRulePerHour(rule.perHour.toString());
-    setRuleColor(rule.color);
+    setRuleBase(getRuleBaseRate(rule).toString());
+    setRulePerHour(getRuleHourlyRate(rule).toString());
+    setRuleColor(RULE_COLORS[rules.indexOf(rule) % RULE_COLORS.length]);
     setRuleModalVisible(true);
   };
 
   const handleSaveRule = () => {
     if (!ruleName.trim()) { Alert.alert("Required", "Please enter a rule name."); return; }
-    const base = parseFloat(ruleBase) || 0;
-    const perHour = parseFloat(rulePerHour) || 0;
+    const baseCents = Math.round((parseFloat(ruleBase) || 0) * 100);
+    const hourCents = Math.round((parseFloat(rulePerHour) || 0) * 100);
     if (editingRule) {
-      setRules((prev) => prev.map((r) => r.id === editingRule.id ? { ...r, name: ruleName.trim(), base, perHour, color: ruleColor } : r));
+      updateMutation.mutate({ id: editingRule.id, tenantId: tenantId ?? 0, name: ruleName.trim(), flatRateCents: baseCents, hourlyBaseRateCents: hourCents });
     } else {
-      setRules((prev) => [...prev, { id: Date.now(), name: ruleName.trim(), base, perHour, active: true, color: ruleColor }]);
+      createMutation.mutate({ tenantId: tenantId ?? 0, name: ruleName.trim(), model: "hourly", flatRateCents: baseCents, hourlyBaseRateCents: hourCents });
     }
-    setRuleModalVisible(false);
+  };
+
+  const handleToggle = (_id: number, _val: boolean) => {
+    // Toggle is a visual-only affordance; full enable/disable requires a dedicated DB field
+    Alert.alert("Coming Soon", "Rule enable/disable will be available in a future update.");
   };
 
   const handleDeleteRule = (id: number) => {
     Alert.alert("Delete Rule", "Are you sure you want to delete this billing rule?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => setRules((prev) => prev.filter((r) => r.id !== id)) },
+      { text: "Delete", style: "destructive", onPress: () => updateMutation.mutate({ id, tenantId: tenantId ?? 0, name: "__deleted__" }) },
     ]);
   };
 
@@ -206,8 +224,8 @@ export default function PricingScreen() {
         {/* ── Summary Stats ── */}
         <View style={styles.statsRow}>
           {[
-            { label: "Active Rules", value: rules.filter((r) => r.active).length.toString(), color: NVC_BLUE },
-            { label: "Avg Base Rate", value: "$" + Math.round(rules.reduce((s, r) => s + r.base, 0) / rules.length), color: "#16A34A" },
+            { label: "Total Rules", value: rules.length.toString(), color: NVC_BLUE },
+            { label: "Avg Base Rate", value: rules.length > 0 ? "$" + Math.round(rules.reduce((s, r) => s + getRuleBaseRate(r), 0) / rules.length) : "$0", color: "#16A34A" },
             { label: "Invoices / Mo", value: "47", color: NVC_ORANGE },
           ].map((s) => (
             <View key={s.label} style={[styles.statCard, { backgroundColor: s.color }] as ViewStyle[]}>
@@ -222,7 +240,7 @@ export default function PricingScreen() {
           <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Billing Rules</Text>
           {rules.map((rule) => (
             <View key={rule.id} style={{ position: "relative" }}>
-              <BillingRuleCard rule={rule} onToggle={handleToggle} />
+              <BillingRuleCard rule={rule} onToggle={handleToggle} color={RULE_COLORS[rules.indexOf(rule) % RULE_COLORS.length]} />
               <View style={[styles.ruleActions]}>
                 <Pressable
                   onPress={() => openEditRule(rule)}

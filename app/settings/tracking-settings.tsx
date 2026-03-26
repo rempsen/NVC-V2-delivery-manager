@@ -12,6 +12,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 const STORAGE_KEY = "nvc360_tracking_settings";
 
@@ -162,6 +164,8 @@ function ToggleRow({
 }
 
 export default function TrackingSettingsScreen() {
+  const { tenantId } = useTenant();
+  const updateOwnMutation = trpc.tenants.updateOwn.useMutation();
   const colors = useColors();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -197,6 +201,13 @@ export default function TrackingSettingsScreen() {
         minThreshold, alertThreshold, alertDispatcher, alertTech, showOnCustomerPage,
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      // Persist tracking settings to the live DB under branding.tracking
+      if (tenantId) {
+        await updateOwnMutation.mutateAsync({
+          tenantId,
+          branding: { tracking: config },
+        });
+      }
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Saved", "Tracking settings updated successfully.", [
         { text: "OK", onPress: () => router.back() },

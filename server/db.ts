@@ -170,6 +170,18 @@ export async function getTenantUserByEmail(email: string, tenantId: number) {
   return rows[0] ?? null;
 }
 
+/** Find a tenantUser by email across all tenants — used for login when tenant slug is not provided */
+export async function getTenantUserByEmailAnyTenant(email: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(tenantUsers)
+    .where(eq(tenantUsers.email, email))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function createTenantUser(data: InsertTenantUser) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

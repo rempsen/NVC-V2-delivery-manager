@@ -574,10 +574,11 @@ function AIInsightsPanel() {
 
 // ─── Dashboard Section (Mission Control) ─────────────────────────────────────
 
-function DashboardSection({ tasks, technicians, customers, onSelectTech, selectedTechId, onAssignTask }: {
+function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTech, selectedTechId, onAssignTask }: {
   tasks: Task[];
   technicians: Technician[];
   customers: Customer[];
+  tenantId: number;
   onSelectTech: (id: number) => void;
   selectedTechId: number | null;
   onAssignTask?: (taskId: number, techId: number) => void;
@@ -719,11 +720,15 @@ function DashboardSection({ tasks, technicians, customers, onSelectTech, selecte
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
 
-  // Spark data (simulated 7-day trend)
-  const sparkActive = [2, 4, 3, 5, 3, 4, active];
-  const sparkCompleted = [8, 11, 9, 13, 10, 12, completed];
-  const sparkTechs = [6, 7, 8, 7, 9, 8, onlineCount];
-  const sparkClients = [18, 19, 20, 21, 20, 22, activeCustomers];
+  // Spark data — real 7-day task counts from DB
+  const { data: weeklyStats } = trpc.tasks.weeklyStats.useQuery(
+    { tenantId },
+    { staleTime: 5 * 60 * 1000 },
+  );
+  const sparkActive = weeklyStats ? weeklyStats.map((d) => d.active) : [0, 0, 0, 0, 0, 0, active];
+  const sparkCompleted = weeklyStats ? weeklyStats.map((d) => d.completed) : [0, 0, 0, 0, 0, 0, completed];
+  const sparkTechs = Array(7).fill(onlineCount) as number[];
+  const sparkClients = Array(7).fill(activeCustomers) as number[];
 
   return (
     <View style={{ flex: 1, flexDirection: "column" }}>
@@ -2990,6 +2995,7 @@ export default function DesktopDashboard() {
             tasks={liveTasks}
             technicians={liveTechnicians}
             customers={liveCustomers}
+            tenantId={tenantId}
             onSelectTech={setSelectedTechId}
             selectedTechId={selectedTechId}
             onAssignTask={(taskId, techId) => assignMutation.mutate({ taskId, technicianId: techId, tenantId: tenantId })}

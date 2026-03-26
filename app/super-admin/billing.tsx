@@ -10,6 +10,9 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -249,12 +252,25 @@ function InvoiceEditModal({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+const INVOICE_SETTINGS_KEY = "nvc360_invoice_settings";
+
 export default function BillingScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { tenantId } = useTenant();
 
+  // Load invoice settings from AsyncStorage (tenant-scoped key)
   const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSetting[]>(DEFAULT_INVOICE_SETTINGS);
+
+  React.useEffect(() => {
+    if (!tenantId) return;
+    AsyncStorage.getItem(`${INVOICE_SETTINGS_KEY}_${tenantId}`).then((raw) => {
+      if (raw) {
+        try { setInvoiceSettings(JSON.parse(raw)); } catch {}
+      }
+    });
+  }, [tenantId]);
 
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [planModalVisible, setPlanModalVisible] = useState(false);
@@ -262,12 +278,29 @@ export default function BillingScreen() {
   const [editingSetting, setEditingSetting] = useState<InvoiceSetting | null>(null);
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
 
+  // Wire plan.current change to tenants.update
+  const updateTenantMutation = trpc.tenants.update.useMutation({
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to update plan."),
+  });
+
   const handleSavePlan = (updated: Plan) => {
-    setPlans((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+    setPlans((prev) => prev.map((p) => ({
+      ...p,
+      current: p.id === updated.id ? updated.current : (updated.current ? false : p.current),
+    })));
+    // Persist the "current" plan flag to the tenant record
+    if (updated.current && tenantId) {
+      const planKey = updated.id as "starter" | "professional" | "enterprise";
+      updateTenantMutation.mutate({ id: tenantId, plan: planKey });
+    }
   };
 
   const handleSaveInvoiceSetting = (id: string, value: string) => {
-    setInvoiceSettings((prev) => prev.map((s) => s.id === id ? { ...s, value } : s));
+    setInvoiceSettings((prev) => {
+      const next = prev.map((s) => s.id === id ? { ...s, value } : s);
+      if (tenantId) AsyncStorage.setItem(`${INVOICE_SETTINGS_KEY}_${tenantId}`, JSON.stringify(next));
+      return next;
+    });
   };
 
   // Summary stats

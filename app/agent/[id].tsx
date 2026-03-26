@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet,
   Alert, Linking, Platform, ViewStyle, TextStyle, Switch,
@@ -23,6 +23,7 @@ import { useTenant } from "@/hooks/use-tenant";
 interface TechProfile {
   // Personal
   firstName: string; lastName: string;
+  email: string; phone: string;
   dateOfBirth: string; homeAddress: string;
   city: string; province: string; postalCode: string;
   emergencyContact: string; emergencyPhone: string;
@@ -43,7 +44,7 @@ interface TechProfile {
 }
 
 const BLANK_PROFILE: TechProfile = {
-  firstName: "", lastName: "", dateOfBirth: "", homeAddress: "",
+  firstName: "", lastName: "", email: "", phone: "", dateOfBirth: "", homeAddress: "",
   city: "Winnipeg", province: "MB", postalCode: "", emergencyContact: "", emergencyPhone: "",
   employeeId: "", hireDate: "", employmentType: "Full-Time", department: "",
   hourlyRate: "", overtimeRate: "", sinNumber: "", taxExempt: false,
@@ -244,6 +245,38 @@ export default function AgentDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [profile, setProfile] = useState<TechProfile>(BLANK_PROFILE);
   const [editMode, setEditMode] = useState(isNew);
+  const [saving, setSaving] = useState(false);
+
+  // ── Mutations ────────────────────────────────────────────────────────────
+  const utils = trpc.useUtils();
+  const createMutation = trpc.technicians.create.useMutation({
+    onSuccess: () => {
+      utils.technicians.list.invalidate();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Technician Created", "New technician has been added to your team.",
+        [{ text: "OK", onPress: () => router.back() }]);
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to create technician."),
+    onSettled: () => setSaving(false),
+  });
+  const updateMutation = trpc.technicians.update.useMutation({
+    onSuccess: () => {
+      utils.technicians.list.invalidate();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Profile Saved", `${displayName}'s profile has been updated.`,
+        [{ text: "OK", onPress: () => setEditMode(false) }]);
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to save profile."),
+    onSettled: () => setSaving(false),
+  });
+  const deleteMutation = trpc.technicians.delete.useMutation({
+    onSuccess: () => {
+      utils.technicians.list.invalidate();
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      router.back();
+    },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to delete technician."),
+  });
 
   const update = (key: keyof TechProfile, value: any) =>
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -274,28 +307,57 @@ export default function AgentDetailScreen() {
     Linking.openURL(`tel:${technician.phone}`);
   };
 
-  const handleSave = () => {
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      isNew ? "Technician Created" : "Profile Saved",
-      isNew ? "New technician has been added to your team." : `${displayName}'s profile has been updated.`,
-      [{ text: "OK", onPress: () => { if (isNew) router.back(); else setEditMode(false); } }]
-    );
-  };
+  const handleSave = useCallback(() => {
+    if (!profile.firstName.trim() || !profile.lastName.trim()) {
+      Alert.alert("Required Fields", "First name and last name are required.");
+      return;
+    }
+    setSaving(true);
+    if (isNew) {
+      createMutation.mutate({
+        tenantId: tenantId ?? 0,
+        firstName: profile.firstName.trim(),
+        lastName: profile.lastName.trim(),
+        email: profile.email?.trim() || undefined,
+        phone: profile.phone?.trim() || undefined,
+        employeeId: profile.employeeId?.trim() || undefined,
+        hireDate: profile.hireDate?.trim() || undefined,
+        employmentType: (profile.employmentType?.toLowerCase().replace("-", "_") as any) || undefined,
+        hourlyRate: profile.hourlyRate?.trim() || undefined,
+        overtimeRate: profile.overtimeRate?.trim() || undefined,
+        skills: profile.skills.length > 0 ? profile.skills : undefined,
+        certifications: profile.certifications.length > 0 ? profile.certifications : undefined,
+        departments: profile.departments.length > 0 ? profile.departments : undefined,
+        industries: profile.industries.length > 0 ? profile.industries : undefined,
+      });
+    } else {
+      updateMutation.mutate({
+        id: Number(id),
+        tenantId: tenantId ?? 0,
+        firstName: profile.firstName.trim() || undefined,
+        lastName: profile.lastName.trim() || undefined,
+        email: profile.email?.trim() || undefined,
+        phone: profile.phone?.trim() || undefined,
+        hourlyRate: profile.hourlyRate?.trim() || undefined,
+        overtimeRate: profile.overtimeRate?.trim() || undefined,
+        skills: profile.skills.length > 0 ? profile.skills : undefined,
+        certifications: profile.certifications.length > 0 ? profile.certifications : undefined,
+        departments: profile.departments.length > 0 ? profile.departments : undefined,
+        industries: profile.industries.length > 0 ? profile.industries : undefined,
+      });
+    }
+  }, [profile, isNew, id, tenantId, createMutation, updateMutation]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Alert.alert("Delete Technician", `Permanently remove ${displayName} from your team?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => {
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          router.back();
-        },
+        onPress: () => deleteMutation.mutate({ id: Number(id), tenantId: tenantId ?? 0 }),
       },
     ]);
-  };
+  }, [displayName, id, tenantId, deleteMutation]);
 
   // ── Overview Tab ──
   const renderOverview = () => (

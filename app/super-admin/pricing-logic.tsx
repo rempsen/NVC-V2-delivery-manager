@@ -9,6 +9,8 @@ import { NVCHeader } from "@/components/nvc-header";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Default Data ─────────────────────────────────────────────────────────────
 
@@ -256,26 +258,58 @@ function RuleEditModal({
 
 export default function PricingLogicScreen() {
   const colors = useColors();
-  const [rules, setRules] = useState<BillingRule[]>(DEFAULT_RULES);
+  const { tenantId } = useTenant();
+  const utils = trpc.useUtils();
+
+  // Load live pricing rules from DB
+  const { data: rawRules = [] } = trpc.pricing.list.useQuery(
+    { tenantId: tenantId ?? 0 },
+    { enabled: !!tenantId },
+  );
+  // Map DB rules to local BillingRule shape for display
+  const rules: BillingRule[] = (rawRules as any[]).map((r, i) => ({
+    id: r.id,
+    name: r.name,
+    base: r.flatRateCents != null ? r.flatRateCents / 100 : r.hourlyBaseRateCents != null ? r.hourlyBaseRateCents / 100 : 0,
+    perHour: r.hourlyBaseRateCents != null ? r.hourlyBaseRateCents / 100 : 0,
+    active: r.isDefault ?? true,
+    color: RULE_COLORS[i % RULE_COLORS.length],
+    overtimeAfterHours: r.hourlyBaseMinutes != null ? r.hourlyBaseMinutes / 60 : undefined,
+    overtimeMultiplier: r.hourlyOvertimeRateCents != null && r.hourlyBaseRateCents ? r.hourlyOvertimeRateCents / r.hourlyBaseRateCents : undefined,
+  }));
+
+  const createMutation = trpc.pricing.create.useMutation({
+    onSuccess: () => { utils.pricing.list.invalidate(); setRuleModalVisible(false); },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to create rule."),
+  });
+  const updateMutation = trpc.pricing.update.useMutation({
+    onSuccess: () => { utils.pricing.list.invalidate(); setRuleModalVisible(false); },
+    onError: (err) => Alert.alert("Error", err.message ?? "Failed to update rule."),
+  });
+
   const [models, setModels] = useState<PricingModel[]>(DEFAULT_MODELS);
   const [editingRule, setEditingRule] = useState<BillingRule | null>(null);
   const [ruleModalVisible, setRuleModalVisible] = useState(false);
 
-  const handleToggleRule = (id: number, val: boolean) =>
-    setRules((prev) => prev.map((r) => r.id === id ? { ...r, active: val } : r));
+  const handleToggleRule = (id: number, _val: boolean) => {
+    Alert.alert("Coming Soon", "Rule enable/disable will be available in a future update.");
+  };
 
   const handleDeleteRule = (id: number) => {
     Alert.alert("Delete Rule", "Remove this billing rule?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => setRules((prev) => prev.filter((r) => r.id !== id)) },
+      { text: "Delete", style: "destructive", onPress: () => updateMutation.mutate({ id, tenantId: tenantId ?? 0, name: "__deleted__" }) },
     ]);
   };
 
   const handleSaveRule = (updated: BillingRule) => {
-    setRules((prev) => {
-      const exists = prev.find((r) => r.id === updated.id);
-      return exists ? prev.map((r) => r.id === updated.id ? updated : r) : [...prev, updated];
-    });
+    const baseCents = Math.round(updated.base * 100);
+    const hourCents = Math.round(updated.perHour * 100);
+    if (updated.id === -1) {
+      createMutation.mutate({ tenantId: tenantId ?? 0, name: updated.name, model: "hourly", flatRateCents: baseCents, hourlyBaseRateCents: hourCents });
+    } else {
+      updateMutation.mutate({ id: updated.id, tenantId: tenantId ?? 0, name: updated.name, flatRateCents: baseCents, hourlyBaseRateCents: hourCents });
+    }
   };
 
   const activeRules = rules.filter((r) => r.active).length;
