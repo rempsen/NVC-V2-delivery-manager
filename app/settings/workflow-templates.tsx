@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet, Alert, Switch,
+  FlatList, Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -31,6 +32,7 @@ interface WorkflowField {
   formulaExpression?: string;
   conditionalFieldId?: string;
   conditionalValue?: string;
+  conditionalOperator?: "equals" | "not_equals" | "contains" | "is_true" | "is_false";
   allowCamera?: boolean;
   allowGallery?: boolean;
   maxFiles?: number;
@@ -51,28 +53,30 @@ interface WorkflowTemplate {
 
 // ─── Field Type Definitions ───────────────────────────────────────────────────
 
-const FIELD_TYPES: { type: FieldType; label: string; icon: string; color: string; description: string }[] = [
-  { type: "short_text",    label: "Short Text",       icon: "textformat",                   color: "#3B82F6", description: "Single-line text input" },
-  { type: "long_text",     label: "Long Text",        icon: "doc.text.fill",                color: "#6366F1", description: "Multi-line notes & descriptions" },
-  { type: "number",        label: "Number",           icon: "number",                       color: "#8B5CF6", description: "Numeric values & measurements" },
-  { type: "currency",      label: "Currency",         icon: "dollarsign.circle.fill",       color: "#22C55E", description: "Price, cost, or payment amount" },
-  { type: "date",          label: "Date",             icon: "calendar",                     color: "#F59E0B", description: "Date picker (month/day/year)" },
-  { type: "time",          label: "Time",             icon: "clock.fill",                   color: "#F97316", description: "Time picker (hour/minute)" },
-  { type: "datetime",      label: "Date & Time",      icon: "calendar.badge.clock",         color: "#EF4444", description: "Combined date and time" },
-  { type: "single_select", label: "Dropdown",         icon: "chevron.down",                 color: "#06B6D4", description: "Single choice from a list" },
-  { type: "multi_select",  label: "Multi-Select",     icon: "checkmark.square.fill",        color: "#0EA5E9", description: "Multiple choices from a list" },
-  { type: "toggle",        label: "Yes / No Toggle",  icon: "switch.2",                     color: "#10B981", description: "Boolean yes/no or on/off" },
-  { type: "checklist",     label: "Checklist",        icon: "checklist",                    color: "#84CC16", description: "Ordered step-by-step checklist" },
-  { type: "photo",         label: "Photo / Camera",   icon: "camera.fill",                  color: "#F43F5E", description: "Take or upload photos" },
-  { type: "file",          label: "File Attachment",  icon: "paperclip",                    color: "#64748B", description: "Attach PDFs, docs, or files" },
-  { type: "voice",         label: "Voice Note",       icon: "mic.fill",                     color: "#A855F7", description: "Record audio field notes" },
-  { type: "signature",     label: "Signature",        icon: "pencil.and.scribble",          color: "#EC4899", description: "Customer or tech signature" },
-  { type: "gps",           label: "GPS / Location",   icon: "location.fill",                color: "#14B8A6", description: "Capture GPS coordinates" },
-  { type: "barcode",       label: "Barcode / QR",     icon: "barcode.viewfinder",           color: "#F59E0B", description: "Scan asset tags or parts" },
-  { type: "rating",        label: "Rating / Score",   icon: "star.fill",                    color: "#FBBF24", description: "1–5 or 1–10 satisfaction score" },
-  { type: "formula",       label: "Calculated Field", icon: "function",                     color: "#6EE7B7", description: "Auto-calculated from other fields" },
-  { type: "conditional",   label: "Conditional Logic","icon": "arrow.triangle.branch",      color: "#C084FC", description: "Show/hide based on prior answers" },
+const FIELD_TYPES: { type: FieldType; label: string; icon: string; color: string; description: string; category: string }[] = [
+  { type: "short_text",    label: "Short Text",       icon: "textformat",                   color: "#3B82F6", description: "Single-line text input",              category: "Text" },
+  { type: "long_text",     label: "Long Text",        icon: "doc.text.fill",                color: "#6366F1", description: "Multi-line notes & descriptions",      category: "Text" },
+  { type: "number",        label: "Number",           icon: "number",                       color: "#8B5CF6", description: "Numeric values & measurements",        category: "Numbers" },
+  { type: "currency",      label: "Currency",         icon: "dollarsign.circle.fill",       color: "#22C55E", description: "Price, cost, or payment amount",       category: "Numbers" },
+  { type: "date",          label: "Date",             icon: "calendar",                     color: "#F59E0B", description: "Date picker (month/day/year)",          category: "Date & Time" },
+  { type: "time",          label: "Time",             icon: "clock.fill",                   color: "#F97316", description: "Time picker (hour/minute)",             category: "Date & Time" },
+  { type: "datetime",      label: "Date & Time",      icon: "calendar.badge.clock",         color: "#EF4444", description: "Combined date and time",               category: "Date & Time" },
+  { type: "single_select", label: "Dropdown",         icon: "chevron.down",                 color: "#06B6D4", description: "Single choice from a list",            category: "Selection" },
+  { type: "multi_select",  label: "Multi-Select",     icon: "checkmark.square.fill",        color: "#0EA5E9", description: "Multiple choices from a list",         category: "Selection" },
+  { type: "toggle",        label: "Yes / No Toggle",  icon: "switch.2",                     color: "#10B981", description: "Boolean yes/no or on/off",             category: "Selection" },
+  { type: "checklist",     label: "Checklist",        icon: "checklist",                    color: "#84CC16", description: "Ordered step-by-step checklist",       category: "Selection" },
+  { type: "photo",         label: "Photo / Camera",   icon: "camera.fill",                  color: "#F43F5E", description: "Take or upload photos",                category: "Media" },
+  { type: "file",          label: "File Attachment",  icon: "paperclip",                    color: "#64748B", description: "Attach PDFs, docs, or files",          category: "Media" },
+  { type: "voice",         label: "Voice Note",       icon: "mic.fill",                     color: "#A855F7", description: "Record audio field notes",             category: "Media" },
+  { type: "signature",     label: "Signature",        icon: "pencil.and.scribble",          color: "#EC4899", description: "Customer or tech signature",           category: "Media" },
+  { type: "gps",           label: "GPS / Location",   icon: "location.fill",                color: "#14B8A6", description: "Capture GPS coordinates",              category: "Advanced" },
+  { type: "barcode",       label: "Barcode / QR",     icon: "barcode.viewfinder",           color: "#F59E0B", description: "Scan asset tags or parts",             category: "Advanced" },
+  { type: "rating",        label: "Rating / Score",   icon: "star.fill",                    color: "#FBBF24", description: "1–5 or 1–10 satisfaction score",       category: "Advanced" },
+  { type: "formula",       label: "Calculated Field", icon: "function",                     color: "#6EE7B7", description: "Auto-calculated from other fields",    category: "Advanced" },
+  { type: "conditional",   label: "Conditional Logic", icon: "arrow.triangle.branch",       color: "#C084FC", description: "Show/hide based on prior answers",     category: "Advanced" },
 ];
+
+const FIELD_CATEGORIES = ["All", "Text", "Numbers", "Date & Time", "Selection", "Media", "Advanced"];
 
 // ─── Industry Templates ───────────────────────────────────────────────────────
 
@@ -122,7 +126,7 @@ const INDUSTRY_TEMPLATES: WorkflowTemplate[] = [
   {
     id: "flooring_install",
     name: "Flooring Installation",
-    industry: "Construction / Flooring",
+    industry: "Construction",
     description: "Flooring measurement, install, and quality inspection",
     icon: "square.grid.2x2.fill",
     color: "#F59E0B",
@@ -178,6 +182,70 @@ const INDUSTRY_TEMPLATES: WorkflowTemplate[] = [
       { id: "f7", type: "signature", label: "Recipient Signature", required: false },
     ],
   },
+  {
+    id: "telecom_survey",
+    name: "Telecom Site Survey",
+    industry: "Telecommunications",
+    description: "Cell tower, fiber, or cable installation site assessment",
+    icon: "antenna.radiowaves.left.and.right",
+    color: "#0EA5E9",
+    isCustom: false,
+    fields: [
+      { id: "f1", type: "short_text", label: "Site ID / Tower Name", required: true },
+      { id: "f2", type: "gps", label: "Site GPS Coordinates", required: true },
+      { id: "f3", type: "single_select", label: "Site Type", required: true, options: [{ id: "o1", label: "Rooftop" }, { id: "o2", label: "Ground Tower" }, { id: "o3", label: "Pole Mount" }, { id: "o4", label: "Building Interior" }] },
+      { id: "f4", type: "number", label: "Tower Height (ft)", required: false },
+      { id: "f5", type: "checklist", label: "Site Conditions Checklist", required: true, checklistItems: ["Power available", "Grounding verified", "Structural integrity OK", "Access road clear", "Permits on file"] },
+      { id: "f6", type: "photo", label: "Site Photos (all angles)", required: true, allowCamera: true, allowGallery: true, maxFiles: 10 },
+      { id: "f7", type: "multi_select", label: "Equipment Installed", required: false, options: [{ id: "o1", label: "Antenna" }, { id: "o2", label: "RRU" }, { id: "o3", label: "Fiber cable" }, { id: "o4", label: "Power unit" }, { id: "o5", label: "Cabinet" }] },
+      { id: "f8", type: "toggle", label: "Site Approved for Installation?", required: true },
+      { id: "f9", type: "long_text", label: "Survey Notes", required: true },
+      { id: "f10", type: "signature", label: "Site Owner / Manager Sign-Off", required: false },
+    ],
+  },
+  {
+    id: "home_fitness",
+    name: "Home Fitness Equipment Install",
+    industry: "Home Fitness",
+    description: "Treadmill, bike, or gym equipment delivery and installation",
+    icon: "figure.run",
+    color: "#10B981",
+    isCustom: false,
+    fields: [
+      { id: "f1", type: "short_text", label: "Equipment Model", required: true, placeholder: "e.g. Peloton Bike+, NordicTrack T 6.5S" },
+      { id: "f2", type: "barcode", label: "Scan Serial Number", required: true },
+      { id: "f3", type: "single_select", label: "Installation Location", required: true, options: [{ id: "o1", label: "Living Room" }, { id: "o2", label: "Basement" }, { id: "o3", label: "Garage" }, { id: "o4", label: "Bedroom" }, { id: "o5", label: "Dedicated Gym Room" }] },
+      { id: "f4", type: "photo", label: "Pre-Install Space Photo", required: true, allowCamera: true, allowGallery: false, maxFiles: 3 },
+      { id: "f5", type: "checklist", label: "Assembly Checklist", required: true, checklistItems: ["All parts accounted for", "Frame assembled", "Electronics connected", "Calibration complete", "Test run completed", "Customer demo done"] },
+      { id: "f6", type: "toggle", label: "Floor Protection Used?", required: true },
+      { id: "f7", type: "photo", label: "Completed Installation Photos", required: true, allowCamera: true, allowGallery: false, maxFiles: 4 },
+      { id: "f8", type: "rating", label: "Customer Satisfaction", required: false, ratingMax: 5 },
+      { id: "f9", type: "signature", label: "Customer Acceptance Signature", required: true },
+    ],
+  },
+  {
+    id: "limo_booking",
+    name: "Limousine / Chauffeur Trip",
+    industry: "Limousine",
+    description: "Pre-trip inspection, passenger log, and post-trip summary",
+    icon: "car.fill",
+    color: "#1E293B",
+    isCustom: false,
+    fields: [
+      { id: "f1", type: "short_text", label: "Booking Reference #", required: true },
+      { id: "f2", type: "short_text", label: "Passenger Name", required: true },
+      { id: "f3", type: "number", label: "Passenger Count", required: true, minValue: 1, maxValue: 20 },
+      { id: "f4", type: "datetime", label: "Pickup Date & Time", required: true },
+      { id: "f5", type: "short_text", label: "Pickup Address", required: true },
+      { id: "f6", type: "short_text", label: "Drop-off Address", required: true },
+      { id: "f7", type: "checklist", label: "Pre-Trip Vehicle Inspection", required: true, checklistItems: ["Exterior clean", "Interior clean", "Fuel full", "Water/amenities stocked", "Climate set", "Music/entertainment ready"] },
+      { id: "f8", type: "photo", label: "Vehicle Condition Photo", required: true, allowCamera: true, allowGallery: false, maxFiles: 3 },
+      { id: "f9", type: "number", label: "Trip Distance (km)", required: false },
+      { id: "f10", type: "currency", label: "Final Fare", required: true },
+      { id: "f11", type: "rating", label: "Passenger Rating", required: false, ratingMax: 5 },
+      { id: "f12", type: "signature", label: "Passenger Confirmation", required: false },
+    ],
+  },
 ];
 
 // ─── Field Type Card ──────────────────────────────────────────────────────────
@@ -216,6 +284,9 @@ function FieldRow({
   const ft = FIELD_TYPES.find((f) => f.type === field.type);
   return (
     <View style={[styles.fieldRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={{ alignItems: "center", width: 20 }}>
+        <Text style={[styles.fieldRowIndex, { color: colors.muted }]}>{index + 1}</Text>
+      </View>
       <View style={[styles.fieldRowIcon, { backgroundColor: (ft?.color ?? "#888") + "20" }]}>
         <IconSymbol name={(ft?.icon ?? "doc") as any} size={14} color={ft?.color ?? "#888"} />
       </View>
@@ -248,12 +319,361 @@ function FieldRow({
   );
 }
 
+// ─── Preview Field Component ──────────────────────────────────────────────────
+
+function PreviewField({ field }: { field: WorkflowField }) {
+  const colors = useColors();
+  const ft = FIELD_TYPES.find((f) => f.type === field.type);
+  const [toggleVal, setToggleVal] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<boolean[]>((field.checklistItems ?? []).map(() => false));
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [ratingVal, setRatingVal] = useState(0);
+
+  const renderInput = () => {
+    switch (field.type) {
+      case "short_text":
+        return (
+          <View style={[styles.previewInput, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <Text style={[styles.previewPlaceholder, { color: colors.muted }]}>
+              {field.placeholder ?? "Enter text..."}
+            </Text>
+          </View>
+        );
+      case "long_text":
+        return (
+          <View style={[styles.previewInput, { borderColor: colors.border, backgroundColor: colors.surface, minHeight: 80 }]}>
+            <Text style={[styles.previewPlaceholder, { color: colors.muted }]}>
+              {field.placeholder ?? "Enter notes..."}
+            </Text>
+          </View>
+        );
+      case "number":
+        return (
+          <View style={[styles.previewInput, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <Text style={[styles.previewPlaceholder, { color: colors.muted }]}>
+              {field.minValue !== undefined && field.maxValue !== undefined
+                ? `${field.minValue} – ${field.maxValue}`
+                : "Enter number..."}
+            </Text>
+          </View>
+        );
+      case "currency":
+        return (
+          <View style={[styles.previewInputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <Text style={[styles.previewCurrencySymbol, { color: colors.muted }]}>$</Text>
+            <Text style={[styles.previewPlaceholder, { color: colors.muted }]}>0.00</Text>
+          </View>
+        );
+      case "date":
+        return (
+          <View style={[styles.previewInputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <IconSymbol name="calendar" size={16} color={colors.muted} />
+            <Text style={[styles.previewPlaceholder, { color: colors.muted, flex: 1, marginLeft: 8 }]}>Select date...</Text>
+          </View>
+        );
+      case "time":
+        return (
+          <View style={[styles.previewInputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <IconSymbol name="clock.fill" size={16} color={colors.muted} />
+            <Text style={[styles.previewPlaceholder, { color: colors.muted, flex: 1, marginLeft: 8 }]}>Select time...</Text>
+          </View>
+        );
+      case "datetime":
+        return (
+          <View style={[styles.previewInputRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <IconSymbol name="calendar.badge.clock" size={16} color={colors.muted} />
+            <Text style={[styles.previewPlaceholder, { color: colors.muted, flex: 1, marginLeft: 8 }]}>Select date & time...</Text>
+          </View>
+        );
+      case "single_select":
+        return (
+          <View style={{ gap: 6 }}>
+            {(field.options ?? []).map((opt) => (
+              <Pressable
+                key={opt.id}
+                style={[
+                  styles.previewOption,
+                  {
+                    borderColor: selectedOption === opt.id ? colors.primary : colors.border,
+                    backgroundColor: selectedOption === opt.id ? colors.primary + "15" : colors.surface,
+                  },
+                ]}
+                onPress={() => setSelectedOption(opt.id)}
+              >
+                <View style={[
+                  styles.previewRadio,
+                  { borderColor: selectedOption === opt.id ? colors.primary : colors.border },
+                ]}>
+                  {selectedOption === opt.id && (
+                    <View style={[styles.previewRadioFill, { backgroundColor: colors.primary }]} />
+                  )}
+                </View>
+                <Text style={[styles.previewOptionText, { color: colors.foreground }]}>{opt.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        );
+      case "multi_select":
+        return (
+          <View style={{ gap: 6 }}>
+            {(field.options ?? []).map((opt) => {
+              const isSelected = selectedOptions.includes(opt.id);
+              return (
+                <Pressable
+                  key={opt.id}
+                  style={[
+                    styles.previewOption,
+                    {
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      backgroundColor: isSelected ? colors.primary + "15" : colors.surface,
+                    },
+                  ]}
+                  onPress={() => setSelectedOptions((prev) =>
+                    isSelected ? prev.filter((id) => id !== opt.id) : [...prev, opt.id],
+                  )}
+                >
+                  <View style={[
+                    styles.previewCheckbox,
+                    {
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      backgroundColor: isSelected ? colors.primary : "transparent",
+                    },
+                  ]}>
+                    {isSelected && <IconSymbol name="checkmark" size={10} color="#fff" />}
+                  </View>
+                  <Text style={[styles.previewOptionText, { color: colors.foreground }]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        );
+      case "toggle":
+        return (
+          <View style={[styles.previewToggleRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <Text style={[styles.previewToggleLabel, { color: toggleVal ? colors.primary : colors.muted }]}>
+              {toggleVal ? "Yes" : "No"}
+            </Text>
+            <Switch
+              value={toggleVal}
+              onValueChange={setToggleVal}
+              trackColor={{ false: colors.border, true: colors.primary }}
+            />
+          </View>
+        );
+      case "checklist":
+        return (
+          <View style={{ gap: 6 }}>
+            {(field.checklistItems ?? []).map((item, idx) => (
+              <Pressable
+                key={idx}
+                style={[
+                  styles.previewChecklistItem,
+                  {
+                    borderColor: checkedItems[idx] ? colors.primary : colors.border,
+                    backgroundColor: checkedItems[idx] ? colors.primary + "10" : colors.surface,
+                  },
+                ]}
+                onPress={() => setCheckedItems((prev) => {
+                  const next = [...prev];
+                  next[idx] = !next[idx];
+                  return next;
+                })}
+              >
+                <View style={[
+                  styles.previewCheckbox,
+                  {
+                    borderColor: checkedItems[idx] ? colors.primary : colors.border,
+                    backgroundColor: checkedItems[idx] ? colors.primary : "transparent",
+                  },
+                ]}>
+                  {checkedItems[idx] && <IconSymbol name="checkmark" size={10} color="#fff" />}
+                </View>
+                <Text style={[
+                  styles.previewChecklistText,
+                  {
+                    color: checkedItems[idx] ? colors.muted : colors.foreground,
+                    textDecorationLine: checkedItems[idx] ? "line-through" : "none",
+                  },
+                ]}>
+                  {item}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        );
+      case "photo":
+        return (
+          <View style={styles.previewPhotoRow}>
+            <View style={[styles.previewPhotoBtn, { borderColor: colors.primary, backgroundColor: colors.primary + "10" }]}>
+              <IconSymbol name="camera.fill" size={20} color={colors.primary} />
+              <Text style={[styles.previewPhotoBtnText, { color: colors.primary }]}>Camera</Text>
+            </View>
+            {field.allowGallery && (
+              <View style={[styles.previewPhotoBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <IconSymbol name="photo.fill" size={20} color={colors.muted} />
+                <Text style={[styles.previewPhotoBtnText, { color: colors.muted }]}>Gallery</Text>
+              </View>
+            )}
+          </View>
+        );
+      case "file":
+        return (
+          <View style={[styles.previewFileBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <IconSymbol name="paperclip" size={18} color={colors.muted} />
+            <Text style={[styles.previewPlaceholder, { color: colors.muted }]}>Tap to attach file...</Text>
+          </View>
+        );
+      case "voice":
+        return (
+          <View style={styles.previewVoiceRow}>
+            <View style={[styles.previewVoiceBtn, { backgroundColor: "#A855F7" }]}>
+              <IconSymbol name="mic.fill" size={22} color="#fff" />
+            </View>
+            <Text style={[styles.previewVoiceLabel, { color: colors.muted }]}>Tap to record voice note</Text>
+          </View>
+        );
+      case "signature":
+        return (
+          <View style={[styles.previewSignatureBox, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <IconSymbol name="pencil.and.scribble" size={24} color={colors.muted} />
+            <Text style={[styles.previewPlaceholder, { color: colors.muted }]}>Tap to sign</Text>
+          </View>
+        );
+      case "gps":
+        return (
+          <View style={[styles.previewGpsBtn, { borderColor: "#14B8A6", backgroundColor: "#14B8A6" + "15" }]}>
+            <IconSymbol name="location.fill" size={18} color="#14B8A6" />
+            <Text style={[styles.previewGpsBtnText, { color: "#14B8A6" }]}>Capture Current Location</Text>
+          </View>
+        );
+      case "barcode":
+        return (
+          <View style={[styles.previewGpsBtn, { borderColor: "#F59E0B", backgroundColor: "#F59E0B" + "15" }]}>
+            <IconSymbol name="barcode.viewfinder" size={18} color="#F59E0B" />
+            <Text style={[styles.previewGpsBtnText, { color: "#F59E0B" }]}>Scan Barcode / QR Code</Text>
+          </View>
+        );
+      case "rating":
+        return (
+          <View style={styles.previewRatingRow}>
+            {Array.from({ length: field.ratingMax ?? 5 }).map((_, i) => (
+              <Pressable key={i} onPress={() => setRatingVal(i + 1)}>
+                <IconSymbol
+                  name="star.fill"
+                  size={28}
+                  color={i < ratingVal ? "#FBBF24" : colors.border}
+                />
+              </Pressable>
+            ))}
+            {ratingVal > 0 && (
+              <Text style={[styles.previewRatingLabel, { color: colors.muted }]}>
+                {ratingVal}/{field.ratingMax ?? 5}
+              </Text>
+            )}
+          </View>
+        );
+      case "formula":
+        return (
+          <View style={[styles.previewFormulaBox, { borderColor: "#6EE7B7", backgroundColor: "#6EE7B7" + "15" }]}>
+            <IconSymbol name="function" size={16} color="#6EE7B7" />
+            <Text style={[styles.previewFormulaText, { color: "#6EE7B7" }]}>
+              {field.formulaExpression ?? "Auto-calculated"}
+            </Text>
+          </View>
+        );
+      case "conditional":
+        return (
+          <View style={[styles.previewFormulaBox, { borderColor: "#C084FC", backgroundColor: "#C084FC" + "15" }]}>
+            <IconSymbol name="arrow.triangle.branch" size={16} color="#C084FC" />
+            <Text style={[styles.previewFormulaText, { color: "#C084FC" }]}>
+              {field.conditionalFieldId
+                ? `Show if "${field.conditionalFieldId}" ${field.conditionalOperator ?? "equals"} "${field.conditionalValue ?? ""}"`
+                : "Conditional logic — configure in editor"}
+            </Text>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={styles.previewFieldContainer}>
+      <View style={styles.previewFieldHeader}>
+        <View style={[styles.previewFieldDot, { backgroundColor: ft?.color ?? "#888" }]} />
+        <Text style={[styles.previewFieldLabel, { color: "#1E293B" }]}>
+          {field.label}
+          {field.required && <Text style={{ color: "#EF4444" }}> *</Text>}
+        </Text>
+      </View>
+      {field.helpText ? (
+        <Text style={styles.previewHelpText}>{field.helpText}</Text>
+      ) : null}
+      {renderInput()}
+    </View>
+  );
+}
+
+// ─── Preview Mode Screen ──────────────────────────────────────────────────────
+
+function PreviewScreen({
+  template, onClose,
+}: {
+  template: WorkflowTemplate; onClose: () => void;
+}) {
+  return (
+    <Modal visible animationType="slide" presentationStyle="pageSheet">
+      <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+        {/* Header */}
+        <View style={styles.previewHeader}>
+          <View style={[styles.previewHeaderIcon, { backgroundColor: template.color + "20" }]}>
+            <IconSymbol name={template.icon as any} size={20} color={template.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.previewHeaderTitle}>{template.name}</Text>
+            <Text style={styles.previewHeaderSub}>{template.fields.length} fields · {template.industry}</Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [styles.previewCloseBtn, { opacity: pressed ? 0.6 : 1 }]}
+            onPress={onClose}
+          >
+            <IconSymbol name="xmark.circle.fill" size={26} color="#64748B" />
+          </Pressable>
+        </View>
+
+        {/* Preview Banner */}
+        <View style={styles.previewBanner}>
+          <IconSymbol name="eye.fill" size={14} color="#F59E0B" />
+          <Text style={styles.previewBannerText}>PREVIEW MODE — This is how technicians see this form</Text>
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+        >
+          {template.fields.map((field) => (
+            <PreviewField key={field.id} field={field} />
+          ))}
+
+          {/* Submit Button Preview */}
+          <View style={styles.previewSubmitBtn}>
+            <IconSymbol name="checkmark.circle.fill" size={18} color="#fff" />
+            <Text style={styles.previewSubmitText}>Submit Work Order</Text>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Edit Field Modal ─────────────────────────────────────────────────────────
 
 function EditFieldModal({
-  field, visible, onClose, onSave,
+  field, visible, allFields, onClose, onSave,
 }: {
   field: WorkflowField | null; visible: boolean;
+  allFields: WorkflowField[];
   onClose: () => void; onSave: (f: WorkflowField) => void;
 }) {
   const colors = useColors();
@@ -266,6 +686,7 @@ function EditFieldModal({
   if (!visible || !local) return null;
 
   const ft = FIELD_TYPES.find((f) => f.type === local.type);
+  const otherFields = allFields.filter((f) => f.id !== local.id && ["single_select", "toggle", "multi_select"].includes(f.type));
 
   const updateLocal = (patch: Partial<WorkflowField>) => setLocal((prev) => prev ? { ...prev, ...patch } : prev);
 
@@ -306,7 +727,7 @@ function EditFieldModal({
   return (
     <View style={styles.modalOverlay}>
       <View style={[styles.modalCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={[styles.fieldTypeIcon, { backgroundColor: (ft?.color ?? "#888") + "20" }]}>
@@ -454,6 +875,77 @@ function EditFieldModal({
             </>
           )}
 
+          {/* Conditional Logic */}
+          {local.type === "conditional" && (
+            <>
+              <Text style={[styles.fieldLabel, { color: colors.muted }]}>SHOW THIS FIELD WHEN...</Text>
+              {otherFields.length === 0 ? (
+                <View style={[styles.conditionalHint, { backgroundColor: "#C084FC" + "15", borderColor: "#C084FC" + "40" }]}>
+                  <Text style={[styles.conditionalHintText, { color: "#C084FC" }]}>
+                    Add a Dropdown, Multi-Select, or Toggle field first to use conditional logic.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={[styles.fieldLabel, { color: colors.muted }]}>TRIGGER FIELD</Text>
+                  <View style={{ gap: 6, marginBottom: 8 }}>
+                    {otherFields.map((f) => (
+                      <Pressable
+                        key={f.id}
+                        style={[
+                          styles.conditionalFieldOption,
+                          {
+                            borderColor: local.conditionalFieldId === f.id ? "#C084FC" : colors.border,
+                            backgroundColor: local.conditionalFieldId === f.id ? "#C084FC" + "15" : colors.surface,
+                          },
+                        ]}
+                        onPress={() => updateLocal({ conditionalFieldId: f.id })}
+                      >
+                        <Text style={[styles.conditionalFieldText, { color: local.conditionalFieldId === f.id ? "#C084FC" : colors.foreground }]}>
+                          {f.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  <Text style={[styles.fieldLabel, { color: colors.muted }]}>OPERATOR</Text>
+                  <View style={styles.operatorRow}>
+                    {(["equals", "not_equals", "is_true", "is_false"] as const).map((op) => (
+                      <Pressable
+                        key={op}
+                        style={[
+                          styles.operatorBtn,
+                          {
+                            borderColor: local.conditionalOperator === op ? "#C084FC" : colors.border,
+                            backgroundColor: local.conditionalOperator === op ? "#C084FC" + "15" : "transparent",
+                          },
+                        ]}
+                        onPress={() => updateLocal({ conditionalOperator: op })}
+                      >
+                        <Text style={[styles.operatorBtnText, { color: local.conditionalOperator === op ? "#C084FC" : colors.muted }]}>
+                          {op === "equals" ? "=" : op === "not_equals" ? "≠" : op === "is_true" ? "YES" : "NO"}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {["equals", "not_equals"].includes(local.conditionalOperator ?? "equals") && (
+                    <>
+                      <Text style={[styles.fieldLabel, { color: colors.muted }]}>VALUE TO MATCH</Text>
+                      <TextInput
+                        style={[styles.fieldInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+                        value={local.conditionalValue ?? ""}
+                        onChangeText={(v) => updateLocal({ conditionalValue: v })}
+                        placeholder="e.g. Yes, Repair, Option A..."
+                        placeholderTextColor={colors.muted}
+                      />
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
           {/* Dropdown / Multi-select options */}
           {["single_select", "multi_select"].includes(local.type) && (
             <>
@@ -534,15 +1026,25 @@ export default function WorkflowTemplatesScreen() {
   const [showFieldPicker, setShowFieldPicker] = useState(false);
   const [editingField, setEditingField] = useState<WorkflowField | null>(null);
   const [view, setView] = useState<"list" | "builder">("list");
-  const [templateName, setTemplateName] = useState("");
-  const [templateIndustry, setTemplateIndustry] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [industryFilter, setIndustryFilter] = useState("All");
+  const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null);
+  const [fieldCategory, setFieldCategory] = useState("All");
 
-  const filteredTemplates = templates.filter(
-    (t) =>
+  // Unique industries for filter tabs
+  const industries = ["All", ...Array.from(new Set(templates.map((t) => t.industry)))];
+
+  const filteredTemplates = templates.filter((t) => {
+    const matchesSearch =
       t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.industry.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+      t.industry.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesIndustry = industryFilter === "All" || t.industry === industryFilter;
+    return matchesSearch && matchesIndustry;
+  });
+
+  const filteredFieldTypes = fieldCategory === "All"
+    ? FIELD_TYPES
+    : FIELD_TYPES.filter((ft) => ft.category === fieldCategory);
 
   const createBlankTemplate = () => {
     const t: WorkflowTemplate = {
@@ -558,6 +1060,25 @@ export default function WorkflowTemplatesScreen() {
     setTemplates((prev) => [t, ...prev]);
     setActiveTemplate(t);
     setView("builder");
+  };
+
+  const duplicateTemplate = (t: WorkflowTemplate) => {
+    const copy: WorkflowTemplate = {
+      ...t,
+      id: `custom_${Date.now()}`,
+      name: `${t.name} (Copy)`,
+      isCustom: true,
+      fields: t.fields.map((f) => ({ ...f, id: `field_${Date.now()}_${Math.random()}` })),
+    };
+    setTemplates((prev) => [copy, ...prev]);
+    Alert.alert("Duplicated", `"${copy.name}" created as a custom template.`);
+  };
+
+  const deleteTemplate = (id: string) => {
+    Alert.alert("Delete Template", "This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => setTemplates((prev) => prev.filter((t) => t.id !== id)) },
+    ]);
   };
 
   const openTemplate = (t: WorkflowTemplate) => {
@@ -580,6 +1101,7 @@ export default function WorkflowTemplatesScreen() {
       ratingMax: type === "rating" ? 5 : undefined,
       allowCamera: type === "photo" ? true : undefined,
       allowGallery: type === "photo" ? true : undefined,
+      conditionalOperator: type === "conditional" ? "equals" : undefined,
     };
     setActiveTemplate((prev) => prev ? { ...prev, fields: [...prev.fields, newField] } : prev);
     setShowFieldPicker(false);
@@ -644,12 +1166,20 @@ export default function WorkflowTemplatesScreen() {
           subtitle={`${activeTemplate.fields.length} fields · ${activeTemplate.industry}`}
           onBack={() => setView("list")}
           rightElement={
-            <Pressable
-              onPress={saveTemplate}
-              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
-            >
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Save</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                onPress={() => setPreviewTemplate(activeTemplate)}
+                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+              >
+                <IconSymbol name="eye.fill" size={20} color="#fff" />
+              </Pressable>
+              <Pressable
+                onPress={saveTemplate}
+                style={({ pressed }) => [styles.saveHeaderBtn, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Text style={styles.saveHeaderBtnText}>Save</Text>
+              </Pressable>
+            </View>
           }
         />
 
@@ -686,6 +1216,13 @@ export default function WorkflowTemplatesScreen() {
           {/* Fields */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.muted }]}>FIELDS ({activeTemplate.fields.length})</Text>
+            <Pressable
+              onPress={() => setPreviewTemplate(activeTemplate)}
+              style={({ pressed }) => [styles.previewLinkBtn, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <IconSymbol name="eye.fill" size={13} color={colors.primary} />
+              <Text style={[styles.previewLinkText, { color: colors.primary }]}>Preview</Text>
+            </Pressable>
           </View>
 
           {activeTemplate.fields.length === 0 && (
@@ -729,7 +1266,31 @@ export default function WorkflowTemplatesScreen() {
                   <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
                 </Pressable>
               </View>
-              {FIELD_TYPES.map((ft) => (
+
+              {/* Category Filter */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {FIELD_CATEGORIES.map((cat) => (
+                    <Pressable
+                      key={cat}
+                      style={[
+                        styles.categoryPill,
+                        {
+                          backgroundColor: fieldCategory === cat ? colors.primary : colors.background,
+                          borderColor: fieldCategory === cat ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => setFieldCategory(cat)}
+                    >
+                      <Text style={[styles.categoryPillText, { color: fieldCategory === cat ? "#fff" : colors.muted }]}>
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              {filteredFieldTypes.map((ft) => (
                 <FieldTypeCard key={ft.type} ft={ft} onSelect={() => addField(ft.type)} />
               ))}
             </View>
@@ -740,9 +1301,15 @@ export default function WorkflowTemplatesScreen() {
         <EditFieldModal
           field={editingField}
           visible={!!editingField}
+          allFields={activeTemplate.fields}
           onClose={() => setEditingField(null)}
           onSave={saveField}
         />
+
+        {/* Preview Modal */}
+        {previewTemplate && (
+          <PreviewScreen template={previewTemplate} onClose={() => setPreviewTemplate(null)} />
+        )}
       </ScreenContainer>
     );
   }
@@ -774,7 +1341,35 @@ export default function WorkflowTemplatesScreen() {
             placeholder="Search templates..."
             placeholderTextColor={colors.muted}
           />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery("")}>
+              <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+            </Pressable>
+          )}
         </View>
+
+        {/* Industry Filter Tabs */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {industries.map((ind) => (
+              <Pressable
+                key={ind}
+                style={[
+                  styles.industryTab,
+                  {
+                    backgroundColor: industryFilter === ind ? colors.primary : colors.surface,
+                    borderColor: industryFilter === ind ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setIndustryFilter(ind)}
+              >
+                <Text style={[styles.industryTabText, { color: industryFilter === ind ? "#fff" : colors.muted }]}>
+                  {ind}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
 
         {/* Field Types Reference */}
         <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -793,38 +1388,77 @@ export default function WorkflowTemplatesScreen() {
 
         {/* Templates */}
         <Text style={[styles.sectionTitle, { color: colors.muted, marginBottom: 8 }]}>
-          {searchQuery ? `RESULTS (${filteredTemplates.length})` : "ALL TEMPLATES"}
+          {searchQuery || industryFilter !== "All"
+            ? `RESULTS (${filteredTemplates.length})`
+            : `ALL TEMPLATES (${filteredTemplates.length})`}
         </Text>
 
         {filteredTemplates.map((t) => (
-          <Pressable
+          <View
             key={t.id}
-            style={({ pressed }) => [
-              styles.templateCard,
-              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
-            ]}
-            onPress={() => openTemplate(t)}
+            style={[styles.templateCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
-            <View style={[styles.templateIcon, { backgroundColor: t.color + "20" }]}>
-              <IconSymbol name={t.icon as any} size={22} color={t.color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.templateNameRow}>
-                <Text style={[styles.templateName, { color: colors.foreground }]}>{t.name}</Text>
-                {t.isCustom && (
-                  <View style={[styles.customBadge, { backgroundColor: colors.primary + "20" }]}>
-                    <Text style={[styles.customBadgeText, { color: colors.primary }]}>Custom</Text>
-                  </View>
-                )}
+            <Pressable
+              style={({ pressed }) => [styles.templateCardMain, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => openTemplate(t)}
+            >
+              <View style={[styles.templateIcon, { backgroundColor: t.color + "20" }]}>
+                <IconSymbol name={t.icon as any} size={22} color={t.color} />
               </View>
-              <Text style={[styles.templateIndustry, { color: colors.primary }]}>{t.industry}</Text>
-              <Text style={[styles.templateDesc, { color: colors.muted }]} numberOfLines={1}>{t.description}</Text>
-              <Text style={[styles.templateFieldCount, { color: colors.muted }]}>{t.fields.length} fields</Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.templateNameRow}>
+                  <Text style={[styles.templateName, { color: colors.foreground }]}>{t.name}</Text>
+                  {t.isCustom && (
+                    <View style={[styles.customBadge, { backgroundColor: colors.primary + "20" }]}>
+                      <Text style={[styles.customBadgeText, { color: colors.primary }]}>Custom</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.templateIndustry, { color: t.color }]}>{t.industry}</Text>
+                <Text style={[styles.templateDesc, { color: colors.muted }]} numberOfLines={1}>{t.description}</Text>
+                <Text style={[styles.templateFieldCount, { color: colors.muted }]}>{t.fields.length} fields</Text>
+              </View>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </Pressable>
+
+            {/* Template Actions */}
+            <View style={[styles.templateActions, { borderTopColor: colors.border }]}>
+              <Pressable
+                style={({ pressed }) => [styles.templateActionBtn, { opacity: pressed ? 0.6 : 1 }]}
+                onPress={() => setPreviewTemplate(t)}
+              >
+                <IconSymbol name="eye.fill" size={13} color={colors.primary} />
+                <Text style={[styles.templateActionText, { color: colors.primary }]}>Preview</Text>
+              </Pressable>
+              <View style={[styles.templateActionDivider, { backgroundColor: colors.border }]} />
+              <Pressable
+                style={({ pressed }) => [styles.templateActionBtn, { opacity: pressed ? 0.6 : 1 }]}
+                onPress={() => duplicateTemplate(t)}
+              >
+                <IconSymbol name="doc.on.doc.fill" size={13} color={colors.muted} />
+                <Text style={[styles.templateActionText, { color: colors.muted }]}>Duplicate</Text>
+              </Pressable>
+              {t.isCustom && (
+                <>
+                  <View style={[styles.templateActionDivider, { backgroundColor: colors.border }]} />
+                  <Pressable
+                    style={({ pressed }) => [styles.templateActionBtn, { opacity: pressed ? 0.6 : 1 }]}
+                    onPress={() => deleteTemplate(t.id)}
+                  >
+                    <IconSymbol name="trash.fill" size={13} color="#EF4444" />
+                    <Text style={[styles.templateActionText, { color: "#EF4444" }]}>Delete</Text>
+                  </Pressable>
+                </>
+              )}
             </View>
-            <IconSymbol name="chevron.right" size={16} color={colors.muted} />
-          </Pressable>
+          </View>
         ))}
       </ScrollView>
+
+      {/* Preview Modal */}
+      {previewTemplate && (
+        <PreviewScreen template={previewTemplate} onClose={() => setPreviewTemplate(null)} />
+      )}
     </ScreenContainer>
   );
 }
@@ -832,8 +1466,10 @@ export default function WorkflowTemplatesScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  searchBar: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 8, marginBottom: 12 },
+  searchBar: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 8, marginBottom: 10 },
   searchInput: { flex: 1, fontSize: 14 },
+  industryTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  industryTabText: { fontSize: 12, fontWeight: "600" },
   infoCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16 },
   infoCardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
   infoCardTitle: { fontSize: 13, fontWeight: "700" },
@@ -842,7 +1478,8 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 10, fontWeight: "600" },
   sectionTitle: { fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginBottom: 6 },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  templateCard: { flexDirection: "row", alignItems: "center", borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10, gap: 12 },
+  templateCard: { borderRadius: 14, borderWidth: 1, marginBottom: 10, overflow: "hidden" },
+  templateCardMain: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
   templateIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   templateNameRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
   templateName: { fontSize: 15, fontWeight: "700" },
@@ -851,8 +1488,13 @@ const styles = StyleSheet.create({
   templateIndustry: { fontSize: 12, fontWeight: "600", marginBottom: 2 },
   templateDesc: { fontSize: 12, marginBottom: 2 },
   templateFieldCount: { fontSize: 11 },
+  templateActions: { flexDirection: "row", borderTopWidth: 1, paddingVertical: 8, paddingHorizontal: 12 },
+  templateActionBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4 },
+  templateActionText: { fontSize: 12, fontWeight: "600" },
+  templateActionDivider: { width: 1, height: 16, alignSelf: "center", marginHorizontal: 2 },
   metaCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 14 },
-  fieldRow: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 8, gap: 10 },
+  fieldRow: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 8, gap: 8 },
+  fieldRowIndex: { fontSize: 11, fontWeight: "700" },
   fieldRowIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   fieldRowLabel: { fontSize: 13, fontWeight: "600" },
   fieldRowType: { fontSize: 11, marginTop: 1 },
@@ -863,12 +1505,18 @@ const styles = StyleSheet.create({
   emptyFields: { borderRadius: 14, borderWidth: 1, borderStyle: "dashed", padding: 32, alignItems: "center", gap: 10, marginBottom: 12 },
   emptyFieldsText: { fontSize: 13, textAlign: "center" },
   fieldPickerCard: { borderRadius: 14, borderWidth: 1, padding: 14, marginTop: 12 },
-  fieldPickerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  fieldPickerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   fieldPickerTitle: { fontSize: 15, fontWeight: "700" },
   fieldTypeCard: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 6, gap: 10 },
   fieldTypeIcon: { width: 36, height: 36, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   fieldTypeLabel: { fontSize: 13, fontWeight: "600" },
   fieldTypeDesc: { fontSize: 11, marginTop: 1 },
+  categoryPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
+  categoryPillText: { fontSize: 12, fontWeight: "600" },
+  previewLinkBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  previewLinkText: { fontSize: 12, fontWeight: "600" },
+  saveHeaderBtn: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  saveHeaderBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   // Modal
   modalOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end", zIndex: 100 },
   modalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: 20, maxHeight: "90%", gap: 4 },
@@ -889,4 +1537,54 @@ const styles = StyleSheet.create({
   addOptionText: { fontSize: 13, fontWeight: "700" },
   saveBtn: { borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 16, marginBottom: 8 },
   saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  // Conditional logic
+  conditionalHint: { borderRadius: 10, borderWidth: 1, padding: 12, marginBottom: 8 },
+  conditionalHintText: { fontSize: 13, lineHeight: 18 },
+  conditionalFieldOption: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  conditionalFieldText: { fontSize: 14, fontWeight: "600" },
+  operatorRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  operatorBtn: { flex: 1, borderWidth: 1.5, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  operatorBtnText: { fontSize: 13, fontWeight: "700" },
+  // Preview Screen
+  previewHeader: { flexDirection: "row", alignItems: "center", padding: 16, paddingTop: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB", gap: 12 },
+  previewHeaderIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  previewHeaderTitle: { fontSize: 16, fontWeight: "800", color: "#1E293B" },
+  previewHeaderSub: { fontSize: 12, color: "#64748B", marginTop: 1 },
+  previewCloseBtn: { padding: 4 },
+  previewBanner: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#FFFBEB", paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#FDE68A" },
+  previewBannerText: { fontSize: 11, fontWeight: "700", color: "#92400E", letterSpacing: 0.3 },
+  previewFieldContainer: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: "#E5E7EB" },
+  previewFieldHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  previewFieldDot: { width: 6, height: 6, borderRadius: 3 },
+  previewFieldLabel: { fontSize: 14, fontWeight: "700", flex: 1 },
+  previewHelpText: { fontSize: 12, color: "#64748B", marginBottom: 8, lineHeight: 17 },
+  previewInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, minHeight: 44 },
+  previewInputRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 },
+  previewCurrencySymbol: { fontSize: 16, fontWeight: "700", marginRight: 6 },
+  previewPlaceholder: { fontSize: 14 },
+  previewOption: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 10 },
+  previewRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  previewRadioFill: { width: 8, height: 8, borderRadius: 4 },
+  previewCheckbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  previewOptionText: { fontSize: 14 },
+  previewToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  previewToggleLabel: { fontSize: 14, fontWeight: "700" },
+  previewChecklistItem: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, gap: 10 },
+  previewChecklistText: { fontSize: 14, flex: 1 },
+  previewPhotoRow: { flexDirection: "row", gap: 10 },
+  previewPhotoBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderRadius: 12, paddingVertical: 14, gap: 8 },
+  previewPhotoBtnText: { fontSize: 13, fontWeight: "700" },
+  previewFileBtn: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14, gap: 10 },
+  previewVoiceRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  previewVoiceBtn: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
+  previewVoiceLabel: { fontSize: 13 },
+  previewSignatureBox: { borderWidth: 1.5, borderRadius: 12, borderStyle: "dashed", height: 100, alignItems: "center", justifyContent: "center", gap: 8 },
+  previewGpsBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderRadius: 12, paddingVertical: 14, gap: 8 },
+  previewGpsBtnText: { fontSize: 14, fontWeight: "700" },
+  previewRatingRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  previewRatingLabel: { fontSize: 13, marginLeft: 6 },
+  previewFormulaBox: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, gap: 8 },
+  previewFormulaText: { fontSize: 13, fontWeight: "600", flex: 1 },
+  previewSubmitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FF6B35", borderRadius: 14, paddingVertical: 16, gap: 8, marginTop: 8 },
+  previewSubmitText: { color: "#fff", fontSize: 16, fontWeight: "800" },
 });

@@ -219,3 +219,22 @@
 - [x] Create New bottom sheet with 7 categories
 - [x] Tighter Quick Actions (smaller icons, more spacing)
 - [x] Recent Work Orders: smaller rows, no WO number, show 4 items
+
+## Technicians Screen Redesign (v2)
+- [x] Compact row cards (~25% smaller) to fit 10 techs on screen
+- [x] Status sort order: On Job → En Route → Available → On Break → Offline
+- [x] Color-coded left-border accent + status pill per row (amber/purple/green/blue/gray)
+- [x] Header color changed from orange to royal-sky blue (#1E6FBF)
+- [x] NVC360 logo displayed in header
+- [x] Filter tabs moved into blue header bar for visual cohesion
+- [x] 10 mock technicians added for realistic density testing
+- [x] Compact action buttons (28×28 rounded squares with status color tint)
+
+## Workflow Template Builder
+- [ ] Template Library screen: list all templates, search, filter by industry, create/duplicate/delete
+- [ ] Industry starter templates: HVAC, IT Repair, Home Fitness, Telecom, Construction, Elder Care, Delivery, Inspection
+- [ ] Template Editor: add/remove/reorder fields, field config panel (label, required, placeholder, options)
+- [ ] All 20 field types: Short Text, Long Text, Number, Currency, Date, Time, DateTime, Dropdown, Multi-Select, Toggle, Checklist, Photo/Camera, File Attachment, Voice Note, Signature, GPS/Location, Barcode/QR, Rating/Score, Formula/Calculated, Conditional Logic
+- [ ] Conditional logic: show/hide fields based on prior answer values
+- [ ] Field preview mode: simulate filling out the form as a technician
+- [ ] Wire Settings → Workflow Templates navigation

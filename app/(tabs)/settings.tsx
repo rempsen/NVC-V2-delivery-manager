@@ -120,7 +120,8 @@ export default function SettingsScreen() {
             icon="doc.text.fill"
             iconColor="#22C55E"
             label="Workflow Templates"
-            onPress={() => router.push("/templates" as any)}
+            value="8 templates · 20 field types"
+            onPress={() => router.push("/settings/workflow-templates" as any)}
           />
           <SettingRow
             icon="dollarsign.circle.fill"

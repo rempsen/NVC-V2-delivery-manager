@@ -7,9 +7,11 @@ import {
   Linking,
   StyleSheet,
   Platform,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -20,10 +22,45 @@ import {
   type Technician,
 } from "@/lib/nvc-types";
 
-const STATUS_FILTERS = ["all", "online", "busy", "on_break", "offline"] as const;
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+// Royal-to-sky blue: sits between #1D4ED8 (royal) and #38BDF8 (sky)
+const HEADER_BG = "#1E6FBF";
+const HEADER_BG_DARK = "#1A5FA8";
+
+// Status sort order: On Job first, En Route, Available, On Break, Offline last
+const STATUS_SORT_ORDER: Record<string, number> = {
+  busy: 0,
+  en_route: 1,
+  online: 2,
+  on_break: 3,
+  offline: 4,
+};
+
+// Muted background tints for each status (for the card left-border accent + subtle bg)
+const STATUS_BG_TINTS: Record<string, string> = {
+  busy:     "#F59E0B",   // amber
+  en_route: "#8B5CF6",   // purple
+  online:   "#22C55E",   // green
+  on_break: "#3B82F6",   // blue
+  offline:  "#6B7280",   // gray
+};
+
+const STATUS_FILTERS = ["all", "busy", "en_route", "online", "on_break", "offline"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-function TechCard({
+const FILTER_LABELS: Record<string, string> = {
+  all: "All",
+  busy: "On Job",
+  en_route: "En Route",
+  online: "Available",
+  on_break: "On Break",
+  offline: "Offline",
+};
+
+// ─── Compact Tech Row ─────────────────────────────────────────────────────────
+
+function TechRow({
   tech,
   onPress,
   onCall,
@@ -35,93 +72,123 @@ function TechCard({
   onMessage: () => void;
 }) {
   const colors = useColors();
-  const statusColor = TECH_STATUS_COLORS[tech.status];
+  const status = tech.status as string;
+  const statusColor = STATUS_BG_TINTS[status] ?? "#6B7280";
+  const statusLabel = TECH_STATUS_LABELS[status] ?? status;
+  const initials = tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+        styles.row,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          borderLeftColor: statusColor,
+          opacity: pressed ? 0.88 : 1,
+        },
       ]}
       onPress={onPress}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
-        <Text style={[styles.avatarText, { color: colors.primary }]}>
-          {tech.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-        </Text>
+      {/* Avatar */}
+      <View style={[styles.avatar, { backgroundColor: statusColor + "22" }]}>
+        <Text style={[styles.avatarText, { color: statusColor }]}>{initials}</Text>
         <View style={[styles.statusDot, { backgroundColor: statusColor, borderColor: colors.surface }]} />
       </View>
 
+      {/* Name + location */}
       <View style={styles.info}>
-        <View style={styles.infoTop}>
-          <Text style={[styles.name, { color: colors.foreground }]}>{tech.name}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}>
-            <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {TECH_STATUS_LABELS[tech.status]}
-            </Text>
+        <View style={styles.nameRow}>
+          <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>{tech.name}</Text>
+          {/* Status pill */}
+          <View style={[styles.statusPill, { backgroundColor: statusColor + "22", borderColor: statusColor + "55" }]}>
+            <Text style={[styles.statusPillText, { color: statusColor }]}>{statusLabel}</Text>
           </View>
         </View>
-
-        {tech.activeTaskAddress ? (
-          <Text style={[styles.activeTask, { color: colors.muted }]} numberOfLines={1}>
-            <Text style={{ color: colors.primary }}>● </Text>
-            {tech.activeTaskAddress}
-          </Text>
-        ) : (
-          <Text style={[styles.noTask, { color: colors.muted }]}>No active job</Text>
-        )}
-
-        <View style={styles.stats}>
+        <View style={styles.metaRow}>
+          {tech.activeTaskAddress ? (
+            <Text style={[styles.metaText, { color: colors.muted }]} numberOfLines={1}>
+              <Text style={{ color: statusColor }}>● </Text>
+              {tech.activeTaskAddress}
+            </Text>
+          ) : (
+            <Text style={[styles.metaText, { color: colors.muted }]}>No active job</Text>
+          )}
+        </View>
+        <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <IconSymbol name="checkmark.circle.fill" size={12} color="#22C55E" />
-            <Text style={[styles.statText, { color: colors.muted }]}>{tech.todayJobs} jobs</Text>
+            <IconSymbol name="checkmark.circle.fill" size={10} color="#22C55E" />
+            <Text style={[styles.statText, { color: colors.muted }]}>{tech.todayJobs}j</Text>
           </View>
+          <Text style={[styles.statDivider, { color: colors.border }]}>·</Text>
           <View style={styles.stat}>
-            <IconSymbol name="car.fill" size={12} color={colors.muted} />
-            <Text style={[styles.statText, { color: colors.muted }]}>{tech.todayDistanceKm.toFixed(1)} km</Text>
+            <IconSymbol name="car.fill" size={10} color={colors.muted} />
+            <Text style={[styles.statText, { color: colors.muted }]}>{tech.todayDistanceKm.toFixed(0)}km</Text>
           </View>
-          <View style={styles.stat}>
-            <IconSymbol name="wrench.fill" size={12} color={colors.muted} />
-            <Text style={[styles.statText, { color: colors.muted }]}>{tech.skills[0]}</Text>
-          </View>
+          <Text style={[styles.statDivider, { color: colors.border }]}>·</Text>
+          <Text style={[styles.statText, { color: colors.muted }]} numberOfLines={1}>{tech.skills[0]}</Text>
         </View>
       </View>
 
+      {/* Action buttons */}
       <View style={styles.actions}>
         <Pressable
-          style={({ pressed }) => [styles.actionBtn, { backgroundColor: "#22C55E20", opacity: pressed ? 0.7 : 1 }]}
-          onPress={onCall}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            { backgroundColor: "#22C55E18", borderColor: "#22C55E33", opacity: pressed ? 0.65 : 1 },
+          ]}
+          onPress={(e) => { e.stopPropagation(); onCall(); }}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
         >
-          <IconSymbol name="phone.fill" size={16} color="#22C55E" />
+          <IconSymbol name="phone.fill" size={13} color="#22C55E" />
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.primary + "20", opacity: pressed ? 0.7 : 1 }]}
-          onPress={onMessage}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            { backgroundColor: statusColor + "18", borderColor: statusColor + "33", opacity: pressed ? 0.65 : 1 },
+          ]}
+          onPress={(e) => { e.stopPropagation(); onMessage(); }}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
         >
-          <IconSymbol name="message.fill" size={16} color={colors.primary} />
+          <IconSymbol name="message.fill" size={13} color={statusColor} />
         </Pressable>
       </View>
     </Pressable>
   );
 }
 
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function AgentsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const filtered = useMemo(() => {
-    if (statusFilter === "all") return MOCK_TECHNICIANS;
-    return MOCK_TECHNICIANS.filter((t) => t.status === statusFilter);
-  }, [statusFilter]);
+  // Sort by status priority, then by name within each group
+  const sorted = useMemo(() => {
+    return [...MOCK_TECHNICIANS].sort((a, b) => {
+      const orderA = STATUS_SORT_ORDER[a.status as string] ?? 99;
+      const orderB = STATUS_SORT_ORDER[b.status as string] ?? 99;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    });
+  }, []);
 
-  const counts = useMemo(() => ({
-    all: MOCK_TECHNICIANS.length,
-    online: MOCK_TECHNICIANS.filter((t) => t.status === "online").length,
-    busy: MOCK_TECHNICIANS.filter((t) => t.status === "busy").length,
-    on_break: MOCK_TECHNICIANS.filter((t) => t.status === "on_break").length,
-    offline: MOCK_TECHNICIANS.filter((t) => t.status === "offline").length,
-  }), []);
+  const filtered = useMemo(() => {
+    if (statusFilter === "all") return sorted;
+    return sorted.filter((t) => t.status === statusFilter);
+  }, [statusFilter, sorted]);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: MOCK_TECHNICIANS.length };
+    STATUS_FILTERS.forEach((s) => {
+      if (s !== "all") c[s] = MOCK_TECHNICIANS.filter((t) => t.status === s).length;
+    });
+    return c;
+  }, []);
+
+  const activeCount = (counts.busy ?? 0) + (counts.en_route ?? 0);
 
   const handleCall = (tech: Technician) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -138,58 +205,83 @@ export default function AgentsScreen() {
   };
 
   return (
-    <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <View>
-          <Text style={styles.headerTitle}>Field Team</Text>
-          <Text style={styles.headerSub}>
-            {counts.online + counts.busy} active · {counts.all} total
-          </Text>
+    <ScreenContainer edges={["left", "right"]}>
+      {/* ── Header ── */}
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: HEADER_BG, paddingTop: insets.top + 6 },
+        ]}
+      >
+        <View style={styles.headerLeft}>
+          {/* NVC Logo */}
+          <Image
+            source={require("@/assets/images/nvc-logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <View>
+            <Text style={styles.headerTitle}>Field Team</Text>
+            <Text style={styles.headerSub}>
+              {activeCount} active · {counts.all} total
+            </Text>
+          </View>
         </View>
         <Pressable
           style={({ pressed }) => [styles.mapBtn, { opacity: pressed ? 0.8 : 1 }]}
-          onPress={() => router.push("/dispatcher-map" as any)}
+          onPress={() => router.push("/dispatcher" as any)}
         >
-          <IconSymbol name="map.fill" size={18} color="#fff" />
+          <IconSymbol name="map.fill" size={15} color="#fff" />
           <Text style={styles.mapBtnText}>Live Map</Text>
         </Pressable>
       </View>
 
-      <FlatList
-        data={STATUS_FILTERS as unknown as StatusFilter[]}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item}
-        contentContainerStyle={styles.filterList}
-        renderItem={({ item }) => {
-          const isActive = statusFilter === item;
-          const count = counts[item];
-          const dotColor = item === "all" ? colors.primary : (TECH_STATUS_COLORS[item] ?? colors.muted);
-          return (
-            <Pressable
-              style={[
-                styles.filterTab,
-                {
-                  backgroundColor: isActive ? colors.primary : colors.surface,
-                  borderColor: isActive ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setStatusFilter(item)}
-            >
-              {item !== "all" && (
-                <View style={[styles.filterDot, { backgroundColor: isActive ? "#fff" : dotColor }]} />
-              )}
-              <Text style={[styles.filterTabText, { color: isActive ? "#fff" : colors.muted }]}>
-                {item === "all" ? "All" : TECH_STATUS_LABELS[item]}
-              </Text>
-              <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.3)" : colors.border }]}>
-                <Text style={[styles.filterCountText, { color: isActive ? "#fff" : colors.muted }]}>{count}</Text>
-              </View>
-            </Pressable>
-          );
-        }}
-      />
+      {/* ── Status Filter Tabs ── */}
+      <View style={[styles.filterBar, { backgroundColor: HEADER_BG_DARK }]}>
+        <FlatList
+          data={STATUS_FILTERS as unknown as StatusFilter[]}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item}
+          contentContainerStyle={styles.filterList}
+          renderItem={({ item }) => {
+            const isActive = statusFilter === item;
+            const dotColor = item === "all" ? "#fff" : (STATUS_BG_TINTS[item] ?? "#fff");
+            const count = counts[item] ?? 0;
+            return (
+              <Pressable
+                style={[
+                  styles.filterTab,
+                  {
+                    backgroundColor: isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)",
+                    borderColor: isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.12)",
+                  },
+                ]}
+                onPress={() => setStatusFilter(item)}
+              >
+                {item !== "all" && (
+                  <View style={[styles.filterDot, { backgroundColor: dotColor }]} />
+                )}
+                <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "rgba(255,255,255,0.65)" }]}>
+                  {FILTER_LABELS[item]}
+                </Text>
+                {count > 0 && (
+                  <View style={[
+                    styles.filterCount,
+                    { backgroundColor: isActive ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.12)" },
+                  ]}>
+                    <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }]}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          }}
+        />
+      </View>
 
+      {/* ── Technician List ── */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id.toString()}
@@ -197,12 +289,12 @@ export default function AgentsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <IconSymbol name="person.2.fill" size={48} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted }]}>No technicians found</Text>
+            <IconSymbol name="person.2.fill" size={40} color={colors.muted} />
+            <Text style={[styles.emptyText, { color: colors.muted }]}>No technicians in this status</Text>
           </View>
         }
         renderItem={({ item }) => (
-          <TechCard
+          <TechRow
             tech={item}
             onPress={() => router.push(`/agent/${item.id}` as any)}
             onCall={() => handleCall(item)}
@@ -214,91 +306,135 @@ export default function AgentsScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  headerSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  logo: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+  },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  headerSub: { fontSize: 11, color: "rgba(255,255,255,0.72)", marginTop: 1 },
   mapBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#3B82F6",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 16,
     gap: 5,
   },
-  mapBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  filterList: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  mapBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+
+  // Filter bar
+  filterBar: {
+    paddingBottom: 8,
+  },
+  filterList: { paddingHorizontal: 14, paddingTop: 8, gap: 6 },
   filterTab: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 5,
+    gap: 4,
   },
-  filterDot: { width: 7, height: 7, borderRadius: 4 },
-  filterTabText: { fontSize: 13, fontWeight: "600" },
+  filterDot: { width: 6, height: 6, borderRadius: 3 },
+  filterTabText: { fontSize: 11, fontWeight: "600" },
   filterCount: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-    minWidth: 18,
+    paddingHorizontal: 5,
+    paddingVertical: 0,
+    borderRadius: 7,
+    minWidth: 16,
     alignItems: "center",
   },
-  filterCountText: { fontSize: 11, fontWeight: "700" },
-  listContent: { paddingHorizontal: 16, paddingBottom: 32 },
-  card: {
+  filterCountText: { fontSize: 10, fontWeight: "700" },
+
+  // List
+  listContent: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 24 },
+
+  // Compact row card
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 10,
-    gap: 12,
+    borderLeftWidth: 3,          // colored status accent on left edge
+    paddingVertical: 8,
+    paddingRight: 10,
+    paddingLeft: 10,
+    marginBottom: 6,
+    gap: 9,
   },
+
+  // Avatar
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { fontSize: 18, fontWeight: "700" },
-  statusDot: {
-    position: "absolute",
-    bottom: 1,
-    right: 1,
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    borderWidth: 2,
-  },
-  info: { flex: 1, gap: 4 },
-  infoTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  name: { fontSize: 15, fontWeight: "700", flex: 1 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusBadgeText: { fontSize: 11, fontWeight: "700" },
-  activeTask: { fontSize: 12 },
-  noTask: { fontSize: 12 },
-  stats: { flexDirection: "row", gap: 10, marginTop: 2 },
-  stat: { flexDirection: "row", alignItems: "center", gap: 3 },
-  statText: { fontSize: 11 },
-  actions: { gap: 8 },
-  actionBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
-  empty: { alignItems: "center", paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 16, fontWeight: "500" },
+  avatarText: { fontSize: 13, fontWeight: "800", letterSpacing: 0.3 },
+  statusDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 1.5,
+  },
+
+  // Info block
+  info: { flex: 1, gap: 2 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  name: { fontSize: 13, fontWeight: "700", flex: 1 },
+  statusPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  statusPillText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.2 },
+  metaRow: { flexDirection: "row", alignItems: "center" },
+  metaText: { fontSize: 11, flex: 1 },
+  statsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
+  stat: { flexDirection: "row", alignItems: "center", gap: 3 },
+  statText: { fontSize: 10 },
+  statDivider: { fontSize: 10 },
+
+  // Action buttons
+  actions: { gap: 5, flexShrink: 0 },
+  actionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Empty state
+  empty: { alignItems: "center", paddingTop: 60, gap: 10 },
+  emptyText: { fontSize: 14, fontWeight: "500" },
 });
