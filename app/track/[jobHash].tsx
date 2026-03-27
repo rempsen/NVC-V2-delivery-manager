@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   FlatList,
+  Image,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -20,6 +21,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NativeMapView } from "@/components/native-map-view";
 import { trpc } from "@/lib/trpc";
+import { useLocationHub } from "@/hooks/use-location-hub";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -172,26 +174,48 @@ export default function CustomerTrackingScreen() {
     onSuccess: () => { setMessageText(""); refetchMessages(); setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150); },
   });
 
-  // Normalize task into tracking shape
+  // Live technician location from WebSocket (overrides polling)
+  const [liveTechLat, setLiveTechLat] = useState<number | null>(null);
+  const [liveTechLng, setLiveTechLng] = useState<number | null>(null);
+
+  // Subscribe to WebSocket location hub for real-time tech position
+  const tenantId = rawTask ? (rawTask as any).tenantId : 0;
+  const technicianId = rawTask ? (rawTask as any).technicianId : 0;
+  useLocationHub({
+    tenantId,
+    onLocationUpdate: useCallback((techId: number, lat: number, lng: number) => {
+      if (techId === technicianId) {
+        setLiveTechLat(lat);
+        setLiveTechLng(lng);
+      }
+    }, [technicianId]),
+  });
+
+  // Normalize task into tracking shape — uses enriched server fields from getTaskByHash
   const tracking = rawTask ? {
     jobHash: (rawTask as any).jobHash ?? jobHash ?? "",
     customerName: (rawTask as any).customerName ?? "",
-    jobAddress: (rawTask as any).jobAddress ?? "",
+    jobAddress: (rawTask as any).jobAddress ?? (rawTask as any).address ?? "",
     technician: {
-      name: (rawTask as any).technicianName ?? "Your Technician",
-      phone: (rawTask as any).technicianPhone ?? "",
-      vehicle: (rawTask as any).vehicleInfo ?? "",
-      rating: 5.0,
+      // Use enriched techName/techPhone from getTaskByHash join
+      name: (rawTask as any).techName ?? (rawTask as any).technicianName ?? "Your Technician",
+      phone: (rawTask as any).techPhone ?? (rawTask as any).technicianPhone ?? "",
+      vehicle: (rawTask as any).techTransportType ?? (rawTask as any).vehicleInfo ?? "Vehicle",
+      photoUrl: (rawTask as any).techPhotoUrl ?? null,
+      rating: 4.9,
       completedJobs: 0,
-      latitude: parseFloat((rawTask as any).lastLatitude ?? "49.8951"),
-      longitude: parseFloat((rawTask as any).lastLongitude ?? "-97.1384"),
+      // WebSocket live position takes priority over DB polling
+      latitude: liveTechLat ?? parseFloat((rawTask as any).techLat ?? (rawTask as any).lastLatitude ?? "49.8951"),
+      longitude: liveTechLng ?? parseFloat((rawTask as any).techLng ?? (rawTask as any).lastLongitude ?? "-97.1384"),
     },
     status: mapDbStatus((rawTask as any).status ?? "unassigned"),
     etaMinutes: (rawTask as any).etaMinutes ?? 0,
     dispatchedAt: (rawTask as any).dispatchedAt ? new Date((rawTask as any).dispatchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+    // Use enriched companyName + companyColor from tenant branding
     companyName: (rawTask as any).companyName ?? "NVC360",
-    companyColor: "#1E6FBF",
-    companyLogo: ((rawTask as any).companyName ?? "N").charAt(0).toUpperCase(),
+    companyColor: (rawTask as any).companyColor ?? "#1E6FBF",
+    companyLogo: (rawTask as any).companyLogo ?? null,
+    companyLogoLetter: ((rawTask as any).companyName ?? "N").charAt(0).toUpperCase(),
     serviceName: (rawTask as any).templateName ?? (rawTask as any).description ?? "Service Call",
   } : null;
 
@@ -248,7 +272,11 @@ export default function CustomerTrackingScreen() {
       {/* Branded Header */}
       <View style={[styles.header, { backgroundColor: companyColor }]}>
         <View style={[styles.companyLogoCircle, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-          <Text style={styles.companyLogoText}>{tracking.companyLogo}</Text>
+          {tracking.companyLogo ? (
+            <Image source={{ uri: tracking.companyLogo }} style={{ width: 30, height: 30, borderRadius: 15 }} />
+          ) : (
+            <Text style={styles.companyLogoText}>{tracking.companyLogoLetter}</Text>
+          )}
         </View>
         <View style={styles.headerCenter}>
           <Text style={styles.headerCompany}>{tracking.companyName}</Text>
@@ -469,9 +497,16 @@ export default function CustomerTrackingScreen() {
           {/* Technician Card */}
           <View style={[styles.techCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.techCardAvatar, { backgroundColor: companyColor + "20" }]}>
-              <Text style={[styles.techCardInitial, { color: companyColor }]}>
-                {tracking.technician.name.charAt(0)}
-              </Text>
+              {tracking.technician.photoUrl ? (
+                <Image
+                  source={{ uri: tracking.technician.photoUrl }}
+                  style={{ width: 52, height: 52, borderRadius: 26 }}
+                />
+              ) : (
+                <Text style={[styles.techCardInitial, { color: companyColor }]}>
+                  {tracking.technician.name.charAt(0)}
+                </Text>
+              )}
             </View>
             <View style={styles.techCardInfo}>
               <Text style={[styles.techCardName, { color: colors.foreground }]}>

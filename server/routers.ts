@@ -739,24 +739,62 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const task = await db.getTaskById_NVC(input.taskId);
-        await db.updateTaskRecord(input.taskId, {
+
+        // Update task status + record technician start location
+        const updatePayload: Record<string, unknown> = {
           status: "en_route",
           startedAt: new Date(),
-        } as any);
+        };
+        if (input.latitude) updatePayload.techStartLat = String(input.latitude);
+        if (input.longitude) updatePayload.techStartLng = String(input.longitude);
+        await db.updateTaskRecord(input.taskId, updatePayload as any);
+
+        // Also update technician's live lat/lng in technicians table
+        if (input.latitude && input.longitude && (task as any)?.technicianId) {
+          try {
+            await db.updateTechnicianLocation(
+              (task as any).technicianId,
+              String(input.latitude),
+              String(input.longitude),
+            );
+          } catch { /* non-fatal */ }
+        }
+
         // Fire-and-forget SMS via Twilio if configured
         const customerPhone = (task as any)?.customerPhone;
         const customerName = (task as any)?.customerName ?? "Customer";
         const orderRef = (task as any)?.orderRef ?? `#${input.taskId}`;
         const jobHash = (task as any)?.jobHash;
+
         if (customerPhone) {
           try {
-            const trackUrl = jobHash ? `https://tookandeliv-ve29h94a.manus.space/track/${jobHash}` : "";
-            const smsBody = `Hi ${customerName}, your technician is on the way for ${orderRef}. ${trackUrl ? `Track here: ${trackUrl}` : ""}`.trim();
-            // Fetch tenant Twilio credentials and send real SMS
+            // Look up technician name for personalized SMS
+            let techFirstName = "Your technician";
+            if ((task as any)?.technicianId) {
+              const techInfo = await db.getTechnicianById((task as any).technicianId);
+              // Join with tenantUsers to get the name
+              if (techInfo?.tenantUserId) {
+                // Direct lookup by tenantUserId
+                const tuRows = await db.getTenantUsersByTenant(techInfo.tenantId);
+                const tu = tuRows.find((u: any) => u.id === techInfo.tenantUserId);
+                if (tu?.name) techFirstName = tu.name.split(" ")[0];
+              }
+            }
+
+            // Look up tenant branding for SMS sender name
             const { resolveTwilioCredentials, sendSmsIfConfigured } = await import("./twilio.js");
             const tenant = (task as any)?.tenantId ? await db.getTenantById((task as any).tenantId) : null;
+            const senderName = tenant?.smsSenderName ?? tenant?.companyName ?? "Your Service Provider";
+
+            const trackUrl = jobHash ? `https://tookandeliv-ve29h94a.manus.space/track/${jobHash}` : "";
+            const smsBody = [
+              `Hi ${customerName}! ${techFirstName} from ${senderName} is on the way to you for job ${orderRef}.`,
+              trackUrl ? `Track live here: ${trackUrl}` : "",
+            ].filter(Boolean).join(" ");
+
             const creds = resolveTwilioCredentials(tenant);
             await sendSmsIfConfigured(customerPhone, smsBody, creds);
+
             // Always log the SMS attempt in notifications table
             await db.createNotification({
               tenantId: (task as any)?.tenantId ?? 1,
@@ -771,7 +809,7 @@ export const appRouter = router({
               pushToken: null,
               sentAt: new Date(),
             } as any);
-          } catch (err) { console.error("[startTask] SMS error:", err); /* non-fatal */ }
+          } catch (err) { if (process.env.NODE_ENV !== "production") console.error("[startTask] SMS error:", err); /* non-fatal */ }
         }
         return { success: true, taskId: input.taskId, status: "en_route" };
       }),

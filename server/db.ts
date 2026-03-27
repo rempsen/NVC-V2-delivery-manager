@@ -314,7 +314,77 @@ export async function getTaskByHash(jobHash: string) {
   const db = await getDb();
   if (!db) return null;
   const rows = await db.select().from(tasks).where(eq(tasks.jobHash, jobHash)).limit(1);
-  return rows[0] ?? null;
+  const task = rows[0] ?? null;
+  if (!task) return null;
+
+  // Enrich with technician + tenant data for the customer tracking page
+  let techData: {
+    techName: string;
+    techPhone: string | null;
+    techLat: string | null;
+    techLng: string | null;
+    techPhotoUrl: string | null;
+    techTransportType: string;
+  } | null = null;
+
+  if (task.technicianId) {
+    const techRows = await db
+      .select({
+        techId: technicians.id,
+        techLat: technicians.latitude,
+        techLng: technicians.longitude,
+        techPhotoUrl: technicians.photoUrl,
+        techTransportType: technicians.transportType,
+        userName: tenantUsers.name,
+        userPhone: tenantUsers.phone,
+      })
+      .from(technicians)
+      .leftJoin(tenantUsers, eq(technicians.tenantUserId, tenantUsers.id))
+      .where(eq(technicians.id, task.technicianId))
+      .limit(1);
+    const t = techRows[0];
+    if (t) {
+      techData = {
+        techName: t.userName ?? "Technician",
+        techPhone: t.userPhone ?? null,
+        techLat: t.techLat ?? null,
+        techLng: t.techLng ?? null,
+        techPhotoUrl: t.techPhotoUrl ?? null,
+        techTransportType: t.techTransportType ?? "car",
+      };
+    }
+  }
+
+  // Enrich with tenant branding
+  let tenantData: {
+    companyName: string;
+    companyColor: string;
+    companyLogo: string | null;
+  } | null = null;
+
+  if (task.tenantId) {
+    const tenantRows = await db
+      .select({ tenantName: tenants.companyName, branding: tenants.branding })
+      .from(tenants)
+      .where(eq(tenants.id, task.tenantId))
+      .limit(1);
+    const ten = tenantRows[0];
+    if (ten) {
+      let branding: { primaryColor?: string; logoUrl?: string } = {};
+      try {
+        const raw = ten.branding;
+        if (typeof raw === "string") branding = JSON.parse(raw);
+        else if (raw && typeof raw === "object") branding = raw as typeof branding;
+      } catch { /* ignore */ }
+      tenantData = {
+        companyName: ten.tenantName,
+        companyColor: branding.primaryColor ?? "#1E6FBF",
+        companyLogo: branding.logoUrl ?? null,
+      };
+    }
+  }
+
+  return { ...task, ...techData, ...tenantData };
 }
 
 export async function createTaskRecord(data: InsertTask) {

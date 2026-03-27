@@ -1222,3 +1222,28 @@
 - [x] Web Dashboard: Tenants + Audit Log nav items gated to nvc_super_admin only (role-aware sidebar)
 - [x] useTenant hook: now exposes userRole so dashboard can gate super-admin nav items
 - [x] Login routing: nvc_super_admin → /super-admin (mobile), web dashboard shows Tenants/AuditLog sections
+
+## En Route Customer Tracking Sprint (Mar 27 2026)
+
+### Audit Findings
+- [x] AUDIT: DB schema — jobHash column exists on tasks table (unique, varchar 64) ✓
+- [x] AUDIT: SMS dispatch — twilio.ts helper exists, sendSmsIfConfigured called in startTask mutation ✓
+- [x] AUDIT: Tracking URL — hardcoded to tookandeliv-ve29h94a.manus.space/track/{jobHash} in startTask ✓
+- [x] AUDIT: /track/[jobHash].tsx — 820-line page exists with ETA banner, status steps, technician card, call/SMS buttons, in-app chat ✓
+- [x] AUDIT: NativeMapView — used on tracking page for mobile, shows technician marker + destination pin ✓
+- [x] AUDIT: WebSocket location hub — /ws/location broadcasts real-time GPS updates to subscribers ✓
+- [x] AUDIT: Google Maps API — mapsRouter.ts has ETA/distance matrix/route optimization, but GOOGLE_MAPS_API_KEY is NOT configured ✓
+- [x] AUDIT: Mobile startTask — agent-task/[id].tsx calls startTask mutation on swipe, triggers SMS ✓
+
+### Gaps Found & Fixed
+- [x] GAP FIXED: getTaskByHash now JOINs technicians + tenantUsers + tenants — returns techName, techPhone, techLat, techLng, companyName, companyColor, companyLogo
+- [x] GAP FIXED: Tracking page now uses real jobLatitude/jobLongitude for destination pin
+- [x] GAP FIXED: Tracking page now uses real technician lat/lng from enriched getTaskByHash response
+- [x] GAP FIXED: Tracking page now uses real companyColor from tenant branding JSON
+- [x] GAP FIXED: WebSocket location updates now consumed on tracking page — useLocationHub hook moves marker in real-time
+- [x] GAP FIXED: SMS message body now includes technician first name and company name
+- [x] GAP FIXED: startTask now captures GPS fix before swipe and passes lat/lng to server
+- [x] GAP FIXED: Metro web bundler error for react-native-maps — excluded from web bundle via metro.config.js
+- [x] GAP FIXED: Tracking page company logo and technician avatar now show real images when available
+- [ ] GAP PENDING: GOOGLE_MAPS_API_KEY not configured — ETA calculation falls back to haversine estimate (request from Dan)
+- [ ] GAP PENDING: /track-web/[jobHash] — dedicated Google Maps JS web page for mobile browser (requires Google Maps API key)

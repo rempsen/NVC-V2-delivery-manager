@@ -466,6 +466,8 @@ export default function AgentTaskScreen() {
   const [showFailModal, setShowFailModal] = useState(false);
   const [selectedFailReason, setSelectedFailReason] = useState("");
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
+  // Track last known GPS position so we can pass it to startTask for the SMS tracking link
+  const currentPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // ── tRPC mutations ─────────────────────────────────────────────────────
   const startTaskMutation = trpc.tasks.startTask.useMutation();
@@ -498,6 +500,8 @@ export default function AgentTaskScreen() {
   // ── Geolocation tracking ─────────────────────────────────────────────────────
   // Push GPS coordinates to server so dispatcher map shows live positions
   const pushLocationToServer = useCallback((lat: number, lng: number) => {
+    // Always cache last known position for startTask SMS
+    currentPosRef.current = { lat, lng };
     if (isDemo || !task?.technicianId) return;
     updateLocationMutation.mutate({
       id: task.technicianId,
@@ -575,10 +579,39 @@ export default function AgentTaskScreen() {
   // ── Action handlers ──────────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     try {
-      if (!isDemo) await startTaskMutation.mutateAsync({ taskId, tenantId: tenantId ?? 0 });
+      // Capture a fresh GPS fix before going en route so the SMS tracking link is accurate
+      let lat = currentPosRef.current?.lat;
+      let lng = currentPosRef.current?.lng;
+      if (!lat) {
+        if (Platform.OS !== "web") {
+          try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status === "granted") {
+              const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+              lat = pos.coords.latitude;
+              lng = pos.coords.longitude;
+              currentPosRef.current = { lat, lng };
+            }
+          } catch { /* GPS unavailable — non-fatal */ }
+        } else if (navigator?.geolocation) {
+          await new Promise<void>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => { lat = pos.coords.latitude; lng = pos.coords.longitude; currentPosRef.current = { lat: lat!, lng: lng! }; resolve(); },
+              () => resolve(),
+              { timeout: 3000 },
+            );
+          });
+        }
+      }
+      if (!isDemo) await startTaskMutation.mutateAsync({
+        taskId,
+        tenantId: tenantId ?? 0,
+        latitude: lat,
+        longitude: lng,
+      });
       setPhase("en_route");
     } catch { Alert.alert("Error", "Could not start task. Please try again."); }
-  }, [taskId, isDemo]);
+  }, [taskId, isDemo, tenantId, startTaskMutation]);
 
   const handleArrive = useCallback(async (lat?: number, lng?: number) => {
     try {
