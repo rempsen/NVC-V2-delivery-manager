@@ -1333,3 +1333,15 @@
 - [x] Super admin bottom action bar: New Company, New User, Manage, Audit Log — all functional
 - [x] Super admin manage-company screen: AddEmployee and AddCustomer modals confirmed wired to real mutations
 - [x] TypeScript: 0 errors confirmed
+
+## Calendar + Super Admin Enhancements Sprint — Mar 27 2026
+
+- [ ] Calendar view on main dashboard — monthly grid, tasks shown on their dates, tap date to create work order or task
+- [ ] Dashboard calendar: date-tap opens a bottom sheet with options (New Work Order, Add Note, Set Task)
+- [ ] Dashboard calendar: existing tasks shown as colored dots on their scheduled dates
+- [ ] Super admin client list: search bar (by name, subdomain, industry)
+- [ ] Super admin client list: filter chips (All Plans, Starter, Professional, Enterprise) + status filter (Active, Suspended)
+- [ ] Super admin client list: switch to 3-column card grid layout
+- [ ] Dedicated Audit Log page at /super-admin/audit-log with live tRPC data
+- [ ] Audit Log page: filter by action type, actor, date range
+- [ ] Audit Log page: paginated table with action badge, actor email, target, timestamp

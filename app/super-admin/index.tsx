@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -576,6 +576,8 @@ export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState<SuperAdminTab>("clients");
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<ClientPlan | "all" | "pro">("all");
+  const [statusFilter, setStatusFilter] = useState<ClientStatus | "all">("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
   const [clientViewMode, setClientViewMode] = useState<"list" | "card">("list");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
@@ -622,14 +624,21 @@ export default function SuperAdminDashboard() {
     suspended: t.suspended ?? false,
   }));
 
+  const allIndustries = useMemo(() => {
+    const set = new Set(clients.map((c) => c.industry));
+    return ["all", ...Array.from(set).sort()];
+  }, [clients]);
+
   const filteredClients = clients.filter((c) => {
     const matchesPlan = planFilter === "all" || c.plan === planFilter;
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    const matchesIndustry = industryFilter === "all" || c.industry === industryFilter;
     const matchesSearch =
       !searchQuery ||
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.subdomain.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesPlan && matchesSearch;
+    return matchesPlan && matchesStatus && matchesIndustry && matchesSearch;
   });
 
   // Platform metrics
@@ -821,6 +830,46 @@ export default function SuperAdminDashboard() {
             </Pressable>
           ))}
         </ScrollView>
+
+        {/* Status Filter */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterScroll, { marginTop: 0 }]}>
+          {(["all", "active", "trial", "suspended", "onboarding"] as const).map((s) => {
+            const STATUS_COLORS_MAP: Record<string, string> = { active: "#22C55E", trial: "#F59E0B", suspended: "#EF4444", onboarding: "#8B5CF6" };
+            const color = s === "all" ? colors.primary : STATUS_COLORS_MAP[s] ?? colors.primary;
+            const isActive = statusFilter === s;
+            return (
+              <Pressable
+                key={s}
+                style={[styles.filterChip, { backgroundColor: isActive ? color : colors.surface, borderColor: isActive ? color : colors.border }]}
+                onPress={() => setStatusFilter(s)}
+              >
+                <Text style={[styles.filterChipText, { color: isActive ? "#fff" : colors.muted }]}>
+                  {s === "all" ? "All Status" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Industry Filter */}
+        {allIndustries.length > 2 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterScroll, { marginTop: 0 }]}>
+            {allIndustries.map((ind) => {
+              const isActive = industryFilter === ind;
+              return (
+                <Pressable
+                  key={ind}
+                  style={[styles.filterChip, { backgroundColor: isActive ? "#0EA5E9" : colors.surface, borderColor: isActive ? "#0EA5E9" : colors.border }]}
+                  onPress={() => setIndustryFilter(ind)}
+                >
+                  <Text style={[styles.filterChipText, { color: isActive ? "#fff" : colors.muted }]}>
+                    {ind === "all" ? "All Industries" : ind}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Clients List */}
         <View style={styles.clientsList}>

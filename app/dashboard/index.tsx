@@ -584,6 +584,165 @@ function AIInsightsPanel() {
 
 // ─── Dashboard Section (Mission Control) ─────────────────────────────────────
 
+// ─── Calendar Panel ─────────────────────────────────────────────────────────
+
+function CalendarPanel({
+  tasks, calMonth, setCalMonth, selectedDate, setSelectedDate, onDateAction, colors,
+}: {
+  tasks: Task[];
+  calMonth: { year: number; month: number };
+  setCalMonth: (v: { year: number; month: number }) => void;
+  selectedDate: string | null;
+  setSelectedDate: (v: string | null) => void;
+  onDateAction: (date: string) => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const router = useRouter();
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  // Build calendar grid
+  const firstDay = new Date(calMonth.year, calMonth.month, 1);
+  const lastDay = new Date(calMonth.year, calMonth.month + 1, 0);
+  const startDow = firstDay.getDay(); // 0=Sun
+  const daysInMonth = lastDay.getDate();
+
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DOW = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+  // Map tasks to dates
+  const tasksByDate = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    tasks.forEach((t) => {
+      const d = t.scheduledAt ?? t.createdAt;
+      const key = d.slice(0, 10);
+      if (!map[key]) map[key] = [];
+      map[key].push(t);
+    });
+    return map;
+  }, [tasks]);
+
+  const prevMonth = () => {
+    if (calMonth.month === 0) setCalMonth({ year: calMonth.year - 1, month: 11 });
+    else setCalMonth({ year: calMonth.year, month: calMonth.month - 1 });
+  };
+  const nextMonth = () => {
+    if (calMonth.month === 11) setCalMonth({ year: calMonth.year + 1, month: 0 });
+    else setCalMonth({ year: calMonth.year, month: calMonth.month + 1 });
+  };
+
+  // Build grid cells: leading blanks + day cells
+  const cells: (number | null)[] = [
+    ...Array(startDow).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  // Pad to full rows
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
+
+  return (
+    <View style={{ flex: 1, overflow: "hidden" }}>
+      {/* Month nav */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Pressable style={({ pressed }) => ([{ opacity: pressed ? 0.6 : 1, padding: 4 }] as ViewStyle[])} onPress={prevMonth}>
+          <Text style={{ fontSize: 14, color: NVC_BLUE, fontFamily: "Inter_700Bold" }}>‹</Text>
+        </Pressable>
+        <Text style={[{ fontSize: 12, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]}>
+          {MONTH_NAMES[calMonth.month]} {calMonth.year}
+        </Text>
+        <Pressable style={({ pressed }) => ([{ opacity: pressed ? 0.6 : 1, padding: 4 }] as ViewStyle[])} onPress={nextMonth}>
+          <Text style={{ fontSize: 14, color: NVC_BLUE, fontFamily: "Inter_700Bold" }}>›</Text>
+        </Pressable>
+      </View>
+
+      {/* Day-of-week headers */}
+      <View style={{ flexDirection: "row", paddingHorizontal: 4, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {DOW.map((d) => (
+          <Text key={d} style={[{ flex: 1, textAlign: "center", fontSize: 9, fontFamily: "Inter_700Bold", color: colors.muted }] as TextStyle[]}>{d}</Text>
+        ))}
+      </View>
+
+      {/* Calendar grid */}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 4, paddingTop: 4 }}>
+          {cells.map((day, idx) => {
+            if (day === null) return <View key={`blank-${idx}`} style={{ width: "14.28%" as any, height: 44 }} />;
+            const dateStr = `${calMonth.year}-${String(calMonth.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dayTasks = tasksByDate[dateStr] ?? [];
+            const isToday = dateStr === todayStr;
+            const isSelected = dateStr === selectedDate;
+            const dotColors = [...new Set(dayTasks.map((t) => STATUS_COLORS[t.status] ?? "#6B7280"))].slice(0, 3);
+            return (
+              <Pressable
+                key={dateStr}
+                style={({ pressed }) => ([{
+                  width: "14.28%" as any,
+                  height: 44,
+                  alignItems: "center",
+                  paddingTop: 4,
+                  borderRadius: 8,
+                  backgroundColor: isSelected ? NVC_BLUE : isToday ? NVC_BLUE + "18" : pressed ? colors.border : "transparent",
+                }] as ViewStyle[])}
+                onPress={() => {
+                  setSelectedDate(isSelected ? null : dateStr);
+                }}
+                onLongPress={() => onDateAction(dateStr)}
+              >
+                <Text style={[{ fontSize: 11, fontFamily: isToday ? "Inter_700Bold" : "Inter_400Regular", color: isSelected ? "#fff" : isToday ? NVC_BLUE : colors.foreground }] as TextStyle[]}>{day}</Text>
+                <View style={{ flexDirection: "row", gap: 2, marginTop: 2 }}>
+                  {dotColors.map((c, i) => (
+                    <View key={i} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: c }} />
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Selected date task list */}
+        {selectedDate && (
+          <View style={{ marginTop: 8, paddingHorizontal: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={[{ fontSize: 11, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]}>
+                {selectedDate === todayStr ? "Today" : selectedDate}
+              </Text>
+              <Pressable
+                style={({ pressed }) => ([{ backgroundColor: pressed ? NVC_BLUE + "CC" : NVC_BLUE, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }] as ViewStyle[])}
+                onPress={() => onDateAction(selectedDate)}
+              >
+                <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>+ Add</Text>
+              </Pressable>
+            </View>
+            {selectedTasks.length === 0 ? (
+              <Text style={[{ fontSize: 11, color: colors.muted, textAlign: "center", paddingVertical: 12 }] as TextStyle[]}>No jobs scheduled</Text>
+            ) : (
+              selectedTasks.map((t) => {
+                const sc = STATUS_COLORS[t.status] ?? "#6B7280";
+                return (
+                  <Pressable
+                    key={t.id}
+                    style={({ pressed }) => ([{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginBottom: 4, backgroundColor: pressed ? sc + "15" : sc + "08", borderLeftWidth: 3, borderLeftColor: sc }] as ViewStyle[])}
+                    onPress={() => router.push(`/task/${t.id}` as any)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[{ fontSize: 11, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{t.orderRef ?? `#${t.id}`} · {t.customerName}</Text>
+                      <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>{t.jobAddress}</Text>
+                    </View>
+                    <View style={{ backgroundColor: sc + "20", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                      <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: sc }] as TextStyle[]}>{STATUS_LABELS[t.status] ?? t.status}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTech, selectedTechId, onAssignTask }: {
   tasks: Task[];
   technicians: Technician[];
@@ -598,6 +757,12 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
   const [woSearch, setWoSearch] = useState("");
   const [woFilter, setWoFilter] = useState<TaskStatus | "all">("all");
   const [techFilter, setTechFilter] = useState<"all" | "online" | "busy" | "offline">("all");
+
+  // Calendar state
+  const [leftTab, setLeftTab] = useState<"orders" | "calendar">("orders");
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [calActionModal, setCalActionModal] = useState<string | null>(null); // ISO date string
 
   // Panel collapse state — persisted to localStorage
   const [leftCollapsed, setLeftCollapsed] = useState<boolean>(() => {
@@ -807,7 +972,36 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
           {/* Left panel body — hidden when collapsed */}
           {!leftCollapsed && (
             <>
-              {/* Search */}
+              {/* Tab toggle: Work Orders | Calendar */}
+              <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface }}>
+                {([{ key: "orders", label: "Work Orders" }, { key: "calendar", label: "📅 Calendar" }] as const).map((tab) => (
+                  <Pressable
+                    key={tab.key}
+                    style={({ pressed }) => ([{
+                      flex: 1, paddingVertical: 7, alignItems: "center",
+                      borderBottomWidth: 2,
+                      borderBottomColor: leftTab === tab.key ? NVC_BLUE : "transparent",
+                      backgroundColor: pressed ? NVC_BLUE + "10" : "transparent",
+                    }] as ViewStyle[])}
+                    onPress={() => setLeftTab(tab.key)}
+                  >
+                    <Text style={[{ fontSize: 11, fontFamily: leftTab === tab.key ? "Inter_700Bold" : "Inter_400Regular", color: leftTab === tab.key ? NVC_BLUE : colors.muted }] as TextStyle[]}>{tab.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {leftTab === "calendar" && (
+                <CalendarPanel
+                  tasks={tasks}
+                  calMonth={calMonth}
+                  setCalMonth={setCalMonth}
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  onDateAction={(date: string) => setCalActionModal(date)}
+                  colors={colors}
+                />
+              )}
+              {leftTab === "orders" && (
+              <>{/* Search */}
               <View style={[styles.mapPanelSearch, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                 <IconSymbol name="magnifyingglass" size={12} color={colors.muted} />
                 <TextInput
@@ -896,6 +1090,8 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                     );
                   })}
               </ScrollView>
+              </>
+              )}
             </>
           )}
         </View>
@@ -1223,6 +1419,56 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                 alignItems: "center", borderWidth: 1, borderColor: colors.border,
               }] as ViewStyle[])}
               onPress={() => setReassignModal(null)}
+            >
+              <Text style={[{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.muted }] as TextStyle[]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── Calendar Action Modal ── */}
+      {calActionModal && Platform.OS === "web" && (
+        <View style={{
+          position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.45)",
+          alignItems: "center", justifyContent: "center", zIndex: 300,
+        } as any}>
+          <View style={{
+            backgroundColor: colors.surface, borderRadius: 16, padding: 24,
+            width: 320, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 20,
+            borderWidth: 1, borderColor: colors.border,
+          }}>
+            <Text style={[{ fontSize: 16, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 4 }] as TextStyle[]}>
+              {calActionModal === (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })() ? "Today" : calActionModal}
+            </Text>
+            <Text style={[{ fontSize: 12, color: colors.muted, marginBottom: 18 }] as TextStyle[]}>What would you like to add?</Text>
+            {([
+              { label: "New Work Order", icon: "paperplane.fill", color: NVC_BLUE, route: `/create-task?date=${calActionModal}` },
+              { label: "Add Note", icon: "pencil", color: "#8B5CF6", route: null },
+              { label: "Set Task / Reminder", icon: "checkmark.circle.fill", color: "#22C55E", route: null },
+            ] as { label: string; icon: string; color: string; route: string | null }[]).map((item) => (
+              <Pressable
+                key={item.label}
+                style={({ pressed }) => ([{
+                  flexDirection: "row", alignItems: "center", gap: 12,
+                  paddingVertical: 12, paddingHorizontal: 14,
+                  borderRadius: 10, marginBottom: 8,
+                  backgroundColor: pressed ? item.color + "18" : item.color + "0D",
+                  borderWidth: 1, borderColor: item.color + "30",
+                }] as ViewStyle[])}
+                onPress={() => {
+                  setCalActionModal(null);
+                  if (item.route) router.push(item.route as any);
+                }}
+              >
+                <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: item.color + "20", alignItems: "center", justifyContent: "center" }}>
+                  <IconSymbol name={item.icon as any} size={16} color={item.color} />
+                </View>
+                <Text style={[{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground }] as TextStyle[]}>{item.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              style={({ pressed }) => ([{ marginTop: 4, paddingVertical: 10, borderRadius: 10, backgroundColor: pressed ? colors.border : colors.background, alignItems: "center", borderWidth: 1, borderColor: colors.border }] as ViewStyle[])}
+              onPress={() => setCalActionModal(null)}
             >
               <Text style={[{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.muted }] as TextStyle[]}>Cancel</Text>
             </Pressable>
