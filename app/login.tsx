@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as SecureStore from "expo-secure-store";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
@@ -82,6 +84,39 @@ function DemoChip({ email, role, onPress }: { email: string; role: UserRole; onP
   );
 }
 
+// ─── Push Notification Token Registration ────────────────────────────────────
+
+/**
+ * Request permission and get the Expo push token for this device.
+ * Returns null on web, simulators, or if permission is denied.
+ */
+async function getExpoPushToken(): Promise<string | null> {
+  if (Platform.OS === "web") return null;
+  if (!Device.isDevice) return null; // Simulators don't support push
+  try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "NVC360 Notifications",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#1E6FBF",
+      });
+    }
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") return null;
+    const token = await Notifications.getExpoPushTokenAsync();
+    return token.data;
+  } catch (e) {
+    console.warn("[push] Failed to get push token:", e);
+    return null;
+  }
+}
+
 // ─── Cookie helper ────────────────────────────────────────────────────────────
 // After emailLogin returns a JWT, call POST /api/auth/session DIRECTLY on the
 // 3000-xxx.manus.computer domain (not through the Metro 8081 proxy).
@@ -129,6 +164,7 @@ export default function LoginScreen() {
 
   const emailLoginMutation = trpc.auth.emailLogin.useMutation();
   const forgotPasswordMutation = trpc.auth.forgotPassword.useMutation();
+  const savePushTokenMutation = trpc.technicians.savePushToken.useMutation();
 
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) { Alert.alert("Missing Email", "Please enter your work email address."); return; }
@@ -141,10 +177,35 @@ export default function LoginScreen() {
     }
   };
 
-  const saveAndNavigate = async (user: AuthUser, sessionToken?: string) => {
+  const saveAndNavigate = async (user: AuthUser, sessionToken?: string, technicianId?: number | null) => {
     if (Platform.OS !== "web") {
       await SecureStore.setItemAsync("nvc360_user", JSON.stringify(user));
       await SecureStore.setItemAsync("nvc360_token", sessionToken ?? `mock_jwt_${user.id}_${Date.now()}`);
+      // Store technicianId for field technicians so agent screens can use it
+      if (technicianId) {
+        await SecureStore.setItemAsync("nvc360_technician_id", String(technicianId));
+      }
+      // Register push notification token for all mobile users
+      // For field technicians, save to their technician record so job assignments can notify them
+      const pushToken = await getExpoPushToken();
+      if (pushToken && technicianId) {
+        try {
+          await savePushTokenMutation.mutateAsync({ technicianId, pushToken });
+          console.log("[push] Token registered for technician", technicianId);
+        } catch (e) {
+          console.warn("[push] Failed to save push token:", e);
+        }
+      }
+      // Set notification handler so alerts show while app is in foreground
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
     }
     if (user.role === "nvc_super_admin" || user.role === "nvc_project_manager") {
       router.replace("/super-admin" as any);
@@ -200,7 +261,7 @@ export default function LoginScreen() {
         avatarUrl: null,
         provider: "email",
       };
-      await saveAndNavigate(authUser, result.token);
+      await saveAndNavigate(authUser, result.token, serverUser.technicianId ?? null);
     } catch (err: any) {
       const msg = err?.message ?? "Login failed. Please try again.";
       Alert.alert("Login Failed", msg);
@@ -227,7 +288,7 @@ export default function LoginScreen() {
         avatarUrl: null,
         provider: "email",
       };
-      await saveAndNavigate(authUser, result.token);
+      await saveAndNavigate(authUser, result.token, serverUser.technicianId ?? null);
     } catch (err: any) {
       Alert.alert("Login Failed", err?.message ?? "Could not log in with demo account.");
     } finally { setLoading(false); }

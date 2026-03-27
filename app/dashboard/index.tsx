@@ -2416,9 +2416,12 @@ interface CalendarEvent {
   taskId?: number;
 }
 
-function CalendarSection() {
+function CalendarSection({ tasks, technicians, tenantId: propTenantId }: { tasks: Task[]; technicians: Technician[]; tenantId: number }) {
   const colors = useColors();
+  const router = useRouter();
+  const tenantId = propTenantId;
   const today = new Date();
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -2435,6 +2438,22 @@ function CalendarSection() {
     color: CALENDAR_EVENT_COLORS[0],
   });
 
+  // ── Week navigation: week containing selectedDate ──────────────────────────
+  const weekStart = useMemo(() => {
+    const d = new Date(selectedDate + "T00:00:00");
+    const day = d.getDay(); // 0=Sun
+    d.setDate(d.getDate() - day);
+    return d;
+  }, [selectedDate]);
+
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return d.toISOString().split("T")[0];
+    });
+  }, [weekStart]);
+
   // Date range for the visible month
   const monthStart = new Date(currentYear, currentMonth, 1);
   const monthEnd = new Date(currentYear, currentMonth + 1, 0);
@@ -2442,7 +2461,7 @@ function CalendarSection() {
   const dateTo = monthEnd.toISOString().split("T")[0];
 
   const { data: rawEvents, refetch } = trpc.calendar.list.useQuery(
-    { tenantId: DEMO_TENANT_ID, dateFrom, dateTo },
+    { tenantId, dateFrom, dateTo },
     { staleTime: 30_000 }
   );
 
@@ -2500,7 +2519,7 @@ function CalendarSection() {
     if (editingEvent) {
       updateMutation.mutate({
         id: editingEvent.id,
-        tenantId: DEMO_TENANT_ID,
+        tenantId,
         title: newEvent.title,
         description: newEvent.description || undefined,
         time: newEvent.time || undefined,
@@ -2509,7 +2528,7 @@ function CalendarSection() {
       });
     } else {
       createMutation.mutate({
-        tenantId: DEMO_TENANT_ID,
+        tenantId,
         type: newEvent.type,
         title: newEvent.title,
         description: newEvent.description || undefined,
@@ -2535,36 +2554,111 @@ function CalendarSection() {
   };
 
   const handleDeleteEvent = (ev: CalendarEvent) => {
-    deleteMutation.mutate({ id: ev.id, tenantId: DEMO_TENANT_ID });
+    deleteMutation.mutate({ id: ev.id, tenantId });
   };
 
   const handleToggleComplete = (ev: CalendarEvent) => {
     updateMutation.mutate({
       id: ev.id,
-      tenantId: DEMO_TENANT_ID,
+      tenantId,
       isCompleted: !ev.isCompleted,
     });
+  };
+
+  // ── Scheduled tasks per day (from work orders with scheduledAt) ──────────────
+  const tasksByDate = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    for (const t of tasks) {
+      if (t.scheduledAt) {
+        const d = new Date(t.scheduledAt).toISOString().split("T")[0];
+        if (!map[d]) map[d] = [];
+        map[d].push(t);
+      }
+    }
+    return map;
+  }, [tasks]);
+
+  // Distinct colors per technician (up to 10)
+  const TECH_PALETTE = ["#3B82F6","#22C55E","#F59E0B","#8B5CF6","#EC4899","#06B6D4","#E85D04","#10B981","#F97316","#6366F1"];
+  const techColorMap = useMemo(() => {
+    const m: Record<number, string> = {};
+    technicians.forEach((t, i) => { m[t.id] = TECH_PALETTE[i % TECH_PALETTE.length]; });
+    return m;
+  }, [technicians]);
+
+  // ── Week prev/next ──────────────────────────────────────────────────────────
+  const goWeekPrev = () => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() - 7);
+    setSelectedDate(d.toISOString().split("T")[0]);
+    setCurrentYear(d.getFullYear());
+    setCurrentMonth(d.getMonth());
+  };
+  const goWeekNext = () => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 7);
+    setSelectedDate(d.toISOString().split("T")[0]);
+    setCurrentYear(d.getFullYear());
+    setCurrentMonth(d.getMonth());
+  };
+
+  // ── Double-click to create work order ──────────────────────────────────────
+  const lastClickRef = React.useRef<{ date: string; time: number }>({ date: "", time: 0 });
+  const handleDatePress = (dateStr: string) => {
+    const now2 = Date.now();
+    if (lastClickRef.current.date === dateStr && now2 - lastClickRef.current.time < 400) {
+      // Double-click: navigate to create work order with pre-filled date
+      router.push(`/create-task?scheduledDate=${dateStr}` as any);
+    } else {
+      setSelectedDate(dateStr);
+      if (viewMode === "month") {
+        const d = new Date(dateStr + "T00:00:00");
+        setCurrentYear(d.getFullYear());
+        setCurrentMonth(d.getMonth());
+      }
+    }
+    lastClickRef.current = { date: dateStr, time: now2 };
   };
 
   return (
     <View style={{ flex: 1, padding: 24, flexDirection: "row", gap: 20 }}>
       {/* ── Left: Calendar Grid ── */}
       <View style={{ flex: 1, minWidth: 360 }}>
-        {/* Month Navigation */}
+        {/* Header: title + view toggle + navigation */}
         <View style={[styles.sectionHeader, { marginBottom: 16 }]}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>
-              {monthName}
+              {viewMode === "week"
+                ? `Week of ${new Date(weekDays[0] + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })} – ${new Date(weekDays[6] + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}`
+                : monthName}
             </Text>
             <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
-              {events.length} event{events.length !== 1 ? "s" : ""} this month
+              {viewMode === "week"
+                ? `${weekDays.reduce((n, d) => n + (tasksByDate[d]?.length ?? 0), 0)} jobs · ${weekDays.reduce((n, d) => n + (eventsOnDate(d).length), 0)} events this week · double-click date to create work order`
+                : `${events.length} event${events.length !== 1 ? "s" : ""} · ${Object.values(tasksByDate).flat().length} scheduled jobs this month · double-click to create work order`}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            {/* View mode toggle */}
+            <View style={{ flexDirection: "row", borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
+              {(["month", "week"] as const).map((m) => (
+                <Pressable
+                  key={m}
+                  style={[{ paddingHorizontal: 12, paddingVertical: 5, backgroundColor: viewMode === m ? NVC_BLUE : colors.surface }] as ViewStyle[]}
+                  onPress={() => setViewMode(m)}
+                >
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: viewMode === m ? "#fff" : colors.muted }}>
+                    {m === "month" ? "Month" : "Week"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {/* Navigation */}
             <Pressable
               style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
               onPress={() => {
-                if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+                if (viewMode === "week") { goWeekPrev(); }
+                else if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
                 else setCurrentMonth(m => m - 1);
               }}
             >
@@ -2583,7 +2677,8 @@ function CalendarSection() {
             <Pressable
               style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
               onPress={() => {
-                if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+                if (viewMode === "week") { goWeekNext(); }
+                else if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
                 else setCurrentMonth(m => m + 1);
               }}
             >
@@ -2592,58 +2687,226 @@ function CalendarSection() {
           </View>
         </View>
 
-        {/* Day-of-week headers */}
-        <View style={{ flexDirection: "row", marginBottom: 4 }}>
-          {DAYS_OF_WEEK.map((d) => (
-            <View key={d} style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}>
-              <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.muted }}>{d}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Calendar cells */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-          {calendarCells.map((day, idx) => {
-            if (!day) return <View key={`empty-${idx}`} style={{ width: "14.28%", aspectRatio: 1 }} />;
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const dayEvents = eventsOnDate(dateStr);
-            const isToday = dateStr === today.toISOString().split("T")[0];
-            const isSelected = dateStr === selectedDate;
-            return (
-              <Pressable
-                key={dateStr}
-                style={({ pressed }) => [{
-                  width: "14.28%",
-                  aspectRatio: 1,
-                  alignItems: "center",
-                  justifyContent: "flex-start",
-                  paddingTop: 6,
-                  borderRadius: 10,
-                  backgroundColor: isSelected ? NVC_BLUE + "18" : isToday ? NVC_ORANGE + "12" : "transparent",
-                  borderWidth: isSelected ? 1.5 : isToday ? 1 : 0,
-                  borderColor: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : "transparent",
-                  opacity: pressed ? 0.75 : 1,
-                }] as ViewStyle[]}
-                onPress={() => setSelectedDate(dateStr)}
-              >
-                <Text style={[{
-                  fontSize: 13,
-                  fontWeight: isToday || isSelected ? "700" : "400",
-                  color: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : colors.foreground,
-                }] as TextStyle[]}>{day}</Text>
-                {/* Event dots */}
-                <View style={{ flexDirection: "row", gap: 2, marginTop: 2, flexWrap: "wrap", justifyContent: "center" }}>
-                  {dayEvents.slice(0, 3).map((ev, i) => (
-                    <View key={i} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ev.color ?? NVC_BLUE }} />
-                  ))}
-                  {dayEvents.length > 3 && (
-                    <Text style={{ fontSize: 8, color: colors.muted }}>+{dayEvents.length - 3}</Text>
-                  )}
+        {viewMode === "month" ? (
+          <>
+            {/* Day-of-week headers */}
+            <View style={{ flexDirection: "row", marginBottom: 4 }}>
+              {DAYS_OF_WEEK.map((d) => (
+                <View key={d} style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}>
+                  <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.muted }}>{d}</Text>
                 </View>
-              </Pressable>
-            );
-          })}
-        </View>
+              ))}
+            </View>
+
+            {/* Calendar cells */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {calendarCells.map((day, idx) => {
+                if (!day) return <View key={`empty-${idx}`} style={{ width: "14.28%", aspectRatio: 1 }} />;
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const dayEvents = eventsOnDate(dateStr);
+                const dayTasks = tasksByDate[dateStr] ?? [];
+                const isToday = dateStr === today.toISOString().split("T")[0];
+                const isSelected = dateStr === selectedDate;
+                return (
+                  <Pressable
+                    key={dateStr}
+                    style={({ pressed }) => [{
+                      width: "14.28%",
+                      aspectRatio: 1,
+                      alignItems: "center",
+                      justifyContent: "flex-start",
+                      paddingTop: 6,
+                      borderRadius: 10,
+                      backgroundColor: isSelected ? NVC_BLUE + "18" : isToday ? NVC_ORANGE + "12" : "transparent",
+                      borderWidth: isSelected ? 1.5 : isToday ? 1 : 0,
+                      borderColor: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : "transparent",
+                      opacity: pressed ? 0.75 : 1,
+                    }] as ViewStyle[]}
+                    onPress={() => handleDatePress(dateStr)}
+                  >
+                    <Text style={[{
+                      fontSize: 13,
+                      fontWeight: isToday || isSelected ? "700" : "400",
+                      color: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : colors.foreground,
+                    }] as TextStyle[]}>{day}</Text>
+                    {/* Event dots */}
+                    <View style={{ flexDirection: "row", gap: 2, marginTop: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                      {dayEvents.slice(0, 2).map((ev, i) => (
+                        <View key={i} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: ev.color ?? NVC_BLUE }} />
+                      ))}
+                      {dayTasks.slice(0, 2).map((t, i) => (
+                        <View key={`t${i}`} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: t.technicianId ? (techColorMap[t.technicianId] ?? NVC_ORANGE) : NVC_ORANGE }} />
+                      ))}
+                      {(dayEvents.length + dayTasks.length) > 4 && (
+                        <Text style={{ fontSize: 8, color: colors.muted }}>+{dayEvents.length + dayTasks.length - 4}</Text>
+                      )}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : (
+          /* ── WEEKLY VIEW: Time-grid with technician rows ── */
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {/* Day column headers */}
+            <View style={{ flexDirection: "row", marginBottom: 8 }}>
+              <View style={{ width: 80 }} />
+              {weekDays.map((d) => {
+                const dt = new Date(d + "T12:00:00");
+                const isToday = d === today.toISOString().split("T")[0];
+                const isSelected = d === selectedDate;
+                const dayTasks = tasksByDate[d] ?? [];
+                const dayEvents = eventsOnDate(d);
+                return (
+                  <Pressable
+                    key={d}
+                    style={[{
+                      flex: 1,
+                      alignItems: "center",
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      marginHorizontal: 2,
+                      backgroundColor: isSelected ? NVC_BLUE + "18" : isToday ? NVC_ORANGE + "12" : "transparent",
+                      borderWidth: isSelected ? 1.5 : isToday ? 1 : 0,
+                      borderColor: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : "transparent",
+                    }] as ViewStyle[]}
+                    onPress={() => handleDatePress(d)}
+                  >
+                    <Text style={{ fontSize: 10, color: colors.muted, fontFamily: "Inter_600SemiBold" }}>
+                      {dt.toLocaleDateString("en-CA", { weekday: "short" }).toUpperCase()}
+                    </Text>
+                    <Text style={[{ fontSize: 18, fontFamily: "Inter_700Bold", color: isSelected ? NVC_BLUE : isToday ? NVC_ORANGE : colors.foreground }] as TextStyle[]}>
+                      {dt.getDate()}
+                    </Text>
+                    {(dayTasks.length + dayEvents.length) > 0 && (
+                      <View style={{ flexDirection: "row", gap: 2, marginTop: 2 }}>
+                        {dayTasks.slice(0, 3).map((t, i) => (
+                          <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.technicianId ? (techColorMap[t.technicianId] ?? NVC_ORANGE) : NVC_ORANGE }} />
+                        ))}
+                        {dayEvents.slice(0, 2).map((e, i) => (
+                          <View key={`e${i}`} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: e.color ?? NVC_BLUE }} />
+                        ))}
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Technician rows */}
+            {technicians.length > 0 && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[{ fontSize: 11, fontFamily: "Inter_700Bold", color: colors.muted, marginBottom: 8, letterSpacing: 0.5 }] as TextStyle[]}>SCHEDULED JOBS BY TECHNICIAN</Text>
+                {technicians.map((tech) => {
+                  const techColor = techColorMap[tech.id] ?? NVC_BLUE;
+                  return (
+                    <View key={tech.id} style={{ flexDirection: "row", marginBottom: 6, minHeight: 44 }}>
+                      {/* Tech label */}
+                      <View style={{ width: 80, paddingRight: 8, justifyContent: "center" }}>
+                        <Text style={[{ fontSize: 10, fontFamily: "Inter_700Bold", color: techColor }] as TextStyle[]} numberOfLines={1}>
+                          {tech.name.split(" ")[0]}
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: TECH_STATUS_COLORS[tech.status] ?? "#6B7280" }} />
+                          <Text style={[{ fontSize: 9, color: colors.muted }] as TextStyle[]}>{tech.status}</Text>
+                        </View>
+                      </View>
+                      {/* Day cells */}
+                      {weekDays.map((d) => {
+                        const dayTechTasks = (tasksByDate[d] ?? []).filter(t => t.technicianId === tech.id);
+                        const isToday = d === today.toISOString().split("T")[0];
+                        return (
+                          <View
+                            key={d}
+                            style={[{
+                              flex: 1,
+                              marginHorizontal: 2,
+                              borderRadius: 8,
+                              minHeight: 44,
+                              backgroundColor: isToday ? NVC_ORANGE + "08" : colors.surface,
+                              borderWidth: 1,
+                              borderColor: isToday ? NVC_ORANGE + "30" : colors.border,
+                              padding: 4,
+                              gap: 2,
+                            }] as ViewStyle[]}
+                          >
+                            {dayTechTasks.length === 0 ? (
+                              <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                                <Text style={{ fontSize: 9, color: colors.border }}>—</Text>
+                              </View>
+                            ) : (
+                              dayTechTasks.slice(0, 3).map((t) => (
+                                <Pressable
+                                  key={t.id}
+                                  style={({ pressed }) => ([{
+                                    backgroundColor: techColor + "18",
+                                    borderRadius: 4,
+                                    paddingHorizontal: 4,
+                                    paddingVertical: 2,
+                                    borderLeftWidth: 2,
+                                    borderLeftColor: techColor,
+                                    opacity: pressed ? 0.7 : 1,
+                                  }] as ViewStyle[])}
+                                  onPress={() => router.push(`/task/${t.id}` as any)}
+                                >
+                                  <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: techColor }] as TextStyle[]} numberOfLines={1}>
+                                    {t.orderRef ?? `#${t.id}`}
+                                  </Text>
+                                  <Text style={[{ fontSize: 8, color: colors.muted }] as TextStyle[]} numberOfLines={1}>
+                                    {t.customerName}
+                                  </Text>
+                                </Pressable>
+                              ))
+                            )}
+                            {dayTechTasks.length > 3 && (
+                              <Text style={[{ fontSize: 8, color: colors.muted, textAlign: "center" }] as TextStyle[]}>+{dayTechTasks.length - 3}</Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Calendar events row */}
+            {weekDays.some(d => eventsOnDate(d).length > 0) && (
+              <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                <View style={{ width: 80, justifyContent: "center" }}>
+                  <Text style={[{ fontSize: 10, fontFamily: "Inter_700Bold", color: colors.muted }] as TextStyle[]}>Events</Text>
+                </View>
+                {weekDays.map((d) => {
+                  const dayEvents = eventsOnDate(d);
+                  return (
+                    <View key={d} style={{ flex: 1, marginHorizontal: 2, gap: 2 }}>
+                      {dayEvents.slice(0, 3).map((ev) => (
+                        <Pressable
+                          key={ev.id}
+                          style={({ pressed }) => ([{
+                            backgroundColor: (ev.color ?? NVC_BLUE) + "18",
+                            borderRadius: 4,
+                            paddingHorizontal: 4,
+                            paddingVertical: 2,
+                            borderLeftWidth: 2,
+                            borderLeftColor: ev.color ?? NVC_BLUE,
+                            opacity: pressed ? 0.7 : 1,
+                          }] as ViewStyle[])}
+                          onPress={() => handleEditEvent(ev)}
+                        >
+                          <Text style={[{ fontSize: 9, fontFamily: "Inter_600SemiBold", color: ev.color ?? NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
+                            {ev.title}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+        )}
       </View>
 
       {/* ── Right: Day Detail + Event Form ── */}
@@ -3008,7 +3271,7 @@ export default function DesktopDashboard() {
       case "customers":
         return <CustomersSection />;
       case "calendar":
-        return <CalendarSection />;
+        return <CalendarSection tasks={liveTasks} technicians={liveTechnicians} tenantId={tenantId} />;
       case "map":
         return (
           <View style={{ flex: 1, padding: 24 }}>

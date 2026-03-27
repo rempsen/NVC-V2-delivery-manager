@@ -104,6 +104,12 @@ export const appRouter = router({
           });
           const cookieOptions = getSessionCookieOptions(ctx.req);
           ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+          // For field technicians, look up their technician record to get the ID
+          let technicianId: number | null = null;
+          if (tenantUser.role === "technician" && tenantUser.id) {
+            const techRecord = await db.getTechnicianByTenantUserId(tenantUser.id);
+            technicianId = techRecord?.id ?? null;
+          }
           return {
             success: true,
             token: sessionToken,
@@ -116,6 +122,7 @@ export const appRouter = router({
               tenantName: tenant?.companyName ?? null,
               tenantColor: (tenant?.branding as any)?.primaryColor ?? null,
               tenantLogo: (tenant?.branding as any)?.logoUrl ?? null,
+              technicianId,
             },
           } as const;
         }
@@ -146,19 +153,20 @@ export const appRouter = router({
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
         return {
-          success: true,
-          token: sessionToken,
-          user: {
-            id: demoUser.openId,
-            name: demoUser.name,
-            email: emailLower,
-            role: demoUser.role,
-            tenantId: demoUser.tenantId,
-            tenantName: demoUser.tenantName,
-            tenantColor: demoUser.tenantColor,
-            tenantLogo: demoUser.tenantLogo,
-          },
-        } as const;
+            success: true,
+            token: sessionToken,
+            user: {
+              id: demoUser.openId,
+              name: demoUser.name,
+              email: emailLower,
+              role: demoUser.role,
+              tenantId: demoUser.tenantId,
+              tenantName: demoUser.tenantName,
+              tenantColor: demoUser.tenantColor,
+              tenantLogo: demoUser.tenantLogo,
+              technicianId: null as number | null,
+            },
+          } as const;
       }),
 
     /**
@@ -974,6 +982,24 @@ export const appRouter = router({
           status: "offline",
         }).where(eq(techTable.id, input.id));
         return { success: true, clockOutAt: clockOutAt.toISOString(), minutesWorked };
+      }),
+
+    /**
+     * Register or update the Expo push token for a technician.
+     * Called on login from mobile devices so job-assignment notifications reach the device.
+     */
+    savePushToken: protectedProcedure
+      .input(z.object({ technicianId: z.number(), pushToken: z.string() }))
+      .mutation(async ({ input }) => {
+        const { technicians: techTable } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new Error("Database not available");
+        await drizzleDb
+          .update(techTable)
+          .set({ pushToken: input.pushToken })
+          .where(eq(techTable.id, input.technicianId));
+        return { success: true };
       }),
   }),
 

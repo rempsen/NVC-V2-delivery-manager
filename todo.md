@@ -1145,3 +1145,12 @@
 - [ ] Replace Mapbox with expo-maps (Apple Maps on iOS, Google Maps on Android — works in Expo Go)
 - [ ] Add live technician location markers to map
 - [ ] Add task pin markers to map
+
+## Push Notifications & Calendar Widget (Sprint Mar 27 2026)
+- [x] Push notification token registration on login (mobile) — store Expo push token in DB on login
+- [x] Server: add push_token column to technicians/users table, tRPC mutation to save token
+- [x] Mobile: request notification permissions on login, get Expo push token, save to DB
+- [ ] Server: send push notification on task assignment (tasks.create / tasks.updateStatus → assigned)
+- [x] Live weekly calendar widget on web dashboard — shows scheduled jobs per technician (month/week toggle, double-click to create work order)
+- [x] Calendar: click date to create work order, note, or event (double-click navigates to /create-task with pre-filled date)
+- [ ] Calendar integration on Work Orders, Technician, and Customer pages

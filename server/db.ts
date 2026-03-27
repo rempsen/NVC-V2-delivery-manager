@@ -201,6 +201,13 @@ export async function getTechniciansByTenant(tenantId: number) {
     .where(eq(technicians.tenantId, tenantId));
 }
 
+export async function getTechnicianByTenantUserId(tenantUserId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(technicians).where(eq(technicians.tenantUserId, tenantUserId)).limit(1);
+  return rows[0] ?? null;
+}
+
 export async function getTechnicianById(id: number) {
   const db = await getDb();
   if (!db) return null;
