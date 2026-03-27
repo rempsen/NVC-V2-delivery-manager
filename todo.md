@@ -1196,3 +1196,6 @@
 - [ ] Add skeleton loading states to Technicians and Customers list screens (future)
 - [ ] Accessibility: icon-only buttons missing accessibilityLabel (future)
 - [ ] Performance: tasks list re-normalizes on every render — memoize normalization (future)
+
+## Bug Fix — iOS Map Crash (Mar 27 2026)
+- [x] Fix: native-map-view.tsx crashes on iOS Expo Go — root cause was react-native-maps@1.27.2 (incompatible with Expo SDK 54). Fixed by: (1) switching from inline require() to top-level static import, (2) downgrading to react-native-maps@1.20.1 (the version Expo SDK 54 requires)

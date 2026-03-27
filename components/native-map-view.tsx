@@ -1,10 +1,13 @@
 /**
- * NativeMapView — uses react-native-maps on iOS/Android with Google Maps provider.
+ * NativeMapView — uses react-native-maps on iOS/Android (Apple Maps via PROVIDER_DEFAULT).
  * On web, delegates to GoogleMapView (JS API iframe embed).
- * This component is the single source of truth for all map rendering in the app.
+ *
+ * IMPORTANT: react-native-maps MUST be imported at the top level — NOT inside a function
+ * via require(). Inline require() causes "Cannot read property 'default' of undefined"
+ * in Expo Go because the native module hasn't registered yet when the component renders.
  */
 import React from "react";
-import { Platform, View, StyleSheet } from "react-native";
+import { Platform, View, Text, StyleSheet } from "react-native";
 
 export interface MapTechnician {
   id: number;
@@ -53,28 +56,37 @@ function WebMapView(props: NativeMapViewProps) {
   );
 }
 
-// ─── Native: react-native-maps ────────────────────────────────────────────────
+// ─── Native: react-native-maps (top-level static import) ─────────────────────
+// Top-level import is required — inline require() inside component body crashes
+// in Expo Go because the native module may not be registered yet at render time.
+import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+
+const STATUS_COLORS: Record<string, string> = {
+  online: "#22C55E",
+  available: "#22C55E",
+  busy: "#F59E0B",
+  on_job: "#F59E0B",
+  en_route: "#8B5CF6",
+  offline: "#6B7280",
+  on_break: "#3B82F6",
+};
+
+const TASK_COLORS: Record<string, string> = {
+  unassigned: "#F59E0B",
+  assigned: "#3B82F6",
+  en_route: "#8B5CF6",
+  on_site: "#06B6D4",
+  completed: "#22C55E",
+  cancelled: "#EF4444",
+};
+
 function NativeOnlyMapView(props: NativeMapViewProps) {
-  // Lazy import so web bundler never processes react-native-maps
-  const MapView = require("react-native-maps").default;
-  const { Marker, Callout, PROVIDER_DEFAULT } = require("react-native-maps");
-
-  const STATUS_COLORS: Record<string, string> = {
-    online: "#22C55E",
-    available: "#22C55E",
-    busy: "#F59E0B",
-    on_job: "#F59E0B",
-    en_route: "#8B5CF6",
-    offline: "#6B7280",
-    on_break: "#3B82F6",
-  };
-
   const centerLat = props.center?.lat ?? props.technicians?.[0]?.latitude ?? 49.8951;
   const centerLng = props.center?.lng ?? props.technicians?.[0]?.longitude ?? -97.1384;
 
-  // Convert zoom level (0-22) to latitudeDelta approximation
+  // Convert zoom level (0–22) to latitudeDelta approximation
   const zoom = props.zoom ?? 11;
-  const latDelta = 360 / Math.pow(2, zoom) * 0.8;
+  const latDelta = (360 / Math.pow(2, zoom)) * 0.8;
   const lngDelta = latDelta * 1.5;
 
   return (
@@ -103,35 +115,31 @@ function NativeOnlyMapView(props: NativeMapViewProps) {
         )}
 
         {/* Task/job markers */}
-        {(props.tasks ?? []).filter(t => t.jobLatitude && t.jobLongitude && t.status !== "completed" && t.status !== "cancelled").map((task) => {
-          const TASK_COLORS: Record<string, string> = { unassigned: "#F59E0B", assigned: "#3B82F6", en_route: "#8B5CF6", on_site: "#06B6D4", completed: "#22C55E", cancelled: "#EF4444" };
-          const color = TASK_COLORS[task.status] ?? "#F59E0B";
-          return (
+        {(props.tasks ?? [])
+          .filter((t) => t.jobLatitude && t.jobLongitude && t.status !== "completed" && t.status !== "cancelled")
+          .map((task) => (
             <Marker
               key={`task-${task.id}`}
               coordinate={{ latitude: task.jobLatitude, longitude: task.jobLongitude }}
               title={task.customerName ?? "Job"}
               description={task.jobAddress ?? ""}
-              pinColor={color}
+              pinColor={TASK_COLORS[task.status] ?? "#F59E0B"}
             />
-          );
-        })}
+          ))}
 
         {/* Technician markers */}
-        {(props.technicians ?? []).filter(t => t.latitude && t.longitude && t.status !== "offline").map((tech) => {
-          const color = STATUS_COLORS[tech.status] ?? "#6B7280";
-          const isSelected = props.selectedId === tech.id;
-          return (
+        {(props.technicians ?? [])
+          .filter((t) => t.latitude && t.longitude && t.status !== "offline")
+          .map((tech) => (
             <Marker
               key={`tech-${tech.id}`}
               coordinate={{ latitude: tech.latitude, longitude: tech.longitude }}
               title={tech.name}
               description={tech.status.replace("_", " ")}
-              pinColor={isSelected ? "#1E6FBF" : color}
+              pinColor={props.selectedId === tech.id ? "#1E6FBF" : (STATUS_COLORS[tech.status] ?? "#6B7280")}
               onPress={() => props.onSelectTech?.(tech.id)}
             />
-          );
-        })}
+          ))}
       </MapView>
     </View>
   );
