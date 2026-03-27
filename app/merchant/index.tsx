@@ -146,14 +146,14 @@ function TeamTab({ tenantId }: { tenantId: number }) {
           </Text>
           {!inviteSuccess.emailSent && inviteSuccess.tempPassword && (
             <Text style={styles.inviteSuccessBody}>
-              Temporary password: <Text style={{ fontWeight: "700", fontFamily: "monospace" }}>{inviteSuccess.tempPassword}</Text>{"\n"}Share this with them securely.
+              Temporary password: <Text style={{ fontFamily: "Inter_700Bold" }}>{inviteSuccess.tempPassword}</Text>{"\n"}Share this with them securely.
             </Text>
           )}
           {inviteSuccess.emailSent && (
             <Text style={styles.inviteSuccessBody}>A welcome email with login credentials has been sent.</Text>
           )}
           <TouchableOpacity onPress={() => setInviteSuccess(null)} style={{ marginTop: 6 }}>
-            <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "600" }}>Dismiss</Text>
+            <Text style={{ color: "#22C55E", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Dismiss</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 22, fontWeight: "700" },
+  headerTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   headerSubtitle: { fontSize: 13, marginTop: 2 },
   merchantBadge: {
     backgroundColor: "#8B5CF6",
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  merchantBadgeText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  merchantBadgeText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
   tabBar: {
     flexDirection: "row",
     borderBottomWidth: 1,
@@ -462,8 +462,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "#0a7ea4",
   },
   tabIcon: { fontSize: 16 },
-  tabText: { fontSize: 12, fontWeight: "500" },
-  tabTextActive: { fontWeight: "700" },
+  tabText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  tabTextActive: { fontFamily: "Inter_700Bold" },
   tabContent: { padding: 16 },
   centered: { alignItems: "center", justifyContent: "center", paddingTop: 60 },
   sectionHeader: {
@@ -472,14 +472,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 16,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#11181C" },
+  sectionTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#11181C" },
   addBtn: {
     backgroundColor: "#0a7ea4",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  addBtnText: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  addBtnText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 },
   formCard: {
     backgroundColor: "#F9FAFB",
     borderRadius: 12,
@@ -488,8 +488,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  formTitle: { fontSize: 16, fontWeight: "700", color: "#11181C", marginBottom: 12 },
-  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6, marginTop: 10 },
+  formTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#11181C", marginBottom: 12 },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#374151", marginBottom: 6, marginTop: 10 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     borderColor: "#D1D5DB",
     backgroundColor: "#fff",
   },
-  roleChipText: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  roleChipText: { fontSize: 13, color: "#374151", fontFamily: "Inter_500Medium" },
   roleChipTextActive: { color: "#fff" },
   submitBtn: {
     backgroundColor: "#0a7ea4",
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  submitBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -539,9 +539,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  memberAvatarText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  memberAvatarText: { color: "#fff", fontSize: 18, fontFamily: "Inter_700Bold" },
   memberInfo: { flex: 1 },
-  memberName: { fontSize: 15, fontWeight: "700", color: "#11181C" },
+  memberName: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#11181C" },
   memberEmail: { fontSize: 13, color: "#687076", marginTop: 2 },
   memberPhone: { fontSize: 13, color: "#687076" },
   rolePill: {
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  rolePillText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  rolePillText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" },
   customerCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -569,14 +569,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  customerAvatarText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  customerAvatarText: { color: "#fff", fontSize: 18, fontFamily: "Inter_700Bold" },
   customerInfo: { flex: 1 },
-  customerName: { fontSize: 15, fontWeight: "700", color: "#11181C" },
+  customerName: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#11181C" },
   customerEmail: { fontSize: 13, color: "#687076", marginTop: 2 },
   customerPhone: { fontSize: 13, color: "#687076" },
   customerAddress: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
   customerTaskCount: { alignItems: "center" },
-  customerTaskCountNum: { fontSize: 20, fontWeight: "800", color: "#0a7ea4" },
+  customerTaskCountNum: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#0a7ea4" },
   customerTaskCountLabel: { fontSize: 11, color: "#9CA3AF" },
   settingsSection: {
     backgroundColor: "#fff",
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   },
   settingsSectionTitle: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#687076",
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -609,9 +609,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F4F6",
   },
   settingsRowInfo: { flex: 1, paddingRight: 12 },
-  settingsRowLabel: { fontSize: 15, fontWeight: "600", color: "#11181C" },
+  settingsRowLabel: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#11181C" },
   settingsRowDesc: { fontSize: 13, color: "#687076", marginTop: 2 },
-  configureLink: { fontSize: 14, color: "#0a7ea4", fontWeight: "600" },
+  configureLink: { fontSize: 14, color: "#0a7ea4", fontFamily: "Inter_600SemiBold" },
   errorBanner: {
     backgroundColor: "#FEE2E2",
     borderRadius: 8,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   errorText: { color: "#991B1B", fontSize: 13 },
   inviteSuccessBanner: { backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#86EFAC", borderRadius: 12, padding: 14, marginBottom: 12 },
-  inviteSuccessTitle: { fontSize: 15, fontWeight: "700", color: "#166534", marginBottom: 4 },
+  inviteSuccessTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#166534", marginBottom: 4 },
   inviteSuccessBody: { fontSize: 13, color: "#166534", lineHeight: 18 },
   successBanner: {
     backgroundColor: "#DCFCE7",

@@ -305,7 +305,7 @@ export default function AgentsScreen() {
             </Pressable>
           </View>
           <View style={[styles.filterCount, { backgroundColor: "rgba(255,255,255,0.2)" }] as ViewStyle[]}>
-            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>{activeCount} active</Text>
+            <Text style={{ color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{activeCount} active</Text>
           </View>
           <Pressable
             style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
@@ -494,7 +494,7 @@ export default function AgentsScreen() {
                 <IconSymbol name="xmark" size={16} color="#6B7280" />
               </Pressable>
             </View>
-            <Text style={{ fontSize: 13, color: STATUS_COLOR[selectedTech.status as string] ?? "#9CA3AF", fontWeight: "600", marginBottom: 12 }}>
+            <Text style={{ fontSize: 13, color: STATUS_COLOR[selectedTech.status as string] ?? "#9CA3AF", fontFamily: "Inter_600SemiBold", marginBottom: 12 }}>
               {FILTER_LABELS[selectedTech.status as string] ?? selectedTech.status}
             </Text>
             {selectedTech.activeTaskAddress ? (
@@ -525,14 +525,14 @@ export default function AgentsScreen() {
                 onPress={() => handleCall(selectedTech)}
               >
                 <IconSymbol name="phone.fill" size={14} color="#fff" />
-                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Call</Text>
+                <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Call</Text>
               </Pressable>
               <Pressable
                 style={{ flex: 1, backgroundColor: NVC_BLUE, borderRadius: 8, paddingVertical: 10, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 4 }}
                 onPress={() => router.push(`/agent/${selectedTech.id}` as any)}
               >
                 <IconSymbol name="person.fill" size={14} color="#fff" />
-                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>Profile</Text>
+                <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Profile</Text>
               </Pressable>
             </View>
           </View>
@@ -579,197 +579,201 @@ const styles = StyleSheet.create<{
   // Header
   header: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: NVC_BLUE,
+    paddingHorizontal: 20, paddingBottom: 14, backgroundColor: NVC_BLUE,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  logo: { width: 32, height: 32, borderRadius: 7 },
-  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
-  headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  logo: { width: 34, height: 34, borderRadius: 9 },
+  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" },
+  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 2, letterSpacing: -0.3 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerStat: { fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: "600" },
+  headerStat: { fontSize: 12, color: "rgba(255,255,255,0.7)", fontFamily: "Inter_500Medium" },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#E85D04", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
-    minHeight: 36,
+    backgroundColor: NVC_ORANGE, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,
+    minHeight: 40,
+    shadowColor: NVC_ORANGE, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35, shadowRadius: 6, elevation: 4,
   },
   mapBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
-    minHeight: 36,
+    backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+    minHeight: 40,
   },
-  headerBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  headerBtnText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 },
 
   // Search
-  searchSection: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },
+  searchSection: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12 },
   searchBar: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#fff", borderRadius: 12, borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 10,
-    minHeight: 44,
+    backgroundColor: "rgba(255,255,255,0.97)", borderRadius: 12, borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.25)", paddingHorizontal: 14, paddingVertical: 11,
+    minHeight: 46,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 8, elevation: 3,
+    shadowOpacity: 0.14, shadowRadius: 10, elevation: 4,
   },
-  searchBarFocused: { borderColor: NVC_BLUE, shadowOpacity: 0.2 },
-  searchInput: { flex: 1, fontSize: 14, color: "#1A1E2A" },
+  searchBarFocused: { borderColor: NVC_ORANGE, shadowOpacity: 0.22 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: "#1A1E2A" },
   clearBtn: {
-    width: 18, height: 18, borderRadius: 9, backgroundColor: "#9CA3AF",
+    width: 20, height: 20, borderRadius: 10, backgroundColor: "#C0C8D8",
     alignItems: "center", justifyContent: "center",
   },
 
   // Filter bar
-  filterBar: { backgroundColor: "#1A5FA8", paddingBottom: 10 },
-  filterList: { paddingHorizontal: 14, paddingTop: 4, gap: 6 },
+  filterBar: { backgroundColor: NVC_BLUE, paddingBottom: 12 },
+  filterList: { paddingHorizontal: 14, paddingTop: 6, gap: 6 },
   filterTab: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, gap: 5,
-    minHeight: 34,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, gap: 5,
+    minHeight: 32,
   },
   filterDot: { width: 7, height: 7, borderRadius: 3.5 },
-  filterTabText: { fontSize: 12, fontWeight: "700" },
-  filterCount: { paddingHorizontal: 6, borderRadius: 8, minWidth: 18, alignItems: "center" },
-  filterCountText: { fontSize: 11, fontWeight: "700" },
+  filterTabText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  filterCount: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, minWidth: 18, alignItems: "center" },
+  filterCountText: { fontSize: 10, fontFamily: "Inter_700Bold" },
 
   // Results bar
   resultsBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 14, paddingVertical: 8,
-    backgroundColor: "#EFF2F7",
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: "#F1F5F9",
+    borderBottomWidth: 1, borderBottomColor: "#E2E8F0",
   },
-  resultsText: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
-  clearFiltersText: { fontSize: 12, color: NVC_BLUE, fontWeight: "700" },
+  resultsText: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#64748B" },
+  clearFiltersText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: NVC_BLUE },
 
   // Grid
-  gridContent: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 32, gap: 10 },
+  gridContent: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 40, gap: 10 },
   gridRow: { gap: 10 },
 
   // Grid Card
   gridCard: {
-    backgroundColor: WIDGET_SURFACE_LIGHT,
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
-    paddingBottom: 10,
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.10, shadowRadius: 12, elevation: 4,
+    paddingBottom: 12,
+    shadowColor: "#0F172A", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
+    borderWidth: 1, borderColor: "#F1F5F9",
   },
-  gridCardAccent: { height: 4, width: "100%" },
+  gridCardAccent: { height: 3, width: "100%" },
   gridAvatarWrap: {
-    alignSelf: "center", marginTop: 14, marginBottom: 8,
+    alignSelf: "center", marginTop: 16, marginBottom: 8,
     position: "relative",
   },
   gridAvatar: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 56, height: 56, borderRadius: 28,
     alignItems: "center", justifyContent: "center",
   },
-  gridAvatarText: { fontSize: 18, fontWeight: "800", letterSpacing: 0.3 },
+  gridAvatarText: { fontSize: 20, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
   gridStatusDot: {
     position: "absolute", bottom: 1, right: 1,
-    width: 13, height: 13, borderRadius: 6.5, borderWidth: 2,
+    width: 14, height: 14, borderRadius: 7, borderWidth: 2.5,
   },
   gridName: {
-    fontSize: 13, fontWeight: "800", color: "#1A1E2A",
+    fontSize: 14, fontFamily: "Inter_700Bold", color: "#0F172A",
     textAlign: "center", paddingHorizontal: 8, letterSpacing: -0.2,
   },
   gridStatusPill: {
     flexDirection: "row", alignItems: "center", gap: 4,
     alignSelf: "center", marginTop: 5,
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1.5,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 1.5,
   },
   gridPillDot: { width: 5, height: 5, borderRadius: 2.5 },
-  gridStatusText: { fontSize: 10, fontWeight: "700" },
+  gridStatusText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   gridSkillsRow: {
     flexDirection: "row", flexWrap: "wrap", gap: 4,
-    paddingHorizontal: 8, marginTop: 7, justifyContent: "center",
+    paddingHorizontal: 10, marginTop: 8, justifyContent: "center",
   },
   gridSkillChip: {
-    backgroundColor: "#EFF2F7", borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2, maxWidth: "100%",
+    backgroundColor: "#F1F5F9", borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 3, maxWidth: "100%",
   },
-  gridSkillText: { fontSize: 9, fontWeight: "600", color: "#374151" },
+  gridSkillText: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "#475569" },
   gridAddress: {
-    fontSize: 10, color: "#6B7280", textAlign: "center",
-    paddingHorizontal: 8, marginTop: 6, lineHeight: 14,
+    fontSize: 10, fontFamily: "Inter_400Regular", color: "#64748B", textAlign: "center",
+    paddingHorizontal: 10, marginTop: 6, lineHeight: 15,
   },
   gridAddressMuted: {
-    fontSize: 10, color: "#9CA3AF", textAlign: "center",
-    paddingHorizontal: 8, marginTop: 6, fontStyle: "italic",
+    fontSize: 10, fontFamily: "Inter_400Regular", color: "#94A3B8", textAlign: "center",
+    paddingHorizontal: 10, marginTop: 6, fontStyle: "italic",
   },
   gridStats: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, marginTop: 8, paddingHorizontal: 8,
+    gap: 8, marginTop: 10, paddingHorizontal: 10,
   },
   gridStat: { flexDirection: "row", alignItems: "center", gap: 3 },
-  gridStatDivider: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#D1D5DB" },
-  gridStatText: { fontSize: 10, color: "#9CA3AF", fontWeight: "500" },
+  gridStatDivider: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#CBD5E1" },
+  gridStatText: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#94A3B8" },
   gridActions: {
-    flexDirection: "row", gap: 6, paddingHorizontal: 8, marginTop: 10,
+    flexDirection: "row", gap: 6, paddingHorizontal: 10, marginTop: 12,
   },
   gridActionBtn: {
-    height: 32, borderRadius: 8, borderWidth: 1.5,
+    height: 34, borderRadius: 8, borderWidth: 1.5,
     alignItems: "center", justifyContent: "center", flex: 1,
   },
 
   // Empty
-  empty: { alignItems: "center", paddingTop: 80, gap: 10 },
+  empty: { alignItems: "center", paddingTop: 80, gap: 12 },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 20, backgroundColor: WIDGET_SURFACE_LIGHT,
+    width: 76, height: 76, borderRadius: 22, backgroundColor: "#F8FAFC",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
+    borderWidth: 1.5, borderColor: "#E2E8F0",
   },
-  emptyTitle: { fontSize: 15, fontWeight: "600", color: "#6B7280", textAlign: "center", paddingHorizontal: 24 },
+  emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#64748B", textAlign: "center", paddingHorizontal: 24 },
   emptyAction: {
-    backgroundColor: NVC_BLUE, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 4,
+    backgroundColor: NVC_BLUE, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 10, marginTop: 4,
+    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
-  emptyActionText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  emptyActionText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
   // Map-first layout
   leftPanel: {
-    width: 260, backgroundColor: "#fff",
-    borderRightWidth: 1, borderRightColor: "#E5E7EB",
+    width: 268, backgroundColor: "#fff",
+    borderRightWidth: 1, borderRightColor: "#E2E8F0",
     flexDirection: "column",
   },
   leftPanelHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
   },
-  leftPanelTitle: { fontSize: 13, fontWeight: "700", color: "#374151" },
+  leftPanelTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#1E293B" },
   leftPanelToggle: {
-    width: 28, height: 28, borderRadius: 8, backgroundColor: "#EFF2F7",
+    width: 30, height: 30, borderRadius: 8, backgroundColor: "#F1F5F9",
     alignItems: "center", justifyContent: "center",
   },
   listRow: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
   },
   listRowSelected: { backgroundColor: "#EFF6FF" },
   listDot: { width: 9, height: 9, borderRadius: 4.5 },
-  listName: { fontSize: 13, fontWeight: "600", color: "#111827" },
-  listSub: { fontSize: 11, marginTop: 1 },
+  listName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#0F172A" },
+  listSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   rightPanel: {
-    width: 240, backgroundColor: "#fff",
-    borderLeftWidth: 1, borderLeftColor: "#E5E7EB",
+    width: 248, backgroundColor: "#fff",
+    borderLeftWidth: 1, borderLeftColor: "#E2E8F0",
     padding: 16,
   },
   rightPanelHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  rightPanelName: { fontSize: 15, fontWeight: "700", color: "#111827", flex: 1 },
+  rightPanelName: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#0F172A", flex: 1 },
   fab: {
-    position: "absolute", bottom: 20, right: 16,
-    width: 48, height: 48, borderRadius: 24,
+    position: "absolute", bottom: 24, right: 16,
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: NVC_BLUE,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 8,
+    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
   },
   headerBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
-    minHeight: 36,
+    backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+    minHeight: 40,
   },
 });

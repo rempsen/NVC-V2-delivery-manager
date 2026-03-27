@@ -128,11 +128,11 @@ export default function NVC360ApiScreen() {
     backText: {
       fontSize: 16,
       color: colors.primary,
-      fontWeight: "500",
+      fontFamily: "Inter_500Medium",
     },
     headerTitle: {
       fontSize: 17,
-      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
       color: colors.foreground,
       flex: 1,
     },
@@ -144,7 +144,7 @@ export default function NVC360ApiScreen() {
     },
     saveBtnText: {
       color: "#fff",
-      fontWeight: "600",
+      fontFamily: "Inter_600SemiBold",
       fontSize: 14,
     },
     section: {
@@ -153,7 +153,7 @@ export default function NVC360ApiScreen() {
     },
     sectionTitle: {
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
       color: colors.muted,
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -178,7 +178,7 @@ export default function NVC360ApiScreen() {
     },
     rowLabel: {
       fontSize: 13,
-      fontWeight: "600",
+      fontFamily: "Inter_600SemiBold",
       color: colors.muted,
       marginBottom: 6,
     },
@@ -211,7 +211,7 @@ export default function NVC360ApiScreen() {
     toggleLabel: {
       fontSize: 15,
       color: colors.foreground,
-      fontWeight: "500",
+      fontFamily: "Inter_500Medium",
     },
     toggleSub: {
       fontSize: 12,
@@ -234,7 +234,7 @@ export default function NVC360ApiScreen() {
     statusText: {
       fontSize: 14,
       color: statusColor,
-      fontWeight: "600",
+      fontFamily: "Inter_600SemiBold",
     },
     testBtn: {
       marginHorizontal: 16,
@@ -246,7 +246,7 @@ export default function NVC360ApiScreen() {
     },
     testBtnText: {
       color: "#fff",
-      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
       fontSize: 15,
     },
     infoBox: {

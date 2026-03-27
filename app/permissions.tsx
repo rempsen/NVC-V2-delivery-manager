@@ -682,7 +682,7 @@ export default function PermissionsScreen() {
                   onPress={() => setNewRoleTier(t)}
                   style={[styles.createTierChip, { backgroundColor: newRoleTier === t ? NVC_BLUE : colors.background, borderColor: newRoleTier === t ? NVC_BLUE : colors.border }]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: newRoleTier === t ? "#fff" : colors.foreground }}>
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: newRoleTier === t ? "#fff" : colors.foreground }}>
                     {t === "client_company" ? "Client Company" : "NVC360 Platform"}
                   </Text>
                 </Pressable>
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   headerSub: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 1 },
   addRoleBtn: {
     flexDirection: "row",
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 4,
   },
-  addRoleBtnText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  addRoleBtnText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
   tierFilter: {
     flexDirection: "row",
     borderBottomWidth: 1,
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 2,
   },
-  tierChipText: { fontSize: 11, fontWeight: "700" },
+  tierChipText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   scroll: { padding: 16, gap: 10, paddingBottom: 40 },
   infoBanner: {
     flexDirection: "row",
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionDot: { width: 8, height: 8, borderRadius: 4 },
-  sectionTitle: { fontSize: 15, fontWeight: "800", flex: 1 },
+  sectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold", flex: 1 },
   sectionCount: { fontSize: 12 },
   sectionDesc: { fontSize: 13, lineHeight: 18, marginBottom: 4 },
   roleCard: {
@@ -789,18 +789,18 @@ const styles = StyleSheet.create({
   },
   roleInfo: { flex: 1, gap: 6 },
   roleNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  roleName: { fontSize: 15, fontWeight: "700", flex: 1 },
+  roleName: { fontSize: 15, fontFamily: "Inter_700Bold", flex: 1 },
   systemBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  systemBadgeText: { fontSize: 9, fontWeight: "700" },
+  systemBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold" },
   roleDesc: { fontSize: 12, lineHeight: 17 },
   roleStats: { flexDirection: "row", alignItems: "center", gap: 8 },
   permBar: { flex: 1, height: 4, borderRadius: 2, overflow: "hidden" },
   permBarFill: { height: "100%", borderRadius: 2 },
-  permCount: { fontSize: 10, fontWeight: "600" },
+  permCount: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   editBtn: {
     width: 34,
     height: 34,
@@ -815,10 +815,10 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 4,
   },
-  roleDetailTitle: { fontSize: 14, fontWeight: "800", marginBottom: 4 },
+  roleDetailTitle: { fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 4 },
   roleDetailRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  roleDetailCat: { fontSize: 13, fontWeight: "600", width: 80 },
-  roleDetailCount: { fontSize: 12, fontWeight: "700", width: 30, textAlign: "right" },
+  roleDetailCat: { fontSize: 13, fontFamily: "Inter_600SemiBold", width: 80 },
+  roleDetailCount: { fontSize: 12, fontFamily: "Inter_700Bold", width: 30, textAlign: "right" },
   roleDetailBar: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   roleDetailBarFill: { height: "100%", borderRadius: 3 },
   editFullBtn: {
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  editFullBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  editFullBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
   // Editor
   editorOverlay: { flex: 1 },
   editorHeader: {
@@ -840,14 +840,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 12,
   },
-  editorTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  editorTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
   editorSub: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 1 },
   editorSaveBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
   },
-  editorSaveBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  editorSaveBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
   editorCategoryScroll: { borderBottomWidth: 1, paddingVertical: 4 },
   editorCategoryChip: {
     paddingHorizontal: 14,
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 4,
   },
-  editorCategoryText: { fontSize: 12, fontWeight: "600" },
+  editorCategoryText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   permRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
   },
-  permLabel: { fontSize: 14, fontWeight: "600" },
+  permLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   permDesc: { fontSize: 12, lineHeight: 16 },
   permCategoryBadge: {
     alignSelf: "flex-start",
@@ -873,16 +873,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginTop: 2,
   },
-  permCategoryText: { fontSize: 9, fontWeight: "700" },
+  permCategoryText: { fontSize: 9, fontFamily: "Inter_700Bold" },
   // Create Role Modal
   createModal: {
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40, gap: 6,
   },
   createModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 12 },
-  createModalTitle: { fontSize: 18, fontWeight: "800" },
+  createModalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
   createModalSub: { fontSize: 13, lineHeight: 18, marginBottom: 8 },
-  createLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3, marginTop: 8 },
+  createLabel: { fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.3, marginTop: 8 },
   createInput: {
     borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12,
     fontSize: 15, marginTop: 4,
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 12,
   },
-  createBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  createBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
   createCancelBtn: { alignItems: "center", paddingVertical: 12 },
-  createCancelText: { fontSize: 14, fontWeight: "600" },
+  createCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

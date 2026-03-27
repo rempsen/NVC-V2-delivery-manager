@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 5,
     backgroundColor: NVC_ORANGE, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10,
   },
-  newTaskBtnText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  newTaskBtnText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 },
 
   // Stats
   statsScroll: { marginTop: 12 },
@@ -914,11 +914,11 @@ const styles = StyleSheet.create({
     padding: 12, alignItems: "center", gap: 4,
   },
   statIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 2 },
-  statValue: { fontSize: 22, fontWeight: "800" },
-  statLabel: { fontSize: 10, fontWeight: "600", textAlign: "center" },
+  statValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  statLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", textAlign: "center" },
 
   // Section shared
-  sectionTitle: { flex: 1, fontSize: 16, fontWeight: "800" },
+  sectionTitle: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold" },
 
   // Map
   mapSection: { margin: 16, marginTop: 14 },
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
   },
-  optimizeBtnText: { fontSize: 11, fontWeight: "700" as const },
+  optimizeBtnText: { fontSize: 11, fontFamily: "Inter_700Bold" as const },
   lastOptimizedText: { fontSize: 10, marginBottom: 6, marginTop: -4 },
   optimizeErrorText: { fontSize: 11, marginBottom: 6, marginTop: -4 },
   liveBadge: {
@@ -938,7 +938,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, borderWidth: 1, gap: 5,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  liveText: { fontSize: 10, fontWeight: "800" },
+  liveText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   mapContainer: { borderRadius: 18, overflow: "hidden" },
 
   // Team panel
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
   },
-  sortBtnText: { fontSize: 11, fontWeight: "700", color: NVC_BLUE },
+  sortBtnText: { fontSize: 11, fontFamily: "Inter_700Bold", color: NVC_BLUE },
   teamPanel: { flexDirection: "row", gap: 8 },
   teamColumn: {
     flex: 1, borderRadius: 14, borderWidth: 1.5, overflow: "hidden",
@@ -963,9 +963,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   teamColDot: { width: 7, height: 7, borderRadius: 3.5 },
-  teamColLabel: { fontSize: 11, fontWeight: "800", flex: 1 },
+  teamColLabel: { fontSize: 11, fontFamily: "Inter_700Bold", flex: 1 },
   teamColCount: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 },
-  teamColCountText: { fontSize: 10, fontWeight: "800" },
+  teamColCountText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   teamColScroll: { maxHeight: 260 },
   teamColEmpty: { alignItems: "center", paddingVertical: 20 },
   teamColEmptyText: { fontSize: 11, color: "#9CA3AF" },
@@ -982,13 +982,13 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     marginBottom: 5, position: "relative",
   },
-  miniAvatarText: { fontSize: 14, fontWeight: "800" },
+  miniAvatarText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   miniStatusDot: {
     position: "absolute", bottom: 0, right: 0,
     width: 11, height: 11, borderRadius: 5.5, borderWidth: 2,
   },
-  miniName: { fontSize: 11, fontWeight: "700", color: "#1A1E2A", textAlign: "center" },
-  miniJobs: { fontSize: 10, fontWeight: "600", marginTop: 2 },
+  miniName: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#1A1E2A", textAlign: "center" },
+  miniJobs: { fontSize: 10, fontFamily: "Inter_600SemiBold", marginTop: 2 },
   miniAddress: { fontSize: 9, color: "#9CA3AF", textAlign: "center", marginTop: 3, lineHeight: 12 },
 
   // Technician detail panel
@@ -998,27 +998,27 @@ const styles = StyleSheet.create({
   },
   techPanelHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   techPanelAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  techPanelInitial: { fontSize: 18, fontWeight: "800" },
+  techPanelInitial: { fontSize: 18, fontFamily: "Inter_700Bold" },
   techPanelInfo: { flex: 1 },
-  techPanelName: { fontSize: 15, fontWeight: "700" },
+  techPanelName: { fontSize: 15, fontFamily: "Inter_700Bold" },
   techPanelStatusRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
   techPanelDot: { width: 7, height: 7, borderRadius: 3.5 },
-  techPanelStatus: { fontSize: 12, fontWeight: "600", textTransform: "capitalize" },
+  techPanelStatus: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "capitalize" },
   techPanelPhone: { fontSize: 12, marginTop: 2 },
   closeBtn: { padding: 4 },
   closeBtnInner: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
   techPanelStats: { flexDirection: "row", gap: 8 },
   techStat: { flex: 1, borderRadius: 10, padding: 10, alignItems: "center", gap: 2 },
-  techStatVal: { fontSize: 18, fontWeight: "800" },
-  techStatLabel: { fontSize: 10, fontWeight: "600" },
+  techStatVal: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  techStatLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   activeTaskCard: { padding: 10, borderRadius: 10, borderWidth: 1, gap: 3 },
-  activeTaskLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  activeTaskCustomer: { fontSize: 14, fontWeight: "700" },
+  activeTaskLabel: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  activeTaskCustomer: { fontSize: 14, fontFamily: "Inter_700Bold" },
   activeTaskAddress: { fontSize: 12 },
-  activeTaskStatus: { fontSize: 12, fontWeight: "600" },
+  activeTaskStatus: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   techPanelActions: { flexDirection: "row", gap: 10 },
   techActionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10, borderRadius: 10, gap: 6 },
-  techActionText: { fontSize: 13, fontWeight: "700" },
+  techActionText: { fontSize: 13, fontFamily: "Inter_700Bold" },
 
   // Work orders
   taskSection: { marginHorizontal: 16, marginTop: 4 },
@@ -1035,7 +1035,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9, paddingVertical: 4,
     borderRadius: 16, borderWidth: 1, marginRight: 6, minHeight: 26,
   },
-  filterChipText: { fontSize: 11, fontWeight: "700" },
+  filterChipText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   emptyState: { alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyText: { fontSize: 14 },
   taskCard: {
@@ -1045,23 +1045,23 @@ const styles = StyleSheet.create({
   taskCardAccent: { width: 4, alignSelf: "stretch" },
   taskCardBody: { flex: 1, padding: 12, gap: 3 },
   taskCardTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  taskCustomer: { flex: 1, fontSize: 14, fontWeight: "700" },
+  taskCustomer: { flex: 1, fontSize: 14, fontFamily: "Inter_700Bold" },
   priorityBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  priorityText: { fontSize: 9, fontWeight: "800" },
+  priorityText: { fontSize: 9, fontFamily: "Inter_700Bold" },
   taskAddress: { fontSize: 12 },
   taskCardBottom: { flexDirection: "row", alignItems: "center", gap: 6 },
-  taskStatusText: { fontSize: 12, fontWeight: "600" },
+  taskStatusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   taskTech: { fontSize: 12 },
 
   // Integrations
   integrationsCard: { margin: 16, marginTop: 8, borderRadius: 14, borderWidth: 1, padding: 14, gap: 12 },
-  integrationsTitle: { fontSize: 14, fontWeight: "700" },
+  integrationsTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   integrationChip: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 12, paddingVertical: 8,
     borderRadius: 10, borderWidth: 1, marginRight: 10, gap: 6,
   },
-  integrationName: { fontSize: 12, fontWeight: "700" },
+  integrationName: { fontSize: 12, fontFamily: "Inter_700Bold" },
 
   // Sort modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 16,
     borderBottomWidth: 0.5, borderBottomColor: "#E5E7EB",
   },
-  sortMenuTitle: { fontSize: 16, fontWeight: "800", color: "#1A1E2A" },
+  sortMenuTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#1A1E2A" },
   sortMenuClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
   sortMenuItem: {
     flexDirection: "row", alignItems: "center", gap: 14,
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5, borderBottomColor: "#F3F4F6",
   },
   sortMenuItemActive: { backgroundColor: NVC_BLUE + "08" },
-  sortMenuItemText: { fontSize: 15, fontWeight: "500", color: "#374151", flex: 1 },
-  sortMenuItemTextActive: { color: NVC_BLUE, fontWeight: "700" },
+  sortMenuItemText: { fontSize: 15, fontFamily: "Inter_500Medium", color: "#374151", flex: 1 },
+  sortMenuItemTextActive: { color: NVC_BLUE, fontFamily: "Inter_700Bold" },
   sortMenuCheck: { width: 24, height: 24, borderRadius: 12, backgroundColor: NVC_BLUE + "15", alignItems: "center", justifyContent: "center" },
 });

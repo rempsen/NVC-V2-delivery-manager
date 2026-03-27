@@ -233,7 +233,7 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
                 <Text style={[styles.contactCardTitle, { color: colors.foreground }]}>Colleague</Text>
                 <Text style={[styles.contactCardSub, { color: colors.muted }]}>Reach your team</Text>
                 <View style={[styles.contactChevronRow]}>
-                  <Text style={[styles.contactCardSub, { color: "#8B5CF6", fontWeight: "600" }]}>Choose department →</Text>
+                  <Text style={[styles.contactCardSub, { color: "#8B5CF6", fontFamily: "Inter_600SemiBold" }]}>Choose department →</Text>
                 </View>
               </Pressable>
 
@@ -252,7 +252,7 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
                 <Text style={[styles.contactCardTitle, { color: colors.foreground }]}>Client</Text>
                 <Text style={[styles.contactCardSub, { color: colors.muted }]}>Reach your clients</Text>
                 <View style={[styles.contactChevronRow]}>
-                  <Text style={[styles.contactCardSub, { color: "#E85D04", fontWeight: "600" }]}>Choose industry →</Text>
+                  <Text style={[styles.contactCardSub, { color: "#E85D04", fontFamily: "Inter_600SemiBold" }]}>Choose industry →</Text>
                 </View>
               </Pressable>
             </View>
@@ -291,7 +291,7 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
               {colleagues.map((person) => (
                 <View key={person.id} style={[styles.contactListRow, { borderColor: colors.border }]}>
                   <View style={[styles.contactListIcon, { backgroundColor: "#8B5CF6" + "20" }]}>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#8B5CF6" }}>
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_700Bold", color: "#8B5CF6" }}>
                       {person.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                     </Text>
                   </View>
@@ -355,7 +355,7 @@ function ContactModal({ visible, onClose }: { visible: boolean; onClose: () => v
               ) : clients.map((client) => (
                 <View key={client.id} style={[styles.contactListRow, { borderColor: colors.border }]}>
                   <View style={[styles.contactListIcon, { backgroundColor: "#E85D04" + "20" }]}>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#E85D04" }}>
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_700Bold", color: "#E85D04" }}>
                       {client.company.charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -626,56 +626,56 @@ function RightPanel({ tech, job, onClose, tasks: allTasks }: { tech: Technician 
 
 const mapStyles = StyleSheet.create({
   statChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  statChipValue: { fontSize: 12, fontWeight: "800" },
-  statChipLabel: { fontSize: 10, fontWeight: "600" },
+  statChipValue: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  statChipLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   leftPanel: { position: "absolute", top: 0, left: 0, bottom: 0, zIndex: 50, borderRightWidth: 1, shadowColor: "#000", shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 6 },
   panelSearch: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 12, marginBottom: 0, paddingHorizontal: 10, height: 38, borderRadius: 10, borderWidth: 1 },
   panelSearchInput: { flex: 1, fontSize: 13 },
   panelTabs: { flexDirection: "row", marginTop: 8, borderBottomWidth: 1 },
   panelTab: { flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
-  panelTabText: { fontSize: 12, fontWeight: "700" },
+  panelTabText: { fontSize: 12, fontFamily: "Inter_700Bold" },
   listRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, gap: 10 },
   listAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", position: "relative" },
-  listAvatarText: { fontSize: 13, fontWeight: "800" },
+  listAvatarText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   listAvatarDot: { position: "absolute", bottom: 1, right: 1, width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: "#fff" },
   listStatusBar: { width: 3, height: 38, borderRadius: 2 },
-  listName: { fontSize: 13, fontWeight: "700" },
+  listName: { fontSize: 13, fontFamily: "Inter_700Bold" },
   listSub: { fontSize: 11, marginTop: 1 },
   listTech: { fontSize: 11, marginTop: 1 },
   listMeta: { fontSize: 11 },
   listBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  listBadgeText: { fontSize: 10, fontWeight: "700" },
+  listBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   rightPanel: { position: "absolute", top: 0, right: 0, bottom: 0, zIndex: 50, borderLeftWidth: 1, shadowColor: "#000", shadowOffset: { width: -4, height: 0 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 6 },
   rightClose: { position: "absolute", top: 80, left: -18, width: 36, height: 36, borderRadius: 18, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4, zIndex: 10 },
   detailContent: { padding: 16, gap: 12 },
   detailHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   detailAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", position: "relative" },
-  detailAvatarText: { fontSize: 18, fontWeight: "800" },
+  detailAvatarText: { fontSize: 18, fontFamily: "Inter_700Bold" },
   detailAvatarDot: { position: "absolute", bottom: 2, right: 2, width: 13, height: 13, borderRadius: 7, borderWidth: 2, borderColor: "#fff" },
-  detailName: { fontSize: 17, fontWeight: "800" },
-  detailStatus: { fontSize: 12, fontWeight: "600" },
+  detailName: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  detailStatus: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   detailStats: { flexDirection: "row", gap: 8 },
   detailStat: { flex: 1, borderRadius: 10, padding: 10, alignItems: "center", gap: 2 },
-  detailStatValue: { fontSize: 15, fontWeight: "800" },
+  detailStatValue: { fontSize: 15, fontFamily: "Inter_700Bold" },
   detailStatLabel: { fontSize: 10 },
   detailCard: { borderRadius: 12, padding: 12, borderWidth: 1, gap: 4 },
-  detailCardTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
-  detailCardMain: { fontSize: 14, fontWeight: "700" },
+  detailCardTitle: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
+  detailCardMain: { fontSize: 14, fontFamily: "Inter_700Bold" },
   detailCardSub: { fontSize: 12 },
   skillChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  skillChipText: { fontSize: 11, fontWeight: "600" },
+  skillChipText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   detailActions: { flexDirection: "row", gap: 8 },
   detailBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, gap: 5 },
-  detailBtnText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  detailBtnText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
   detailBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1 },
-  detailBannerText: { fontSize: 13, fontWeight: "700", flex: 1 },
+  detailBannerText: { fontSize: 13, fontFamily: "Inter_700Bold", flex: 1 },
   detailBannerRef: { fontSize: 11 },
   mapCtrlWrap: { position: "absolute", bottom: 32, right: 16, borderRadius: 12, borderWidth: 1, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4, zIndex: 60 },
   mapCtrlBtn: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
   mapCtrlDivider: { height: 1, marginHorizontal: 8 },
   liveBadge: { position: "absolute", bottom: 32, left: 16, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, zIndex: 60 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#22C55E" },
-  liveText: { fontSize: 11, fontWeight: "800", color: "#fff", letterSpacing: 1 },
+  liveText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 1 },
 });
 
 // ─── Legacy helper (kept for MetricCard usage below) ─────────────────────────
@@ -1050,8 +1050,8 @@ const styles = StyleSheet.create<{
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
   headerLogo: { width: 24, height: 24 },
-  headerGreeting: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "500" },
-  headerTitle: { fontSize: 15, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerGreeting: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontFamily: "Inter_500Medium" },
+  headerTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 1 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   notifBtn: { padding: 6, position: "relative" },
   notifBadge: {
@@ -1064,7 +1064,7 @@ const styles = StyleSheet.create<{
     backgroundColor: NVC_ORANGE, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
     minHeight: 36,
   },
-  createBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  createBtnText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
   // Map-first top bar
   topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingBottom: 10, gap: 8, zIndex: 100 },
   topBarLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -1090,8 +1090,8 @@ const styles = StyleSheet.create<{
     alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.22)",
   },
-  metricValue: { fontSize: 26, fontWeight: "800", color: "#fff", letterSpacing: -0.6 },
-  metricLabel: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.85)", lineHeight: 14 },
+  metricValue: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.6 },
+  metricLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.85)", lineHeight: 14 },
 
   // Map — taller (200→260) since Quick Actions section is now smaller
   mapWidget: {
@@ -1111,7 +1111,7 @@ const styles = StyleSheet.create<{
     borderWidth: 2, borderColor: "#fff",
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 4,
   },
-  mapPinText: { fontSize: 9, fontWeight: "800", color: "#fff" },
+  mapPinText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
   mapPinTail: { width: 0, height: 0, borderLeftWidth: 4, borderRightWidth: 4, borderTopWidth: 6, borderLeftColor: "transparent", borderRightColor: "transparent" },
   mapOverlayTop: {
     position: "absolute", top: 10, left: 10, right: 10,
@@ -1122,9 +1122,9 @@ const styles = StyleSheet.create<{
     backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10,
   },
   mapLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E" },
-  mapLiveText: { fontSize: 10, fontWeight: "800", color: "#fff", letterSpacing: 0.5 },
+  mapLiveText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.5 },
   mapTechCount: {
-    fontSize: 11, fontWeight: "700", color: "#fff",
+    fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff",
     backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
   },
   mapOverlayBottom: {
@@ -1142,8 +1142,8 @@ const styles = StyleSheet.create<{
   section: { paddingHorizontal: 14, paddingTop: 18 },
   lastSection: { paddingBottom: 8 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#1A1E2A", letterSpacing: -0.2 },
-  seeAll: { fontSize: 13, fontWeight: "700", color: NVC_BLUE },
+  sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#1A1E2A", letterSpacing: -0.2 },
+  seeAll: { fontSize: 13, fontFamily: "Inter_700Bold", color: NVC_BLUE },
 
   // Contact — 3-button row
   contactGrid: { flexDirection: "row", gap: 10 },
@@ -1154,7 +1154,7 @@ const styles = StyleSheet.create<{
     shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
   },
   contactActionIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  contactActionLabel: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  contactActionLabel: { fontSize: 13, fontFamily: "Inter_700Bold", textAlign: "center" },
 
   // Contact Modal
   contactSheet: {
@@ -1166,7 +1166,7 @@ const styles = StyleSheet.create<{
     flexDirection: "row", alignItems: "center", marginBottom: 16,
   },
   contactBackBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 12 },
-  contactBackText: { fontSize: 14, fontWeight: "600" },
+  contactBackText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   contactCloseBtn: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.08)",
     alignItems: "center", justifyContent: "center",
@@ -1178,14 +1178,14 @@ const styles = StyleSheet.create<{
     shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
   },
   contactCardIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  contactCardTitle: { fontSize: 16, fontWeight: "800", marginTop: 4 },
-  contactCardSub: { fontSize: 12, fontWeight: "500" },
+  contactCardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginTop: 4 },
+  contactCardSub: { fontSize: 12, fontFamily: "Inter_500Medium" },
   contactCardActions: { flexDirection: "row", gap: 8, marginTop: 8 },
   contactActionBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 12, borderRadius: 10, minHeight: 44,
   },
-  contactActionText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  contactActionText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 14 },
   contactChevronRow: { marginTop: 4 },
   contactList: { gap: 2, paddingBottom: 8 },
   contactListRow: {
@@ -1197,8 +1197,8 @@ const styles = StyleSheet.create<{
     width: 40, height: 40, borderRadius: 12,
     alignItems: "center", justifyContent: "center",
   },
-  contactListName: { fontSize: 14, fontWeight: "700" },
-  contactListSub: { fontSize: 12, fontWeight: "500", marginTop: 1 },
+  contactListName: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  contactListSub: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 1 },
   contactRowActions: { flexDirection: "row", gap: 6 },
   contactRowBtn: {
     width: 40, height: 40, borderRadius: 10,
@@ -1214,10 +1214,10 @@ const styles = StyleSheet.create<{
     shadowOpacity: 0.09, shadowRadius: 10, elevation: 3,
   },
   techAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  techInitials: { fontSize: 13, fontWeight: "800" },
+  techInitials: { fontSize: 13, fontFamily: "Inter_700Bold" },
   techDot: { position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: WIDGET_SURFACE_LIGHT },
-  techName: { fontSize: 11, fontWeight: "700", color: "#1A1E2A" },
-  techStatus: { fontSize: 10, fontWeight: "600" },
+  techName: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#1A1E2A" },
+  techStatus: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
 
   // Task Rows
   taskRow: {
@@ -1229,9 +1229,9 @@ const styles = StyleSheet.create<{
   taskBar: { width: 4 },
   taskBody: { flex: 1, paddingHorizontal: 14, paddingVertical: 13, gap: 4 },
   taskTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  taskCustomer: { fontSize: 14, fontWeight: "700", flex: 1, marginRight: 6, color: "#1A1E2A" },
+  taskCustomer: { fontSize: 14, fontFamily: "Inter_700Bold", flex: 1, marginRight: 6, color: "#1A1E2A" },
   taskBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  taskBadgeText: { fontSize: 11, fontWeight: "700" },
+  taskBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   taskAddr: { fontSize: 12, color: "#6B7280" },
   taskTech: { fontSize: 12, color: "#6B7280" },
 
@@ -1239,11 +1239,11 @@ const styles = StyleSheet.create<{
   sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
-  sheetTitle: { fontSize: 18, fontWeight: "800", marginBottom: 16, textAlign: "center" },
+  sheetTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 16, textAlign: "center" },
   sheetGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
   sheetOption: { width: "30%", alignItems: "center", paddingVertical: 18, borderRadius: 16, borderWidth: 1.5, gap: 10 },
   sheetOptionIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  sheetOptionLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  sheetOptionLabel: { fontSize: 12, fontFamily: "Inter_700Bold", textAlign: "center" },
   sheetCancel: { marginTop: 16, paddingVertical: 16, borderRadius: 14, alignItems: "center" },
-  sheetCancelText: { fontSize: 16, fontWeight: "700" },
+  sheetCancelText: { fontSize: 16, fontFamily: "Inter_700Bold" },
 });

@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
     color: "#fff",
     letterSpacing: 0.3,
   },
@@ -223,12 +223,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
     paddingHorizontal: 20,
   },
   cardSubtitle: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
     paddingHorizontal: 20,
     marginTop: 2,
     textTransform: "uppercase",
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
   },
   cardDesc: {
     fontSize: 12,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#fff",
   },
   footer: {

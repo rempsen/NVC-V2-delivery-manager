@@ -290,7 +290,7 @@ export default function EmailSmtpScreen() {
             {testResult === "success" && (
               <View style={[styles.testResult, { backgroundColor: "#22C55E10", borderColor: "#22C55E30" }]}>
                 <IconSymbol name="checkmark.circle.fill" size={16} color="#22C55E" />
-                <Text style={{ color: "#22C55E", fontSize: 13, fontWeight: "600" }}>
+                <Text style={{ color: "#22C55E", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
                   Test email sent successfully!
                 </Text>
               </View>
@@ -349,11 +349,11 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderRadius: 12, padding: 14, borderWidth: 1,
   },
-  infoText: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  infoText: { flex: 1, fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
   card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 4 },
-  cardTitle: { fontSize: 15, fontWeight: "700", marginBottom: 8 },
+  cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 8 },
   fieldGroup: { gap: 5, marginBottom: 4 },
-  fieldLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.3 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.3 },
   inputWrap: {
     flexDirection: "row", alignItems: "center",
     borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, minHeight: 48,
@@ -364,12 +364,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10 },
   tlsToggle: { gap: 5, marginBottom: 4 },
   tlsRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 48 },
-  tlsLabel: { fontSize: 14, fontWeight: "600" },
+  tlsLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   providerGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   providerChip: {
     borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
   },
-  providerChipText: { fontSize: 12, fontWeight: "600" },
+  providerChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   testResult: {
     flexDirection: "row", alignItems: "center", gap: 8,
     borderRadius: 10, padding: 10, borderWidth: 1, marginBottom: 8,
@@ -378,10 +378,10 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, marginTop: 4,
   },
-  testBtnText: { fontSize: 15, fontWeight: "700" },
+  testBtnText: { fontSize: 15, fontFamily: "Inter_700Bold" },
   saveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 4,
   },
-  saveBtnText: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  saveBtnText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff" },
 });

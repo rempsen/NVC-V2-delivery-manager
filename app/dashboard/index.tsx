@@ -188,7 +188,7 @@ function Sidebar({ active, onSelect }: { active: SidebarSection; onSelect: (s: S
               onPress={() => onSelect(item.id)}
             >
               <IconSymbol name={item.icon} size={18} color={isActive ? "#fff" : "rgba(255,255,255,0.6)"} />
-              <Text style={[styles.sidebarItemLabel, isActive && { color: "#fff", fontWeight: "700" }] as TextStyle[]}>
+              <Text style={[styles.sidebarItemLabel, isActive && { color: "#fff", fontFamily: "Inter_700Bold" }] as TextStyle[]}>
                 {item.label}
               </Text>
               {item.badge ? (
@@ -384,9 +384,9 @@ function WorkOrderRow({ task, onPress }: { task: Task; onPress: () => void }) {
       >
         <View style={styles.woMain}>
           <View style={styles.woTopRow}>
-            <Text style={[styles.woOrderRef, { color: NVC_BLUE, fontWeight: "700" }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
+            <Text style={[styles.woOrderRef, { color: NVC_BLUE, fontFamily: "Inter_700Bold" }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
             <View style={[styles.woPriorityBadge, { backgroundColor: priorityColor + "18", borderWidth: 1, borderColor: priorityColor + "40" }]}>
-              <Text style={[styles.woPriorityText, { color: priorityColor, fontWeight: "700" }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
+              <Text style={[styles.woPriorityText, { color: priorityColor, fontFamily: "Inter_700Bold" }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
             </View>
             <View style={[styles.woStatusBadge, { backgroundColor: statusColor + "18", borderWidth: 1, borderColor: statusColor + "40" }]}>
               <View style={[styles.liveDot, { backgroundColor: statusColor, width: 5, height: 5 }]} />
@@ -522,7 +522,7 @@ function AIInsightsPanel() {
               <View key={i} style={[styles.aiInsightRow, { borderLeftColor: cfg.color, backgroundColor: cfg.color + "06" }]}>
                 <IconSymbol name={cfg.icon} size={14} color={cfg.color} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={[styles.aiInsightText, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]} numberOfLines={1}>
+                  <Text style={[styles.aiInsightText, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }] as TextStyle[]} numberOfLines={1}>
                     {insight.title}
                   </Text>
                   <Text style={[styles.aiInsightText, { color: colors.muted, fontSize: 11 }] as TextStyle[]} numberOfLines={2}>
@@ -547,7 +547,7 @@ function AIInsightsPanel() {
             <View style={[styles.aiInsightRow, { borderLeftColor: "#8B5CF6", backgroundColor: "#8B5CF606" }]}>
               <IconSymbol name="paperplane.fill" size={14} color="#8B5CF6" />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.aiInsightText, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]}>
+                <Text style={[styles.aiInsightText, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }] as TextStyle[]}>
                   {briefing.dispatchSuggestions.length} Smart Dispatch Suggestion{briefing.dispatchSuggestions.length > 1 ? "s" : ""}
                 </Text>
                 {briefing.dispatchSuggestions.slice(0, 2).map((s, i) => (
@@ -752,7 +752,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
         <View style={styles.commandStripDivider} />
         <View style={styles.commandStripItem}>
           <View style={[styles.liveDot, { backgroundColor: "#4ADE80" }]} />
-          <Text style={[styles.commandStripLabel, { color: "#4ADE80", fontWeight: "700" }]}>LIVE</Text>
+          <Text style={[styles.commandStripLabel, { color: "#4ADE80", fontFamily: "Inter_700Bold" }]}>LIVE</Text>
         </View>
       </View>
 
@@ -763,18 +763,18 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
         <View style={[leftCollapsed ? styles.mapPanelCollapsed : styles.mapPanelLeft, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
           {/* Panel header */}
           <View style={[styles.mapPanelHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE_DARK }]}>
-            {!leftCollapsed && <Text style={{ fontSize: 12, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>WORK ORDERS</Text>}
+            {!leftCollapsed && <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.5 }}>WORK ORDERS</Text>}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               {!leftCollapsed && (
                 <>
                   <View style={{ backgroundColor: NVC_ORANGE, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
-                    <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{tasks.filter(t => t.status !== "completed").length}</Text>
+                    <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>{tasks.filter(t => t.status !== "completed").length}</Text>
                   </View>
                   <Pressable
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: NVC_ORANGE, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }] as ViewStyle[]}
                     onPress={() => router.push("/create-task" as any)}
                   >
-                    <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>+ New</Text>
+                    <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>+ New</Text>
                   </Pressable>
                 </>
               )}
@@ -783,7 +783,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                 style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 6, padding: 4 }] as ViewStyle[]}
                 onPress={() => setLeftCollapsed((v) => !v)}
               >
-                <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{leftCollapsed ? "▶" : "◀"}</Text>
+                <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>{leftCollapsed ? "▶" : "◀"}</Text>
               </Pressable>
             </View>
           </View>
@@ -816,7 +816,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                       style={[{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1.5, marginRight: 5, backgroundColor: isActive ? color : "transparent", borderColor: isActive ? color : color + "60" }] as ViewStyle[]}
                       onPress={() => setWoFilter(s)}
                     >
-                      <Text style={[{ fontSize: 10, fontWeight: "700", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} {count > 0 ? `(${count})` : ""}</Text>
+                      <Text style={[{ fontSize: 10, fontFamily: "Inter_700Bold", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} {count > 0 ? `(${count})` : ""}</Text>
                     </Pressable>
                   );
                 })}
@@ -853,7 +853,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                       >
                         <Pressable onPress={() => router.push(`/task/${task.id}` as any)}>
                           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-                            <Text style={[{ fontSize: 11, fontWeight: "700", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
+                            <Text style={[{ fontSize: 11, fontFamily: "Inter_700Bold", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
                               {task.orderRef ?? `#${task.id}`}
                             </Text>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -861,15 +861,15 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                                 <Text style={{ fontSize: 9, color: colors.muted }}>⠿</Text>
                               )}
                               <View style={{ backgroundColor: pc + "20", borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
-                                <Text style={[{ fontSize: 9, fontWeight: "800", color: pc }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
+                                <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: pc }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
                               </View>
                             </View>
                           </View>
-                          <Text style={[{ fontSize: 12, fontWeight: "600", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
+                          <Text style={[{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
                           <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress}</Text>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
                             <View style={{ backgroundColor: sc + "20", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                              <Text style={[{ fontSize: 9, fontWeight: "700", color: sc }] as TextStyle[]}>{STATUS_LABELS[task.status] ?? task.status}</Text>
+                              <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: sc }] as TextStyle[]}>{STATUS_LABELS[task.status] ?? task.status}</Text>
                             </View>
                             {task.technicianName && (
                               <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]} numberOfLines={1}>· {task.technicianName}</Text>
@@ -933,7 +933,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                 onPress={() => setShowRoutes((v) => !v)}
               >
                 <IconSymbol name="map.fill" size={14} color="#fff" />
-                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+                <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 }}>
                   {showRoutes ? "Hide Routes" : "Optimize Routes"}
                 </Text>
               </Pressable>
@@ -954,11 +954,11 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
               style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 6, padding: 4 }] as ViewStyle[]}
               onPress={() => setRightCollapsed((v) => !v)}
             >
-              <Text style={{ fontSize: 10, color: "#fff", fontWeight: "700" }}>{rightCollapsed ? "◀" : "▶"}</Text>
+              <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>{rightCollapsed ? "◀" : "▶"}</Text>
             </Pressable>
             {!rightCollapsed && (
               <>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>FIELD TEAM</Text>
+                <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.5 }}>FIELD TEAM</Text>
                 <View style={[styles.liveBadge, { backgroundColor: "#22C55E25" }]}>
                   <View style={[styles.liveDot, { backgroundColor: "#22C55E" }]} />
                   <Text style={[styles.liveBadgeText, { color: "#22C55E" }] as TextStyle[]}>{onlineCount} live</Text>
@@ -983,7 +983,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                       style={[{ paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, borderWidth: 1.5, marginRight: 4, backgroundColor: isActive ? color : "transparent", borderColor: isActive ? color : color + "60" }] as ViewStyle[]}
                       onPress={() => setTechFilter(s)}
                     >
-                      <Text style={[{ fontSize: 10, fontWeight: "700", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} ({count})</Text>
+                      <Text style={[{ fontSize: 10, fontFamily: "Inter_700Bold", color: isActive ? "#fff" : color }] as TextStyle[]}>{label} ({count})</Text>
                     </Pressable>
                   );
                 })}
@@ -992,7 +992,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
               {/* Drag-to-assign hint */}
               {draggingTaskId !== null && (
                 <View style={{ backgroundColor: NVC_BLUE + "15", paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: NVC_BLUE + "30" }}>
-                  <Text style={[{ fontSize: 10, color: NVC_BLUE, fontWeight: "700", textAlign: "center" }] as TextStyle[]}>
+                  <Text style={[{ fontSize: 10, color: NVC_BLUE, fontFamily: "Inter_700Bold", textAlign: "center" }] as TextStyle[]}>
                     Drop on a technician to assign
                   </Text>
                 </View>
@@ -1036,15 +1036,15 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                             </View>
                             {/* Info */}
                             <View style={{ flex: 1, gap: 1 }}>
-                              <Text style={[{ fontSize: 12, fontWeight: "700", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{tech.name}</Text>
+                              <Text style={[{ fontSize: 12, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{tech.name}</Text>
                               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                                 <View style={{ backgroundColor: sc + "18", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                                  <Text style={[{ fontSize: 9, fontWeight: "700", color: sc }] as TextStyle[]}>{TECH_STATUS_LABELS[tech.status] ?? tech.status}</Text>
+                                  <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: sc }] as TextStyle[]}>{TECH_STATUS_LABELS[tech.status] ?? tech.status}</Text>
                                 </View>
                                 {/* ETA badge */}
                                 {etaMins !== null && etaColor && (
                                   <View style={{ backgroundColor: etaColor + "20", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: etaColor + "50" }}>
-                                    <Text style={[{ fontSize: 9, fontWeight: "800", color: etaColor }] as TextStyle[]}>
+                                    <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: etaColor }] as TextStyle[]}>
                                       {etaMins < 0 ? `${Math.abs(etaMins)}m late` : `${etaMins}m`}
                                     </Text>
                                   </View>
@@ -1099,7 +1099,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                                   }] as ViewStyle[]}
                                 >
                                   <View style={{ flex: 1 }}>
-                                    <Text style={[{ fontSize: 9, fontWeight: "700", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
+                                    <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: NVC_BLUE }] as TextStyle[]} numberOfLines={1}>
                                       {job.orderRef ?? `#${job.id}`}
                                     </Text>
                                     <Text style={[{ fontSize: 9, color: colors.muted }] as TextStyle[]} numberOfLines={1}>
@@ -1129,7 +1129,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                                       showToast(`${job.orderRef ?? `#${job.id}`} unassigned`);
                                     }}
                                   >
-                                    <Text style={[{ fontSize: 9, fontWeight: "800", color: "#EF4444", lineHeight: 10 }] as TextStyle[]}>×</Text>
+                                    <Text style={[{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#EF4444", lineHeight: 10 }] as TextStyle[]}>×</Text>
                                   </Pressable>
                                 </View>
                               ))}
@@ -1160,7 +1160,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
             width: 320, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 20,
             borderWidth: 1, borderColor: colors.border,
           }}>
-            <Text style={[{ fontSize: 15, fontWeight: "700", color: colors.foreground, marginBottom: 4 }] as TextStyle[]}>
+            <Text style={[{ fontSize: 15, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 4 }] as TextStyle[]}>
               Reassign {reassignModal.taskLabel}
             </Text>
             <Text style={[{ fontSize: 12, color: colors.muted, marginBottom: 14 }] as TextStyle[]}>
@@ -1188,12 +1188,12 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                     backgroundColor: (TECH_STATUS_COLORS[tech.status] ?? "#6B7280") + "20",
                     alignItems: "center", justifyContent: "center",
                   }}>
-                    <Text style={[{ fontSize: 11, fontWeight: "700", color: TECH_STATUS_COLORS[tech.status] ?? "#6B7280" }] as TextStyle[]}>
+                    <Text style={[{ fontSize: 11, fontFamily: "Inter_700Bold", color: TECH_STATUS_COLORS[tech.status] ?? "#6B7280" }] as TextStyle[]}>
                       {tech.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[{ fontSize: 13, fontWeight: "600", color: colors.foreground }] as TextStyle[]}>{tech.name}</Text>
+                    <Text style={[{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground }] as TextStyle[]}>{tech.name}</Text>
                     <Text style={[{ fontSize: 11, color: colors.muted }] as TextStyle[]}>{TECH_STATUS_LABELS[tech.status] ?? tech.status}</Text>
                   </View>
                   <IconSymbol name="chevron.right" size={14} color={colors.muted} />
@@ -1208,7 +1208,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
               }] as ViewStyle[])}
               onPress={() => setReassignModal(null)}
             >
-              <Text style={[{ fontSize: 13, fontWeight: "600", color: colors.muted }] as TextStyle[]}>Cancel</Text>
+              <Text style={[{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.muted }] as TextStyle[]}>Cancel</Text>
             </Pressable>
           </View>
         </View>
@@ -1223,9 +1223,9 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
           flexDirection: "row", alignItems: "center", gap: 8, minWidth: 300,
         } as any}>
           <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#22C55E", alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>✓</Text>
+            <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" }}>✓</Text>
           </View>
-          <Text style={[{ color: "#fff", fontSize: 13, fontWeight: "600", flex: 1 }] as TextStyle[]}>{toastMsg}</Text>
+          <Text style={[{ color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 }] as TextStyle[]}>{toastMsg}</Text>
         </View>
       )}
     </View>
@@ -1517,7 +1517,7 @@ function CustomerModal({ visible, customer, onClose, onSave, onDelete }: {
                   <Field label="Postal Code" value={form.mailingPostal} onChange={(v) => update("mailingPostal", v)} placeholder="R3C 1A1" />
                 </View>
                 <View style={[styles.modalSwitchRow, { borderColor: colors.border }]}>
-                  <Text style={[{ color: colors.foreground, fontSize: 14, fontWeight: "600" }] as TextStyle[]}>Physical address same as mailing</Text>
+                  <Text style={[{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }] as TextStyle[]}>Physical address same as mailing</Text>
                   <Switch value={form.sameAddress} onValueChange={(v) => update("sameAddress", v)} trackColor={{ true: NVC_BLUE }} />
                 </View>
                 {!form.sameAddress && (
@@ -1825,7 +1825,7 @@ function CustomersSection() {
                         {customer.company.charAt(0).toUpperCase()}
                       </Text>
                     </View>
-                    <Text style={[{ color: colors.foreground, fontSize: 13, fontWeight: "600" }] as TextStyle[]} numberOfLines={1}>
+                    <Text style={[{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }] as TextStyle[]} numberOfLines={1}>
                       {customer.company}
                     </Text>
                   </View>
@@ -1840,8 +1840,8 @@ function CustomersSection() {
                       </Text>
                     </View>
                   </View>
-                  <Text style={[styles.tableCell, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]}>{customer.totalJobs ?? 0}</Text>
-                  <Text style={[styles.tableCell, { color: "#16A34A", fontWeight: "600" }] as TextStyle[]}>
+                  <Text style={[styles.tableCell, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }] as TextStyle[]}>{customer.totalJobs ?? 0}</Text>
+                  <Text style={[styles.tableCell, { color: "#16A34A", fontFamily: "Inter_600SemiBold" }] as TextStyle[]}>
                     ${((customer.totalRevenue ?? 0) / 1000).toFixed(1)}k
                   </Text>
                   <View style={[styles.tableCell, { flexDirection: "row", gap: 6 }] as any}>
@@ -2337,7 +2337,7 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
                       <Text style={[styles.techTableAvatarText, { color: statusColor }] as TextStyle[]}>{initials}</Text>
                     </View>
                     <View>
-                      <Text style={[{ color: colors.foreground, fontSize: 13, fontWeight: "600" }] as TextStyle[]}>{tech.name}</Text>
+                      <Text style={[{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }] as TextStyle[]}>{tech.name}</Text>
                       <Text style={[{ color: colors.muted, fontSize: 11 }] as TextStyle[]} numberOfLines={1}>{tech.email}</Text>
                     </View>
                   </View>
@@ -2346,7 +2346,7 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
                     {tech.skills.slice(0, 2).join(", ")}{tech.skills.length > 2 ? ` +${tech.skills.length - 2}` : ""}
                   </Text>
                   <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>{tech.transportType}</Text>
-                  <Text style={[styles.tableCell, { color: colors.foreground, fontWeight: "600" }] as TextStyle[]}>{tech.todayJobs}</Text>
+                  <Text style={[styles.tableCell, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }] as TextStyle[]}>{tech.todayJobs}</Text>
                   <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>{tech.todayDistanceKm} km</Text>
                   <View style={styles.tableCell as any}>
                     <View style={[styles.statusPill, { backgroundColor: statusColor + "20" }]}>
@@ -2578,7 +2578,7 @@ function CalendarSection() {
                 setSelectedDate(today.toISOString().split("T")[0]);
               }}
             >
-              <Text style={{ fontSize: 12, color: NVC_BLUE, fontWeight: "600" }}>Today</Text>
+              <Text style={{ fontSize: 12, color: NVC_BLUE, fontFamily: "Inter_600SemiBold" }}>Today</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.topBarBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
@@ -2596,7 +2596,7 @@ function CalendarSection() {
         <View style={{ flexDirection: "row", marginBottom: 4 }}>
           {DAYS_OF_WEEK.map((d) => (
             <View key={d} style={{ flex: 1, alignItems: "center", paddingVertical: 6 }}>
-              <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>{d}</Text>
+              <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.muted }}>{d}</Text>
             </View>
           ))}
         </View>
@@ -2651,7 +2651,7 @@ function CalendarSection() {
         {/* Selected day header */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, padding: 16 }]}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <Text style={[{ fontSize: 15, fontWeight: "700", color: colors.foreground }] as TextStyle[]}>
+            <Text style={[{ fontSize: 15, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]}>
               {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })}
             </Text>
             <Pressable
@@ -2700,7 +2700,7 @@ function CalendarSection() {
                   </Pressable>
                   <View style={{ flex: 1 }}>
                     <Text style={[{
-                      fontSize: 13, fontWeight: "600",
+                      fontSize: 13, fontFamily: "Inter_600SemiBold",
                       color: colors.foreground,
                       textDecorationLine: ev.isCompleted ? "line-through" : "none",
                     }] as TextStyle[]}>{ev.title}</Text>
@@ -2739,7 +2739,7 @@ function CalendarSection() {
         {showEventForm && (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, padding: 16 }]}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <Text style={[{ fontSize: 14, fontWeight: "700", color: colors.foreground }] as TextStyle[]}>
+              <Text style={[{ fontSize: 14, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]}>
                 {editingEvent ? "Edit Event" : "New Event"}
               </Text>
               <Pressable
@@ -3059,7 +3059,7 @@ export default function DesktopDashboard() {
             </View>
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 20, padding: 32, alignItems: "center" }]}>
               <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
-              <Text style={[{ color: colors.foreground, fontSize: 18, fontWeight: "700", marginTop: 16 }] as TextStyle[]}>Detailed Reports Coming Soon</Text>
+              <Text style={[{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold", marginTop: 16 }] as TextStyle[]}>Detailed Reports Coming Soon</Text>
               <Text style={[{ color: colors.muted, fontSize: 14, marginTop: 8, textAlign: "center" }] as TextStyle[]}>
                 Connect QuickBooks or Xero in Integrations to unlock financial reports.
               </Text>
@@ -3114,7 +3114,7 @@ export default function DesktopDashboard() {
                   width: 16, height: 16, borderRadius: 8,
                   backgroundColor: NVC_ORANGE, alignItems: "center", justifyContent: "center",
                 }}>
-                  <Text style={{ fontSize: 9, fontWeight: "700", color: "#fff" }}>
+                  <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" }}>
                     {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
                   </Text>
                 </View>
@@ -3150,7 +3150,7 @@ export default function DesktopDashboard() {
           }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <IconSymbol name="bell.fill" size={18} color={NVC_BLUE} />
-              <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground } as TextStyle}>
+              <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: colors.foreground } as TextStyle}>
                 Dispatch Notifications
               </Text>
               {unreadNotifCount > 0 && (
@@ -3158,7 +3158,7 @@ export default function DesktopDashboard() {
                   paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10,
                   backgroundColor: NVC_ORANGE,
                 }}>
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#fff" } as TextStyle}>
+                  <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle}>
                     {unreadNotifCount} new
                   </Text>
                 </View>
@@ -3174,7 +3174,7 @@ export default function DesktopDashboard() {
                   }] as ViewStyle[]}
                   onPress={markAllRead}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: NVC_BLUE } as TextStyle}>
+                  <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: NVC_BLUE } as TextStyle}>
                     Mark all read
                   </Text>
                 </Pressable>
@@ -3183,7 +3183,7 @@ export default function DesktopDashboard() {
                 style={({ pressed }) => [{ padding: 6, borderRadius: 8, opacity: pressed ? 0.6 : 1, backgroundColor: colors.background }] as ViewStyle[]}
                 onPress={() => setShowNotifPanel(false)}
               >
-                <Text style={{ fontSize: 16, color: colors.muted, fontWeight: "600" } as TextStyle}>×</Text>
+                <Text style={{ fontSize: 16, color: colors.muted, fontFamily: "Inter_600SemiBold" } as TextStyle}>×</Text>
               </Pressable>
             </View>
           </View>
@@ -3205,7 +3205,7 @@ export default function DesktopDashboard() {
                 onPress={() => setNotifFilter(f)}
               >
                 <Text style={{
-                  fontSize: 11, fontWeight: "600", textTransform: "capitalize",
+                  fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "capitalize",
                   color: notifFilter === f ? "#fff" : colors.muted,
                 } as TextStyle}>
                   {f === "all" ? `All (${notifHistory.length})` : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -3269,7 +3269,7 @@ export default function DesktopDashboard() {
                           paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
                           backgroundColor: statusColor + "20",
                         }}>
-                          <Text style={{ fontSize: 10, fontWeight: "600", color: statusColor } as TextStyle}>
+                          <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: statusColor } as TextStyle}>
                             {notif.pushStatus === "sent" ? "Delivered" : notif.pushStatus === "failed" ? "Failed" : "No token"}
                           </Text>
                         </View>
@@ -3297,7 +3297,7 @@ export default function DesktopDashboard() {
                 }] as ViewStyle[])}
                 onPress={markAllRead}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: NVC_BLUE } as TextStyle}>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: NVC_BLUE } as TextStyle}>
                   ✓ Mark all read
                 </Text>
               </Pressable>
@@ -3309,7 +3309,7 @@ export default function DesktopDashboard() {
                 }] as ViewStyle[])}
                 onPress={() => notifHistoryQuery.refetch()}
               >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted } as TextStyle}>↻</Text>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.muted } as TextStyle}>↻</Text>
               </Pressable>
             </View>
           )}
@@ -3338,20 +3338,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)",
   } as ViewStyle,
   sidebarLogoImg: { width: 32, height: 32 } as ViewStyle,
-  sidebarBrand: { fontSize: 15, fontWeight: "800", color: "#fff", letterSpacing: 0.3 } as TextStyle,
-  sidebarBrandSub: { fontSize: 10, color: "rgba(255,255,255,0.5)", fontWeight: "500", letterSpacing: 0.5 } as TextStyle,
+  sidebarBrand: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 } as TextStyle,
+  sidebarBrandSub: { fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "Inter_500Medium", letterSpacing: 0.5 } as TextStyle,
   sidebarNav: { paddingTop: 8, paddingHorizontal: 8 } as ViewStyle,
   sidebarItem: {
     flexDirection: "row", alignItems: "center", gap: 10,
     paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, marginBottom: 2,
   } as ViewStyle,
   sidebarItemActive: { backgroundColor: "rgba(255,255,255,0.15)" } as ViewStyle,
-  sidebarItemLabel: { fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: "500", flex: 1 } as TextStyle,
+  sidebarItemLabel: { fontSize: 13, color: "rgba(255,255,255,0.65)", fontFamily: "Inter_500Medium", flex: 1 } as TextStyle,
   sidebarBadge: {
     backgroundColor: NVC_ORANGE, borderRadius: 10,
     minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", paddingHorizontal: 4,
   } as ViewStyle,
-  sidebarBadgeText: { fontSize: 10, color: "#fff", fontWeight: "700" } as TextStyle,
+  sidebarBadgeText: { fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" } as TextStyle,
   sidebarDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.08)", marginHorizontal: 16, marginVertical: 8 } as ViewStyle,
   sidebarBottomNav: { paddingHorizontal: 8 } as ViewStyle,
   sidebarFooter: {
@@ -3363,8 +3363,8 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: NVC_ORANGE, alignItems: "center", justifyContent: "center",
   } as ViewStyle,
-  sidebarAvatarText: { fontSize: 13, fontWeight: "700", color: "#fff" } as TextStyle,
-  sidebarUserName: { fontSize: 12, fontWeight: "700", color: "#fff" } as TextStyle,
+  sidebarAvatarText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
+  sidebarUserName: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
   sidebarUserRole: { fontSize: 10, color: "rgba(255,255,255,0.5)" } as TextStyle,
 
   // Main content
@@ -3373,7 +3373,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 24, paddingVertical: 14, zIndex: 10,
   } as ViewStyle,
-  topBarTitle: { fontSize: 18, fontWeight: "800" } as TextStyle,
+  topBarTitle: { fontSize: 18, fontFamily: "Inter_700Bold" } as TextStyle,
   topBarSub: { fontSize: 12, marginTop: 1 } as TextStyle,
   topBarRight: { flexDirection: "row", alignItems: "center", gap: 10 } as ViewStyle,
   topBarBtn: {
@@ -3391,8 +3391,8 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 12,
   } as ViewStyle,
-  statValue: { fontSize: 28, fontWeight: "800", color: "#fff", letterSpacing: -0.5 } as TextStyle,
-  statLabel: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: "600", marginTop: 2 } as TextStyle,
+  statValue: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.5 } as TextStyle,
+  statLabel: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontFamily: "Inter_600SemiBold", marginTop: 2 } as TextStyle,
   statSub: { fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 4 } as TextStyle,
 
   // Two-column layout
@@ -3409,11 +3409,11 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingVertical: 16,
   } as ViewStyle,
-  cardTitle: { fontSize: 15, fontWeight: "700", letterSpacing: -0.1 } as TextStyle,
+  cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", letterSpacing: -0.1 } as TextStyle,
   cardSubtitle: { fontSize: 12 } as TextStyle,
   liveBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 } as ViewStyle,
   liveDot: { width: 6, height: 6, borderRadius: 3 } as ViewStyle,
-  liveBadgeText: { fontSize: 10, fontWeight: "700" } as TextStyle,
+  liveBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold" } as TextStyle,
 
   // 3-Panel Map Layout
   mapPanelCollapsed: {
@@ -3459,19 +3459,19 @@ const styles = StyleSheet.create({
   mapRoad: { position: "absolute", left: 0, right: 0, backgroundColor: "rgba(255,255,255,0.12)" } as ViewStyle,
   mapRoadV: { position: "absolute", top: 0, bottom: 0, backgroundColor: "rgba(255,255,255,0.12)" } as ViewStyle,
   mapCityLabel: { position: "absolute", top: 10, left: 12, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 } as ViewStyle,
-  mapCityText: { fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: "600" } as TextStyle,
+  mapCityText: { fontSize: 10, color: "rgba(255,255,255,0.7)", fontFamily: "Inter_600SemiBold" } as TextStyle,
   techPin: {
     position: "absolute", width: 34, height: 34, borderRadius: 17,
     borderWidth: 2, alignItems: "center", justifyContent: "center",
     marginLeft: -17, marginTop: -17,
   } as ViewStyle,
   techPinDot: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" } as ViewStyle,
-  techPinInitials: { fontSize: 9, fontWeight: "800", color: "#fff" } as TextStyle,
+  techPinInitials: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
   techPinLabel: {
     position: "absolute", top: 36, left: "50%", paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 6, zIndex: 20,
   } as ViewStyle,
-  techPinLabelText: { fontSize: 9, color: "#fff", fontWeight: "700" } as TextStyle,
+  techPinLabelText: { fontSize: 9, color: "#fff", fontFamily: "Inter_700Bold" } as TextStyle,
   mapAttr: { position: "absolute", bottom: 6, right: 8 } as ViewStyle,
   mapAttrText: { fontSize: 9, color: "rgba(255,255,255,0.4)" } as TextStyle,
 
@@ -3480,12 +3480,12 @@ const styles = StyleSheet.create({
   woStatusBar: { width: 4 } as ViewStyle,
   woMain: { flex: 1, paddingHorizontal: 16, paddingVertical: 12 } as ViewStyle,
   woTopRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 } as ViewStyle,
-  woOrderRef: { fontSize: 10, fontWeight: "600" } as TextStyle,
+  woOrderRef: { fontSize: 10, fontFamily: "Inter_600SemiBold" } as TextStyle,
   woPriorityBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 } as ViewStyle,
-  woPriorityText: { fontSize: 9, fontWeight: "700" } as TextStyle,
+  woPriorityText: { fontSize: 9, fontFamily: "Inter_700Bold" } as TextStyle,
   woStatusBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 } as ViewStyle,
-  woStatusText: { fontSize: 9, fontWeight: "600" } as TextStyle,
-  woCustomer: { fontSize: 14, fontWeight: "700" } as TextStyle,
+  woStatusText: { fontSize: 9, fontFamily: "Inter_600SemiBold" } as TextStyle,
+  woCustomer: { fontSize: 14, fontFamily: "Inter_700Bold" } as TextStyle,
   woAddress: { fontSize: 12, marginTop: 2 } as TextStyle,
   woTech: { fontSize: 11, marginTop: 2 } as TextStyle,
   woTime: { alignItems: "center", justifyContent: "center", paddingHorizontal: 12, gap: 4 } as ViewStyle,
@@ -3497,7 +3497,7 @@ const styles = StyleSheet.create({
     flex: 1, minWidth: 80, alignItems: "center", justifyContent: "center",
     paddingVertical: 16, borderRadius: 12, borderWidth: 1.5, gap: 8,
   } as ViewStyle,
-  quickActionLabel: { fontSize: 12, fontWeight: "700" } as TextStyle,
+  quickActionLabel: { fontSize: 12, fontFamily: "Inter_700Bold" } as TextStyle,
 
   // Tech rows (dashboard)
   techRow: {
@@ -3505,16 +3505,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderLeftWidth: 3,
   } as ViewStyle,
   techAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", position: "relative" } as ViewStyle,
-  techAvatarText: { fontSize: 12, fontWeight: "700" } as TextStyle,
+  techAvatarText: { fontSize: 12, fontFamily: "Inter_700Bold" } as TextStyle,
   techStatusDot: { position: "absolute", bottom: 0, right: 0, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: "#fff" } as ViewStyle,
-  techName: { fontSize: 14, fontWeight: "700" } as TextStyle,
+  techName: { fontSize: 14, fontFamily: "Inter_700Bold" } as TextStyle,
   techDetail: { fontSize: 12, marginTop: 2 } as TextStyle,
   techStatusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 } as ViewStyle,
-  techStatusPillText: { fontSize: 10, fontWeight: "600" } as TextStyle,
+  techStatusPillText: { fontSize: 10, fontFamily: "Inter_600SemiBold" } as TextStyle,
 
   // Section headers
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } as ViewStyle,
-  sectionTitle: { fontSize: 22, fontWeight: "800", letterSpacing: -0.4 } as TextStyle,
+  sectionTitle: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: -0.4 } as TextStyle,
   sectionSubtitle: { fontSize: 14, marginTop: 3 } as TextStyle,
 
   // KPI row
@@ -3523,8 +3523,8 @@ const styles = StyleSheet.create({
     flex: 1, borderRadius: 14, borderWidth: 1.5, padding: 16,
     shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
   } as ViewStyle,
-  kpiValue: { fontSize: 26, fontWeight: "800", letterSpacing: -0.5 } as TextStyle,
-  kpiLabel: { fontSize: 12, fontWeight: "600", marginTop: 3 } as TextStyle,
+  kpiValue: { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: -0.5 } as TextStyle,
+  kpiLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 3 } as TextStyle,
 
   // Search
   searchRow: { marginBottom: 8 } as ViewStyle,
@@ -3541,27 +3541,27 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     flexDirection: "row", gap: 4,
   } as ViewStyle,
-  filterChipText: { fontSize: 11, fontWeight: "700" } as TextStyle,
+  filterChipText: { fontSize: 11, fontFamily: "Inter_700Bold" } as TextStyle,
 
   // Table
   tableCard: { flex: 1, borderRadius: 16, borderWidth: 1, overflow: "hidden" } as ViewStyle,
   tableHeader: { flexDirection: "row", paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 } as ViewStyle,
-  tableHeaderCell: { flex: 1, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6 } as TextStyle,
+  tableHeaderCell: { flex: 1, fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.6 } as TextStyle,
   tableRow: { flexDirection: "row", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, alignItems: "center", minHeight: 56 } as ViewStyle,
   tableCell: { flex: 1, fontSize: 14 } as any,
-  tableCellRef: { fontWeight: "700" } as TextStyle,
+  tableCellRef: { fontFamily: "Inter_700Bold" } as TextStyle,
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-start" } as ViewStyle,
-  statusPillText: { fontSize: 12, fontWeight: "700" } as TextStyle,
+  statusPillText: { fontSize: 12, fontFamily: "Inter_700Bold" } as TextStyle,
   emptyState: { alignItems: "center", justifyContent: "center", padding: 48 } as ViewStyle,
   emptyText: { fontSize: 14, marginTop: 12 } as TextStyle,
 
   // Customer table extras
   customerAvatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" } as ViewStyle,
-  customerAvatarText: { fontSize: 12, fontWeight: "700" } as TextStyle,
+  customerAvatarText: { fontSize: 12, fontFamily: "Inter_700Bold" } as TextStyle,
 
   // Tech table extras
   techTableAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" } as ViewStyle,
-  techTableAvatarText: { fontSize: 11, fontWeight: "700" } as TextStyle,
+  techTableAvatarText: { fontSize: 11, fontFamily: "Inter_700Bold" } as TextStyle,
 
   // Action icon button
   actionIconBtn: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" } as ViewStyle,
@@ -3572,11 +3572,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 11, borderRadius: 10,
     minHeight: 44,
   } as ViewStyle,
-  primaryBtnText: { fontSize: 14, fontWeight: "700", color: "#fff", letterSpacing: 0.1 } as TextStyle,
+  primaryBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.1 } as TextStyle,
   cancelBtn: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 10, borderWidth: 1.5, minHeight: 44 } as ViewStyle,
-  cancelBtnText: { fontSize: 14, fontWeight: "600", letterSpacing: 0.1 } as TextStyle,
+  cancelBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", letterSpacing: 0.1 } as TextStyle,
   dangerBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 11, minHeight: 44 } as ViewStyle,
-  dangerBtnText: { fontSize: 14, fontWeight: "600", color: "#DC2626" } as TextStyle,
+  dangerBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#DC2626" } as TextStyle,
 
   // Modal
   modalOverlay: {
@@ -3592,20 +3592,20 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 24, paddingVertical: 20,
   } as ViewStyle,
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.2 } as TextStyle,
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.2 } as TextStyle,
   modalSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 3 } as TextStyle,
   modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" } as ViewStyle,
   modalTabs: { flexDirection: "row", borderBottomWidth: 1 } as ViewStyle,
   modalTab: { flex: 1, alignItems: "center", paddingVertical: 14 } as ViewStyle,
-  modalTabText: { fontSize: 13, fontWeight: "500" } as TextStyle,
+  modalTabText: { fontSize: 13, fontFamily: "Inter_500Medium" } as TextStyle,
   modalBody: { flex: 1, maxHeight: 460 } as ViewStyle,
   modalSection: { padding: 24, gap: 0 } as ViewStyle,
-  modalSectionTitle: { fontSize: 13, fontWeight: "700", marginBottom: 12, marginTop: 8, letterSpacing: 0.1 } as TextStyle,
+  modalSectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 12, marginTop: 8, letterSpacing: 0.1 } as TextStyle,
   modalSectionDivider: { height: 1, marginVertical: 16 } as ViewStyle,
   modalRow2: { flexDirection: "row", gap: 16 } as ViewStyle,
   modalRow3: { flexDirection: "row", gap: 8 } as ViewStyle,
   modalField: { flex: 1, marginBottom: 16 } as ViewStyle,
-  modalFieldLabel: { fontSize: 11, fontWeight: "700", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 } as TextStyle,
+  modalFieldLabel: { fontSize: 11, fontFamily: "Inter_700Bold", marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 } as TextStyle,
   modalFieldInput: {
     borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
     fontSize: 14, outlineStyle: "none", minHeight: 44,
@@ -3622,13 +3622,13 @@ const styles = StyleSheet.create({
 
   // Chip buttons
   chipBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36 } as ViewStyle,
-  chipBtnText: { fontSize: 13, fontWeight: "600" } as TextStyle,
+  chipBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" } as TextStyle,
 
   // ─── Mission Control additions ────────────────────────────────────────────
   commandStrip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, borderWidth: 1, gap: 0 } as ViewStyle,
   commandStripItem: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 4 } as ViewStyle,
-  commandStripValue: { fontSize: 15, fontWeight: "800" } as TextStyle,
-  commandStripLabel: { fontSize: 10, color: "rgba(255,255,255,0.55)", fontWeight: "500" } as TextStyle,
+  commandStripValue: { fontSize: 15, fontFamily: "Inter_700Bold" } as TextStyle,
+  commandStripLabel: { fontSize: 10, color: "rgba(255,255,255,0.55)", fontFamily: "Inter_500Medium" } as TextStyle,
   commandStripDivider: { width: 1, height: 24, backgroundColor: "rgba(255,255,255,0.15)", marginHorizontal: 4 } as ViewStyle,
 
   sparklineRow: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 22, marginTop: 6 } as ViewStyle,
@@ -3636,39 +3636,39 @@ const styles = StyleSheet.create({
 
   statTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } as ViewStyle,
   trendBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 } as ViewStyle,
-  trendText: { fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.9)" } as TextStyle,
+  trendText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "rgba(255,255,255,0.9)" } as TextStyle,
 
   heatZone: { position: "absolute", borderRadius: 999, borderWidth: 1 } as ViewStyle,
   routePreview: { position: "absolute", height: 2, backgroundColor: "rgba(59,143,223,0.5)", borderRadius: 1 } as ViewStyle,
   techHalo: { position: "absolute", borderWidth: 2, borderStyle: "dashed" } as ViewStyle,
   techPulse: { position: "absolute" } as ViewStyle,
   techHoverCard: { position: "absolute", top: 34, left: -60, width: 140, borderRadius: 8, borderWidth: 1, padding: 8, zIndex: 30 } as ViewStyle,
-  techHoverName: { fontSize: 11, fontWeight: "700", color: "#fff", marginBottom: 2 } as TextStyle,
+  techHoverName: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 2 } as TextStyle,
   techHoverDetail: { fontSize: 10, color: "rgba(255,255,255,0.65)" } as TextStyle,
   techHoverAddr: { fontSize: 9, color: "rgba(255,255,255,0.5)", marginTop: 2 } as TextStyle,
   mapLegend: { position: "absolute", bottom: 32, right: 10, flexDirection: "row", gap: 10, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 } as ViewStyle,
   mapLegendItem: { flexDirection: "row", alignItems: "center", gap: 4 } as ViewStyle,
   mapLegendDot: { width: 7, height: 7, borderRadius: 4 } as ViewStyle,
-  mapLegendText: { fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: "500" } as TextStyle,
+  mapLegendText: { fontSize: 10, color: "rgba(255,255,255,0.75)", fontFamily: "Inter_500Medium" } as TextStyle,
   mapControlBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 } as ViewStyle,
-  mapControlText: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: "600" } as TextStyle,
+  mapControlText: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontFamily: "Inter_600SemiBold" } as TextStyle,
 
   aiPanel: { borderRadius: 12, borderWidth: 1, overflow: "hidden" } as ViewStyle,
   aiPanelHeader: { paddingHorizontal: 16, paddingVertical: 10 } as ViewStyle,
   aiPanelTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 } as ViewStyle,
   aiPanelDot: { width: 8, height: 8, borderRadius: 4 } as ViewStyle,
-  aiPanelTitle: { fontSize: 13, fontWeight: "700", flex: 1 } as TextStyle,
+  aiPanelTitle: { fontSize: 13, fontFamily: "Inter_700Bold", flex: 1 } as TextStyle,
   aiBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 } as ViewStyle,
-  aiBadgeText: { fontSize: 10, fontWeight: "700" } as TextStyle,
+  aiBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold" } as TextStyle,
   aiInsightsList: { paddingHorizontal: 12, paddingBottom: 10, gap: 6 } as ViewStyle,
   aiInsightRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderLeftWidth: 3 } as ViewStyle,
-  aiInsightText: { fontSize: 12, flex: 1, fontWeight: "500" } as TextStyle,
+  aiInsightText: { fontSize: 12, flex: 1, fontFamily: "Inter_500Medium" } as TextStyle,
   aiActionBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 } as ViewStyle,
-  aiActionText: { fontSize: 11, fontWeight: "700" } as TextStyle,
+  aiActionText: { fontSize: 11, fontFamily: "Inter_700Bold" } as TextStyle,
   aiDismissBtn: { padding: 4 } as ViewStyle,
 
   slaBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1 } as ViewStyle,
-  slaText: { fontSize: 10, fontWeight: "700" } as TextStyle,
+  slaText: { fontSize: 10, fontFamily: "Inter_700Bold" } as TextStyle,
   woBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 } as ViewStyle,
   woActions: { alignItems: "flex-end", gap: 4, paddingLeft: 8 } as ViewStyle,
   woInlineActions: { flexDirection: "row", gap: 4 } as ViewStyle,
@@ -3680,7 +3680,7 @@ const styles = StyleSheet.create({
   utilRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 } as ViewStyle,
   utilBar: { flex: 1, height: 3, borderRadius: 2, overflow: "hidden" } as ViewStyle,
   utilFill: { height: 3, borderRadius: 2 } as ViewStyle,
-  utilText: { fontSize: 9, fontWeight: "600", width: 24 } as TextStyle,
+  utilText: { fontSize: 9, fontFamily: "Inter_600SemiBold", width: 24 } as TextStyle,
   distText: { fontSize: 9, color: "#9BA1A6" } as TextStyle,
   techQuickBtn: { width: 22, height: 22, borderRadius: 6, alignItems: "center", justifyContent: "center" } as ViewStyle,
 });

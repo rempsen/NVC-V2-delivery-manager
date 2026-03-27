@@ -1104,3 +1104,37 @@
 - [x] server: add getTenantUserByEmailAnyTenant DB function for cross-tenant email login
 - [x] dashboard/index.tsx — replace simulated spark arrays with live tasks.weeklyStats DB query
 - [x] TypeScript: 0 errors after all fixes
+
+## UI/UX Redesign Sprint — March 2026
+
+- [x] Research 2024–2025 award-winning SaaS dashboard and mobile app design trends
+- [x] Audit every screen against best practices — catalogued 20+ gaps
+- [x] Upgrade design system tokens — refined neutral palette, tighter border radii, elevated shadows
+- [x] Install Inter font (Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold)
+- [x] Load Inter fonts in root _layout.tsx with SplashScreen guard
+- [x] Upgrade tab bar — refined height, Inter labels, improved active indicator
+- [x] Upgrade NVC header component — taller (58px), larger logo (30px), back button press state, shadow
+- [x] Upgrade Work Orders screen — Inter fonts, refined card elevation, improved filter bar
+- [x] Upgrade Technicians screen — Inter fonts, refined card elevation, improved status chips
+- [x] Upgrade Customers screen — Inter fonts, refined card elevation, improved stat cards
+- [x] Upgrade Settings screen — Inter fonts, refined section cards and row items
+- [x] Upgrade Login screen — Inter fonts, refined input fields, improved button shadow
+- [x] Upgrade Task Detail screen — Inter fonts, refined section cards, improved action buttons
+- [x] Upgrade Agent Detail screen — Inter fonts, refined form fields, improved save button
+- [x] Upgrade Customer Detail screen — Inter fonts, refined form fields, improved save button
+- [x] Upgrade Execute Task screen — Inter fonts, refined checklist, improved complete button
+- [x] Upgrade Messages screen — Inter fonts, refined bubble styling
+- [x] Upgrade Agent Home screen — Inter fonts, refined card styling
+- [x] Upgrade Agent Task screen — Inter fonts, refined all StyleSheets
+- [x] Upgrade Dispatcher screen — Inter fonts, refined all StyleSheets
+- [x] Upgrade Create Task screen — Inter fonts, refined all StyleSheets
+- [x] Upgrade Pricing screen — Inter fonts, refined all StyleSheets
+- [x] Upgrade Permissions screen — Inter fonts, refined all StyleSheets
+- [x] Upgrade Customer Tracking screen — Inter fonts, refined all StyleSheets
+- [x] Upgrade all Settings sub-screens — Inter fonts across all 5 settings screens
+- [x] Upgrade Super-Admin screens — Inter fonts across all super-admin screens
+- [x] Upgrade Web Dashboard — Inter fonts across all inline styles
+- [x] Upgrade remaining screens (integrations, notification-settings, admin, merchant, preview)
+- [x] Fix duplicate fontFamily TS errors in merchant/index.tsx and notification-settings.tsx
+- [x] Confirmed 0 remaining fontWeight strings across entire codebase
+- [x] TypeScript: 0 errors

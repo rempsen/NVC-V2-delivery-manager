@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.15)",
   },
   tabActive: { backgroundColor: "#fff" },
-  tabText: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
+  tabText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
   tabTextActive: { color: NVC_BLUE },
 
   // Stats — compact square tiles, not full-width
@@ -815,8 +815,8 @@ const styles = StyleSheet.create({
     shadowColor: "#0A1929", shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
   },
-  statValue: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  statLabel: { fontSize: 9, color: "rgba(255,255,255,0.85)", fontWeight: "600", textAlign: "center" },
+  statValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
+  statLabel: { fontSize: 9, color: "rgba(255,255,255,0.85)", fontFamily: "Inter_600SemiBold", textAlign: "center" },
 
   // Cards
   cardsSection: { paddingHorizontal: 14, paddingTop: 16, gap: 10 },
@@ -829,15 +829,15 @@ const styles = StyleSheet.create({
   cardIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   cardInfo: { flex: 1 },
   cardNameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" },
-  cardName: { fontSize: 15, fontWeight: "700" },
+  cardName: { fontSize: 15, fontFamily: "Inter_700Bold" },
   cardDesc: { fontSize: 12, lineHeight: 17 },
-  connectedMeta: { fontSize: 11, fontWeight: "600", marginBottom: 3 },
+  connectedMeta: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 3 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10, fontWeight: "700" },
+  statusText: { fontSize: 10, fontFamily: "Inter_700Bold" },
 
   cardExpanded: { borderTopWidth: 0.5, paddingHorizontal: 14, paddingVertical: 12, gap: 8 },
-  featuresTitle: { fontSize: 12, fontWeight: "700", marginBottom: 4 },
+  featuresTitle: { fontSize: 12, fontFamily: "Inter_700Bold", marginBottom: 4 },
   featureRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   featureText: { fontSize: 12, flex: 1, lineHeight: 17 },
   cardActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
@@ -845,9 +845,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, alignItems: "center",
     borderWidth: 1, minWidth: 100,
   },
-  actionBtnText: { fontSize: 13, fontWeight: "700" },
+  actionBtnText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   docsBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 10 },
-  docsBtnText: { fontSize: 12, fontWeight: "600" },
+  docsBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
   // OAuth Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
   },
   modalHandle: { width: 36, height: 4, borderRadius: 2, marginBottom: 20 },
   modalIconWrap: { width: 64, height: 64, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  modalTitle: { fontSize: 20, fontWeight: "800", marginBottom: 8, textAlign: "center" },
+  modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 8, textAlign: "center" },
   modalDesc: { fontSize: 13, lineHeight: 19, textAlign: "center", marginBottom: 20 },
   apiKeyInput: {
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -871,12 +871,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
     width: "100%", marginBottom: 16,
   },
-  oauthInfoText: { fontSize: 12, flex: 1, fontWeight: "600" },
+  oauthInfoText: { fontSize: 12, flex: 1, fontFamily: "Inter_600SemiBold" },
   modalConnectBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
     width: "100%", paddingVertical: 14, borderRadius: 14, justifyContent: "center", marginBottom: 10,
   },
-  modalConnectText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  modalConnectText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   modalCancelBtn: { paddingVertical: 10 },
-  modalCancelText: { fontSize: 14, fontWeight: "600" },
+  modalCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

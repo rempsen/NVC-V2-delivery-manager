@@ -204,7 +204,7 @@ export default function MapboxApiScreen() {
                   size={16}
                   color={testStatus === "success" ? "#22C55E" : "#EF4444"}
                 />
-                <Text style={{ color: testStatus === "success" ? "#22C55E" : "#EF4444", fontSize: 13, fontWeight: "600" }}>
+                <Text style={{ color: testStatus === "success" ? "#22C55E" : "#EF4444", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
                   {testStatus === "success" ? "API key verified — live maps active" : "API key invalid or connection failed"}
                 </Text>
               </View>
@@ -255,7 +255,7 @@ export default function MapboxApiScreen() {
                 <Text style={[styles.styleLabel, { color: colors.foreground }]}>{style.label}</Text>
                 {styleUrl === style.value && (
                   <View style={[styles.activeTag, { backgroundColor: NVC_BLUE + "15" }]}>
-                    <Text style={{ color: NVC_BLUE, fontSize: 11, fontWeight: "700" }}>Active</Text>
+                    <Text style={{ color: NVC_BLUE, fontSize: 11, fontFamily: "Inter_700Bold" }}>Active</Text>
                   </View>
                 )}
               </Pressable>
@@ -343,19 +343,19 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderRadius: 12, padding: 14, borderWidth: 1,
   },
-  configuredTitle: { fontSize: 14, fontWeight: "700" },
+  configuredTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   configuredSub: { fontSize: 12, lineHeight: 16, marginTop: 2 },
   infoBanner: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderRadius: 12, padding: 14, borderWidth: 1,
   },
-  infoText: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
-  infoLink: { fontSize: 12, fontWeight: "700", textDecorationLine: "underline" },
+  infoText: { fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
+  infoLink: { fontSize: 12, fontFamily: "Inter_700Bold", textDecorationLine: "underline" },
   card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 4 },
-  cardTitle: { fontSize: 15, fontWeight: "700", marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 4 },
   cardSub: { fontSize: 12, lineHeight: 16, marginBottom: 8 },
   fieldGroup: { gap: 5, marginBottom: 4 },
-  fieldLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.3 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.3 },
   inputWrap: {
     flexDirection: "row", alignItems: "center",
     borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, minHeight: 48,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, marginTop: 8,
   },
-  testBtnText: { fontSize: 15, fontWeight: "700" },
+  testBtnText: { fontSize: 15, fontFamily: "Inter_700Bold" },
   styleOption: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 12, borderBottomWidth: 0.5,
@@ -385,5 +385,5 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 4,
   },
-  saveBtnText: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  saveBtnText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff" },
 });

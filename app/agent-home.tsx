@@ -483,13 +483,13 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontSize: 10,
     color: "rgba(255,255,255,0.7)",
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
     letterSpacing: 0.5,
     textTransform: "uppercase",
   } as TextStyle,
   headerTitle: {
     fontSize: 18,
-    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
     color: "#fff",
     letterSpacing: -0.3,
   } as TextStyle,
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
   activeBannerText: {
     flex: 1,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
     color: "#374151",
   } as TextStyle,
   activeBannerBtn: {
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   activeBannerBtnText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: NVC_BLUE,
   } as TextStyle,
 
@@ -586,13 +586,13 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statValue: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
     color: "#111827",
   } as TextStyle,
   statLabel: {
     fontSize: 9,
     color: "#9CA3AF",
-    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
     textAlign: "center",
   } as TextStyle,
 
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   sectionLabel: {
     fontSize: 16,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#1F2937",
   } as TextStyle,
   sectionCount: {
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   jobCustomer: {
     flex: 1,
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#111827",
   } as TextStyle,
   jobStatusPill: {
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   jobStatusText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
   } as TextStyle,
   jobAddressRow: {
     flexDirection: "row",
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   jobRef: {
     fontSize: 11,
     color: "#9CA3AF",
-    fontWeight: "500",
+    fontFamily: "Inter_500Medium",
   } as TextStyle,
   jobPriorityBadge: {
     paddingHorizontal: 6,
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   jobPriorityText: {
     fontSize: 9,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     letterSpacing: 0.3,
   } as TextStyle,
   jobTime: {
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   emptyTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#374151",
   } as TextStyle,
   emptySubtitle: {
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   clockBtnText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#fff",
   } as TextStyle,
 });

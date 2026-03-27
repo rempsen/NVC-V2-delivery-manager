@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   headerSub: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 1 },
   tabBar: {
     flexDirection: "row",
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 2,
   },
-  tabText: { fontSize: 12, fontWeight: "700" },
+  tabText: { fontSize: 12, fontFamily: "Inter_700Bold" },
   scroll: { padding: 16, gap: 10, paddingBottom: 40 },
   categoryContent: { paddingBottom: 12, gap: 4 },
   categoryChip: {
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 6,
   },
-  categoryChipText: { fontSize: 13, fontWeight: "600" },
+  categoryChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   bulkActions: { flexDirection: "row", gap: 10, marginBottom: 4 },
   bulkBtn: {
     flex: 1,
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
   },
-  bulkBtnText: { fontSize: 13, fontWeight: "700" },
+  bulkBtnText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   milestoneList: { gap: 8 },
   milestoneCard: {
     borderRadius: 14,
@@ -810,21 +810,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   milestoneLabelWrap: { flex: 1, gap: 4 },
-  milestoneLabel: { fontSize: 14, fontWeight: "600" },
+  milestoneLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   channelBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  channelBadgeText: { fontSize: 10, fontWeight: "700" },
+  channelBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   milestoneExpanded: {
     borderTopWidth: 1,
     padding: 14,
     gap: 10,
   },
   milestoneDesc: { fontSize: 13, lineHeight: 18 },
-  channelLabel: { fontSize: 12, fontWeight: "700" },
+  channelLabel: { fontSize: 12, fontFamily: "Inter_700Bold" },
   channelRow: { flexDirection: "row", gap: 8 },
   channelChip: {
     flex: 1,
@@ -833,7 +833,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: "center",
   },
-  channelChipText: { fontSize: 12, fontWeight: "700" },
+  channelChipText: { fontSize: 12, fontFamily: "Inter_700Bold" },
   // Config
   configSection: { gap: 12 },
   configBanner: {
@@ -844,10 +844,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  configBannerTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
+  configBannerTitle: { fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 4 },
   configBannerDesc: { fontSize: 13, lineHeight: 18 },
   configFieldWrap: { gap: 6 },
-  configFieldLabel: { fontSize: 12, fontWeight: "600", letterSpacing: 0.3 },
+  configFieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
   configFieldInput: {
     flexDirection: "row",
     alignItems: "center",
@@ -865,18 +865,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 4,
   },
-  saveConfigBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  saveConfigBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
   infoCard: {
     borderRadius: 14,
     borderWidth: 1,
     padding: 14,
     gap: 6,
   },
-  infoCardTitle: { fontSize: 14, fontWeight: "700" },
+  infoCardTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   infoCardText: { fontSize: 13, lineHeight: 18 },
   // Template
   templateSection: { gap: 12 },
-  templateTitle: { fontSize: 18, fontWeight: "800" },
+  templateTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
   templateSubtitle: { fontSize: 13, lineHeight: 18 },
   templateField: {
     borderRadius: 12,
@@ -884,12 +884,12 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 6,
   },
-  templateFieldLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+  templateFieldLabel: { fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.5 },
   templateInput: { fontSize: 14, lineHeight: 20 },
   templateTextarea: { minHeight: 100 },
   colorRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   colorSwatch: { width: 28, height: 28, borderRadius: 8 },
-  variablesTitle: { fontSize: 10, fontWeight: "700", letterSpacing: 0.8 },
+  variablesTitle: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.8 },
   variablesScroll: { marginBottom: 4 },
   variableChip: {
     paddingHorizontal: 10,
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginRight: 6,
   },
-  variableText: { fontSize: 11, fontWeight: "600", fontFamily: "monospace" },
+  variableText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   templateActions: { flexDirection: "row", gap: 10 },
   previewBtn: {
     flexDirection: "row",
@@ -909,12 +909,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
   },
-  previewBtnText: { fontSize: 14, fontWeight: "600" },
+  previewBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   saveTemplateBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  saveTemplateBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  saveTemplateBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
 });

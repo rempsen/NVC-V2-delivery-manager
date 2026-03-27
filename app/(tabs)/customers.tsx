@@ -654,17 +654,17 @@ export default function CustomersScreen() {
                 onPress={() => router.push(`/customer/${item.id}` as any)}
               >
                 <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: color + "20", alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 14, fontWeight: "800", color }}>{item.company.charAt(0)}</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color }}>{item.company.charAt(0)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#111827" }} numberOfLines={1}>{item.company}</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#111827" }} numberOfLines={1}>{item.company}</Text>
                   <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 1 }} numberOfLines={1}>{item.contactName} · {item.city}</Text>
                 </View>
                 <View style={{ alignItems: "flex-end", gap: 3 }}>
                   <View style={{ backgroundColor: color + "20", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                    <Text style={{ fontSize: 9, fontWeight: "800", color }}>{item.status.toUpperCase()}</Text>
+                    <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color }}>{item.status.toUpperCase()}</Text>
                   </View>
-                  <Text style={{ fontSize: 11, color: "#374151", fontWeight: "600" }}>${(item.totalRevenue / 1000).toFixed(0)}k</Text>
+                  <Text style={{ fontSize: 11, color: "#374151", fontFamily: "Inter_600SemiBold" }}>${(item.totalRevenue / 1000).toFixed(0)}k</Text>
                 </View>
                 <IconSymbol name="chevron.right" size={14} color="#9CA3AF" />
               </Pressable>
@@ -763,14 +763,14 @@ const styles = StyleSheet.create<{
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   logo: { width: 32, height: 32, borderRadius: 7 },
-  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
-  headerTitle: { fontSize: 17, fontWeight: "800", color: "#fff", marginTop: 1 },
+  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
+  headerTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 1 },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: NVC_ORANGE, paddingHorizontal: 16, paddingVertical: 9,
     borderRadius: 12, minHeight: 38,
   },
-  addBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  addBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
 
   // Stats — compact square tiles
   statsStrip: { flexDirection: "row", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
@@ -778,174 +778,177 @@ const styles = StyleSheet.create<{
     width: 96, height: 68, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center", justifyContent: "center", gap: 2,
   },
-  statValue: { fontSize: 22, fontWeight: "800" },
-  statLabel: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontWeight: "600", textAlign: "center" },
+  statValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  statLabel: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontFamily: "Inter_600SemiBold", textAlign: "center" },
 
   // Search
-  searchSection: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },
+  searchSection: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12 },
   searchBar: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#fff", borderRadius: 12, borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.3)", paddingHorizontal: 14, paddingVertical: 10,
-    minHeight: 44,
+    backgroundColor: "rgba(255,255,255,0.97)", borderRadius: 12, borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.25)", paddingHorizontal: 14, paddingVertical: 11,
+    minHeight: 46,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 8, elevation: 3,
+    shadowOpacity: 0.14, shadowRadius: 10, elevation: 4,
   },
-  searchBarFocused: { borderColor: NVC_BLUE, shadowOpacity: 0.2 },
-  searchInput: { flex: 1, fontSize: 14, color: "#1A1E2A" },
+  searchBarFocused: { borderColor: NVC_ORANGE, shadowOpacity: 0.22 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: "#1A1E2A" },
   clearBtn: {
-    width: 18, height: 18, borderRadius: 9, backgroundColor: "#9CA3AF",
+    width: 20, height: 20, borderRadius: 10, backgroundColor: "#C0C8D8",
     alignItems: "center", justifyContent: "center",
   },
 
   // Filter
-  filterBar: { paddingBottom: 10 },
-  filterList: { paddingHorizontal: 14, paddingTop: 4, gap: 6 },
+  filterBar: { paddingBottom: 12 },
+  filterList: { paddingHorizontal: 14, paddingTop: 6, gap: 6 },
   filterTab: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, gap: 5,
-    minHeight: 34,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, gap: 5,
+    minHeight: 32,
   },
   filterDot: { width: 7, height: 7, borderRadius: 3.5 },
-  filterTabText: { fontSize: 12, fontWeight: "700" },
-  filterCount: { paddingHorizontal: 6, borderRadius: 8, minWidth: 18, alignItems: "center" },
-  filterCountText: { fontSize: 11, fontWeight: "700" },
+  filterTabText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  filterCount: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, minWidth: 18, alignItems: "center" },
+  filterCountText: { fontSize: 10, fontFamily: "Inter_700Bold" },
 
   // Results + Sort
   resultsBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "#EFF2F7",
+    paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#F1F5F9",
+    borderBottomWidth: 1, borderBottomColor: "#E2E8F0",
   },
   resultsRight: { flexDirection: "row", alignItems: "center", gap: 10 },
-  resultsText: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
-  clearFiltersText: { fontSize: 12, color: "#EF4444", fontWeight: "700" },
+  resultsText: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#64748B" },
+  clearFiltersText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#DC2626" },
   sortBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
     backgroundColor: "#fff", borderRadius: 10, borderWidth: 1.5,
-    borderColor: "#E5E7EB", paddingHorizontal: 10, paddingVertical: 6, minHeight: 32,
+    borderColor: "#E2E8F0", paddingHorizontal: 10, paddingVertical: 7, minHeight: 34,
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
   },
   sortBtnActive: { borderColor: NVC_BLUE + "60", backgroundColor: NVC_BLUE + "08" },
-  sortBtnText: { fontSize: 11, fontWeight: "600", color: "#6B7280" },
+  sortBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#64748B" },
   sortBtnTextActive: { color: NVC_BLUE },
   // Sort modal
   modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.35)",
+    flex: 1, backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "flex-end",
   },
   sortMenu: {
-    backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingBottom: 32, paddingTop: 4,
+    backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingBottom: 36, paddingTop: 6,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 16, elevation: 20,
+    shadowOpacity: 0.14, shadowRadius: 20, elevation: 24,
   },
   sortMenuHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: 0.5, borderBottomColor: "#E5E7EB",
+    borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
   },
-  sortMenuTitle: { fontSize: 16, fontWeight: "800", color: "#1A1E2A" },
+  sortMenuTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#0F172A" },
   sortMenuClose: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: "#F3F4F6",
+    width: 30, height: 30, borderRadius: 15, backgroundColor: "#F1F5F9",
     alignItems: "center", justifyContent: "center",
   },
   sortMenuItem: {
     flexDirection: "row", alignItems: "center", gap: 14,
     paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 0.5, borderBottomColor: "#F3F4F6",
+    borderBottomWidth: 1, borderBottomColor: "#F8FAFC",
   },
   sortMenuItemActive: { backgroundColor: NVC_BLUE + "08" },
-  sortMenuItemText: { fontSize: 15, fontWeight: "500", color: "#374151", flex: 1 },
-  sortMenuItemTextActive: { color: NVC_BLUE, fontWeight: "700" },
+  sortMenuItemText: { fontSize: 15, fontFamily: "Inter_400Regular", color: "#374151", flex: 1 },
+  sortMenuItemTextActive: { fontFamily: "Inter_600SemiBold", color: NVC_BLUE },
   sortMenuCheck: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: NVC_BLUE + "15", alignItems: "center", justifyContent: "center",
   },
 
   // Grid
-  gridContent: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 40, gap: 10 },
+  gridContent: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 40, gap: 10 },
   gridRow: { gap: 10 },
 
   // Grid Card
   gridCard: {
-    backgroundColor: SURFACE, borderRadius: 16, overflow: "hidden",
+    backgroundColor: "#FFFFFF", borderRadius: 16, overflow: "hidden",
     paddingBottom: 12,
-    shadowColor: "#1E3A5F", shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.10, shadowRadius: 12, elevation: 4,
+    shadowColor: "#0F172A", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 12, elevation: 3,
+    borderWidth: 1, borderColor: "#F1F5F9",
   },
-  gridCardAccent: { height: 4, width: "100%" },
-  gridAvatarWrap: { alignItems: "center", marginTop: 14, marginBottom: 6, gap: 6 },
+  gridCardAccent: { height: 3, width: "100%" },
+  gridAvatarWrap: { alignItems: "center", marginTop: 16, marginBottom: 6, gap: 6 },
   gridAvatar: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 56, height: 56, borderRadius: 28,
     alignItems: "center", justifyContent: "center",
   },
-  gridAvatarText: { fontSize: 18, fontWeight: "800" },
+  gridAvatarText: { fontSize: 20, fontFamily: "Inter_700Bold" },
   gridStatusBadge: {
-    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7, borderWidth: 1.5,
   },
-  gridStatusText: { fontSize: 10, fontWeight: "700" },
+  gridStatusText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   gridCompany: {
-    fontSize: 12, fontWeight: "800", color: "#1A1E2A",
-    textAlign: "center", paddingHorizontal: 8, letterSpacing: -0.2, lineHeight: 16,
+    fontSize: 13, fontFamily: "Inter_700Bold", color: "#0F172A",
+    textAlign: "center", paddingHorizontal: 8, letterSpacing: -0.2, lineHeight: 18,
   },
   gridContact: {
-    fontSize: 11, color: "#6B7280", textAlign: "center",
+    fontSize: 11, fontFamily: "Inter_400Regular", color: "#64748B", textAlign: "center",
     paddingHorizontal: 8, marginTop: 2,
   },
   gridIndustryRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 4, marginTop: 6, paddingHorizontal: 8,
   },
-  gridIndustry: { fontSize: 10, color: "#6B7280", fontWeight: "500" },
+  gridIndustry: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#64748B" },
   gridAddressRow: {
     flexDirection: "row", alignItems: "flex-start",
     gap: 4, marginTop: 5, paddingHorizontal: 10,
   },
-  gridAddress: { fontSize: 10, color: "#9CA3AF", flex: 1, lineHeight: 14 },
+  gridAddress: { fontSize: 10, fontFamily: "Inter_400Regular", color: "#94A3B8", flex: 1, lineHeight: 15 },
   gridPhoneRow: {
     flexDirection: "row", alignItems: "center",
     gap: 4, marginTop: 3, paddingHorizontal: 10,
   },
-  gridPhone: { fontSize: 10, color: "#9CA3AF" },
-  gridDivider: { height: 0.5, backgroundColor: "#E5E7EB", marginHorizontal: 10, marginTop: 10, marginBottom: 8 },
+  gridPhone: { fontSize: 10, fontFamily: "Inter_400Regular", color: "#94A3B8" },
+  gridDivider: { height: 1, backgroundColor: "#F1F5F9", marginHorizontal: 10, marginTop: 10, marginBottom: 8 },
   gridStats: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12,
     paddingHorizontal: 8,
   },
   gridStat: { alignItems: "center" },
-  gridStatDivider: { width: 1, height: 20, backgroundColor: "#E5E7EB" },
-  gridStatValue: { fontSize: 14, fontWeight: "800", color: "#1A1E2A" },
-  gridStatLabel: { fontSize: 9, color: "#9CA3AF", fontWeight: "500", marginTop: 1 },
+  gridStatDivider: { width: 1, height: 20, backgroundColor: "#E2E8F0" },
+  gridStatValue: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#0F172A" },
+  gridStatLabel: { fontSize: 9, fontFamily: "Inter_500Medium", color: "#94A3B8", marginTop: 1 },
   gridTagsRow: {
     flexDirection: "row", flexWrap: "wrap", gap: 4,
     paddingHorizontal: 8, marginTop: 8, justifyContent: "center",
   },
   gridTag: {
-    backgroundColor: "#EFF2F7", borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2,
+    backgroundColor: "#F1F5F9", borderRadius: 6,
+    paddingHorizontal: 7, paddingVertical: 3,
   },
-  gridTagMore: { backgroundColor: "#E5E7EB" },
-  gridTagText: { fontSize: 9, fontWeight: "600", color: "#374151" },
+  gridTagMore: { backgroundColor: "#E2E8F0" },
+  gridTagText: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "#475569" },
   gridViewBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 4, marginTop: 10, marginHorizontal: 10,
-    backgroundColor: NVC_BLUE + "10", borderRadius: 8, borderWidth: 1,
-    borderColor: NVC_BLUE + "30", paddingVertical: 7,
+    backgroundColor: NVC_BLUE + "10", borderRadius: 8, borderWidth: 1.5,
+    borderColor: NVC_BLUE + "30", paddingVertical: 8,
   },
-  gridViewBtnText: { fontSize: 11, fontWeight: "700", color: NVC_BLUE },
+  gridViewBtnText: { fontSize: 11, fontFamily: "Inter_700Bold", color: NVC_BLUE },
 
   // Empty
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
-  emptyText: { fontSize: 15, fontWeight: "500", color: "#6B7280", textAlign: "center", paddingHorizontal: 24 },
+  emptyText: { fontSize: 15, fontFamily: "Inter_500Medium", color: "#64748B", textAlign: "center", paddingHorizontal: 24 },
   emptyAction: {
-    backgroundColor: NVC_BLUE, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: NVC_BLUE, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 10,
+    shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
-  emptyActionText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  emptyActionText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
   exportBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "#10B981", borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 6,
+    paddingHorizontal: 11, paddingVertical: 8, minHeight: 34,
   },
-  exportBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  exportBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
 });

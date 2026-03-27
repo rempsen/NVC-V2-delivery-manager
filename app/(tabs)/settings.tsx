@@ -280,41 +280,41 @@ const styles = StyleSheet.create({
   // Header
   header: {
     flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: NVC_BLUE,
+    paddingHorizontal: 16, paddingBottom: 14, backgroundColor: NVC_BLUE,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
   headerLogo: { width: 26, height: 26 },
-  headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: "600", letterSpacing: 0.5 },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  headerLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.65)", letterSpacing: 0.8, textTransform: "uppercase" },
+  headerTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.2 },
 
-  scroll: { paddingBottom: 48 },
+  scroll: { paddingBottom: 52 },
 
   // Profile Card
   profileCard: {
     flexDirection: "row", alignItems: "center",
-    marginHorizontal: 14, marginTop: 14, borderRadius: 16, padding: 16, gap: 12,
+    marginHorizontal: 14, marginTop: 14, borderRadius: 18, padding: 18, gap: 14,
     shadowColor: "#0A1929", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
+    shadowOpacity: 0.22, shadowRadius: 14, elevation: 7,
   },
   profileAvatar: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 60, height: 60, borderRadius: 30,
     backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center",
   },
-  profileInitial: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  profileInitial: { fontSize: 24, fontFamily: "Inter_700Bold", color: "#fff" },
   profileInfo: { flex: 1, gap: 3 },
-  profileName: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
-  profileRole: { fontSize: 13, color: "rgba(255,255,255,0.75)" },
+  profileName: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.3 },
+  profileRole: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.78)" },
   profileBadge: {
     backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 3,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 4,
   },
-  profileBadgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
-  profileEdit: { padding: 6 },
+  profileBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
+  profileEdit: { padding: 8 },
 
   // Section label
   sectionLabel: {
-    fontSize: 12, fontWeight: "700", letterSpacing: 0.8,
-    paddingHorizontal: 20, paddingTop: 22, paddingBottom: 8,
+    fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1.0, textTransform: "uppercase",
+    paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8,
   },
 
   // Tile grid
@@ -325,29 +325,31 @@ const styles = StyleSheet.create({
 
   // Individual tile
   tile: {
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 10,
     alignItems: "flex-start",
     gap: 6,
-    minHeight: 100,
-    shadowColor: "#0A1929",
+    minHeight: 104,
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
   tileIcon: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 42, height: 42, borderRadius: 13,
     alignItems: "center", justifyContent: "center",
     marginBottom: 2,
   },
-  tileLabel: { fontSize: 13, fontWeight: "700", lineHeight: 17 },
-  tileValue: { fontSize: 11, lineHeight: 14 },
+  tileLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 18 },
+  tileValue: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 15 },
   tileSwitchWrap: { marginTop: 2 },
-  tileChevron: { position: "absolute", top: 10, right: 10 },
+  tileChevron: { position: "absolute", top: 12, right: 12 },
 
   // Footer
-  footer: { alignItems: "center", paddingTop: 20, gap: 4 },
-  footerText: { fontSize: 11 },
+  footer: { alignItems: "center", paddingTop: 24, gap: 4 },
+  footerText: { fontSize: 11, fontFamily: "Inter_400Regular" },
 });

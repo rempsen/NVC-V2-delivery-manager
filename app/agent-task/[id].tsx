@@ -1169,7 +1169,7 @@ const styles = StyleSheet.create({
   centeredContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 } as ViewStyle,
   centeredText: { fontSize: 15, color: "#6B7280" } as TextStyle,
   backBtn: { backgroundColor: NVC_BLUE, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10, marginTop: 8 } as ViewStyle,
-  backBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" } as TextStyle,
+  backBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
 
   // Header
   header: {
@@ -1191,10 +1191,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   } as ViewStyle,
   headerCenter: { flex: 1, alignItems: "center", gap: 3 } as ViewStyle,
-  headerTime: { fontSize: 13, fontWeight: "700", color: "#1F2937" } as TextStyle,
+  headerTime: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#1F2937" } as TextStyle,
   headerStatusRow: { flexDirection: "row", alignItems: "center", gap: 5 } as ViewStyle,
   headerStatusDot: { width: 7, height: 7, borderRadius: 3.5 } as ViewStyle,
-  headerStatusText: { fontSize: 11, color: "#6B7280", fontWeight: "600" } as TextStyle,
+  headerStatusText: { fontSize: 11, color: "#6B7280", fontFamily: "Inter_600SemiBold" } as TextStyle,
   headerMsgBtn: {
     width: 34,
     height: 34,
@@ -1223,9 +1223,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   } as ViewStyle,
-  customerAvatarText: { fontSize: 16, fontWeight: "800", color: "#fff" } as TextStyle,
+  customerAvatarText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
   customerInfo: { flex: 1 } as ViewStyle,
-  customerName: { fontSize: 16, fontWeight: "700", color: "#111827" } as TextStyle,
+  customerName: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#111827" } as TextStyle,
   customerPhone: { fontSize: 12, color: "#9CA3AF", marginTop: 1 } as TextStyle,
   actionCircle: {
     width: 40,
@@ -1256,7 +1256,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   } as ViewStyle,
-  addressText: { flex: 1, fontSize: 13, color: "#374151", fontWeight: "500" } as TextStyle,
+  addressText: { flex: 1, fontSize: 13, color: "#374151", fontFamily: "Inter_500Medium" } as TextStyle,
 
   // Milestone
   milestoneWrap: {
@@ -1279,16 +1279,16 @@ const styles = StyleSheet.create({
     gap: 8,
   } as ViewStyle,
   gpsDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22C55E" } as ViewStyle,
-  gpsText: { flex: 1, fontSize: 12, color: "#6B7280", fontWeight: "500" } as TextStyle,
+  gpsText: { flex: 1, fontSize: 12, color: "#6B7280", fontFamily: "Inter_500Medium" } as TextStyle,
   nearBadge: { backgroundColor: "#22C55E15", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 } as ViewStyle,
-  nearBadgeText: { fontSize: 10, color: "#22C55E", fontWeight: "700" } as TextStyle,
+  nearBadgeText: { fontSize: 10, color: "#22C55E", fontFamily: "Inter_700Bold" } as TextStyle,
   manualArriveBtn: {
     backgroundColor: "#8B5CF6",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   } as ViewStyle,
-  manualArriveBtnText: { fontSize: 11, fontWeight: "700", color: "#fff" } as TextStyle,
+  manualArriveBtnText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
 
   // Scroll
   scroll: { flex: 1 },
@@ -1327,7 +1327,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 6,
   } as ViewStyle,
-  saveProgressText: { fontSize: 12, fontWeight: "700", color: NVC_BLUE } as TextStyle,
+  saveProgressText: { fontSize: 12, fontFamily: "Inter_700Bold", color: NVC_BLUE } as TextStyle,
 
   // Photos
   photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 } as ViewStyle,
@@ -1345,7 +1345,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", gap: 4,
     backgroundColor: NVC_BLUE + "06",
   } as ViewStyle,
-  photoAddText: { fontSize: 10, color: NVC_BLUE, fontWeight: "600", textAlign: "center" } as TextStyle,
+  photoAddText: { fontSize: 10, color: NVC_BLUE, fontFamily: "Inter_600SemiBold", textAlign: "center" } as TextStyle,
 
   // Bill
   billSection: { gap: 10 } as ViewStyle,
@@ -1354,8 +1354,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB",
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, gap: 4,
   } as ViewStyle,
-  billCurrency: { fontSize: 22, fontWeight: "700", color: "#374151" } as TextStyle,
-  billAmountInput: { flex: 1, fontSize: 26, fontWeight: "700", color: "#111827" } as TextStyle,
+  billCurrency: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#374151" } as TextStyle,
+  billAmountInput: { flex: 1, fontSize: 26, fontFamily: "Inter_700Bold", color: "#111827" } as TextStyle,
   billEditIcon: { padding: 4 } as ViewStyle,
   methodScroll: { flexGrow: 0 },
   methodChip: {
@@ -1364,8 +1364,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#E5E7EB",
   } as ViewStyle,
   methodChipActive: { backgroundColor: "#10B98115", borderColor: "#10B98140" } as ViewStyle,
-  methodChipText: { fontSize: 12, color: "#6B7280", fontWeight: "500" } as TextStyle,
-  methodChipTextActive: { color: "#10B981", fontWeight: "700" } as TextStyle,
+  methodChipText: { fontSize: 12, color: "#6B7280", fontFamily: "Inter_500Medium" } as TextStyle,
+  methodChipTextActive: { color: "#10B981", fontFamily: "Inter_700Bold" } as TextStyle,
 
   // Finished field
   finishedFieldText: { fontSize: 13, color: "#9CA3AF", fontStyle: "italic" } as TextStyle,
@@ -1381,7 +1381,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#22C55E30",
   } as ViewStyle,
-  completedTitle: { fontSize: 18, fontWeight: "800", color: "#111827" } as TextStyle,
+  completedTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#111827" } as TextStyle,
   completedSubtitle: { fontSize: 13, color: "#6B7280", textAlign: "center" } as TextStyle,
 
   // Bottom bar
@@ -1400,7 +1400,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#635BFF", borderRadius: 10,
   } as ViewStyle,
   chargeCardBtnText: {
-    color: "#fff", fontSize: 14, fontWeight: "700",
+    color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold",
   } as TextStyle,
   invoiceBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -1408,7 +1408,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#22C55E", borderRadius: 10,
   } as ViewStyle,
   invoiceBtnText: {
-    color: "#fff", fontSize: 14, fontWeight: "700",
+    color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold",
   } as TextStyle,
 });
 
@@ -1422,8 +1422,8 @@ const swipeStyles = StyleSheet.create({
     position: "relative",
   } as ViewStyle,
   labelWrap: { position: "absolute", alignItems: "center", gap: 2 } as ViewStyle,
-  label: { fontSize: 15, fontWeight: "700", color: "#8B5CF6", letterSpacing: 0.2 } as TextStyle,
-  sublabel: { fontSize: 10, color: "#8B5CF680", fontWeight: "500" } as TextStyle,
+  label: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#8B5CF6", letterSpacing: 0.2 } as TextStyle,
+  sublabel: { fontSize: 10, color: "#8B5CF680", fontFamily: "Inter_500Medium" } as TextStyle,
   thumb: {
     position: "absolute", left: 4,
     width: 56, height: 56, borderRadius: 28,
@@ -1452,7 +1452,7 @@ const outcomeStyles = StyleSheet.create({
     backgroundColor: "#FEF2F2",
   } as ViewStyle,
   failDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444" } as ViewStyle,
-  failText: { fontSize: 15, fontWeight: "700", color: "#EF4444" } as TextStyle,
+  failText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#EF4444" } as TextStyle,
   togglePill: {
     width: 44, height: 24, borderRadius: 12,
     backgroundColor: "#E5E7EB",
@@ -1470,7 +1470,7 @@ const outcomeStyles = StyleSheet.create({
     gap: 7, paddingVertical: 12,
     backgroundColor: "#F0FDF4",
   } as ViewStyle,
-  successText: { fontSize: 15, fontWeight: "700", color: "#22C55E" } as TextStyle,
+  successText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#22C55E" } as TextStyle,
   successDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22C55E" } as ViewStyle,
 });
 
@@ -1490,7 +1490,7 @@ const sectionStyles = StyleSheet.create({
   } as ViewStyle,
   title: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
     color: "#6B7280",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -1501,7 +1501,7 @@ const sectionStyles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
   } as ViewStyle,
-  badgeText: { fontSize: 11, fontWeight: "700", color: NVC_BLUE } as TextStyle,
+  badgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: NVC_BLUE } as TextStyle,
   body: {
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -1530,15 +1530,15 @@ const sigStyles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 8, backgroundColor: "#F3F4F6",
   } as ViewStyle,
-  clearText: { fontSize: 13, color: "#6B7280", fontWeight: "600" } as TextStyle,
+  clearText: { fontSize: 13, color: "#6B7280", fontFamily: "Inter_600SemiBold" } as TextStyle,
   saveBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 8, backgroundColor: "#F59E0B",
   } as ViewStyle,
-  saveBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" } as TextStyle,
+  saveBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
   capturedRow: { flexDirection: "row", alignItems: "center", gap: 8 } as ViewStyle,
-  capturedText: { flex: 1, fontSize: 13, color: "#22C55E", fontWeight: "600" } as TextStyle,
+  capturedText: { flex: 1, fontSize: 13, color: "#22C55E", fontFamily: "Inter_600SemiBold" } as TextStyle,
   resignBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "#F3F4F6" } as ViewStyle,
   resignText: { fontSize: 12, color: "#6B7280" } as TextStyle,
 });
@@ -1552,7 +1552,7 @@ const milestoneStyles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     borderWidth: 2,
   } as ViewStyle,
-  label: { fontSize: 10, fontWeight: "600", textAlign: "center" } as TextStyle,
+  label: { fontSize: 10, fontFamily: "Inter_600SemiBold", textAlign: "center" } as TextStyle,
   line: { flex: 1, height: 2, marginBottom: 14 } as ViewStyle,
 });
 
@@ -1572,7 +1572,7 @@ const modalStyles = StyleSheet.create({
     width: 36, height: 4, borderRadius: 2,
     backgroundColor: "#E5E7EB", alignSelf: "center", marginBottom: 16,
   } as ViewStyle,
-  title: { fontSize: 18, fontWeight: "800", color: "#111827", marginBottom: 4 } as TextStyle,
+  title: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#111827", marginBottom: 4 } as TextStyle,
   subtitle: { fontSize: 13, color: "#6B7280", marginBottom: 16 } as TextStyle,
   reasonList: { maxHeight: 320 },
   reasonRow: {
@@ -1589,16 +1589,16 @@ const modalStyles = StyleSheet.create({
   radioOuterSelected: { borderColor: "#EF4444" } as ViewStyle,
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444" } as ViewStyle,
   reasonText: { flex: 1, fontSize: 14, color: "#374151" } as TextStyle,
-  reasonTextSelected: { color: "#EF4444", fontWeight: "600" } as TextStyle,
+  reasonTextSelected: { color: "#EF4444", fontFamily: "Inter_600SemiBold" } as TextStyle,
   btnRow: { flexDirection: "row", gap: 10, marginTop: 20 } as ViewStyle,
   cancelBtn: {
     flex: 1, paddingVertical: 14, borderRadius: 12,
     backgroundColor: "#F3F4F6", alignItems: "center",
   } as ViewStyle,
-  cancelBtnText: { fontSize: 15, fontWeight: "700", color: "#6B7280" } as TextStyle,
+  cancelBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#6B7280" } as TextStyle,
   confirmBtn: {
     flex: 1, paddingVertical: 14, borderRadius: 12,
     backgroundColor: "#EF4444", alignItems: "center",
   } as ViewStyle,
-  confirmBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" } as TextStyle,
+  confirmBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" } as TextStyle,
 });

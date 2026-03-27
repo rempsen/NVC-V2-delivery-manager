@@ -302,19 +302,19 @@ export default function CompanyProfileScreen() {
 const styles = StyleSheet.create({
   scroll: { padding: 16, gap: 16 },
   card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 4 },
-  cardTitle: { fontSize: 15, fontWeight: "700", marginBottom: 8 },
+  cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 8 },
   fieldGroup: { gap: 5, marginBottom: 4 },
-  fieldLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.3 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.3 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
   row: { flexDirection: "row", gap: 10 },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 12 },
   avatar: { width: 64, height: 64, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  avatarLabel: { fontSize: 16, fontWeight: "700" },
+  avatarLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
   uploadBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignSelf: "flex-start",
   },
-  uploadBtnText: { fontSize: 12, fontWeight: "600" },
+  uploadBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   pickerBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, minHeight: 48,
@@ -332,5 +332,5 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 4,
   },
-  saveBtnText: { fontSize: 17, fontWeight: "700", color: "#fff" },
+  saveBtnText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff" },
 });

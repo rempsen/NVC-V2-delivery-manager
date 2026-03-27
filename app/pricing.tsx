@@ -402,12 +402,12 @@ const styles = StyleSheet.create<{
     shadowColor: "#0A1929", shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.18, shadowRadius: 8, elevation: 5,
   },
-  statValue: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  statLabel: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontWeight: "500", textAlign: "center" },
+  statValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
+  statLabel: { fontSize: 10, color: "rgba(255,255,255,0.8)", fontFamily: "Inter_500Medium", textAlign: "center" },
 
   // Section
   section: { paddingHorizontal: 14, paddingTop: 20 },
-  sectionTitle: { fontSize: 15, fontWeight: "700", marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 12 },
 
   // Billing Rule Card
   ruleCard: {
@@ -418,12 +418,12 @@ const styles = StyleSheet.create<{
   ruleAccent: { width: 4 },
   ruleBody: { flex: 1, padding: 14, gap: 10 },
   ruleTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  ruleName: { fontSize: 14, fontWeight: "700", flex: 1, marginRight: 8 },
+  ruleName: { fontSize: 14, fontFamily: "Inter_700Bold", flex: 1, marginRight: 8 },
   rulePricing: { flexDirection: "row", alignItems: "center", gap: 12 },
   rulePriceChip: { alignItems: "center", gap: 2 },
   ruleDivider: { width: 1, height: 28 },
-  rulePriceLabel: { fontSize: 10, fontWeight: "500" },
-  rulePriceValue: { fontSize: 18, fontWeight: "800" },
+  rulePriceLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
+  rulePriceValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
 
   // Plan Cards
   plansRow: { gap: 12, paddingBottom: 4 },
@@ -436,17 +436,17 @@ const styles = StyleSheet.create<{
     backgroundColor: "rgba(255,255,255,0.25)", alignSelf: "flex-start",
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginBottom: 2,
   },
-  planCurrentText: { fontSize: 10, fontWeight: "700", color: "#fff" },
-  planName: { fontSize: 16, fontWeight: "800" },
+  planCurrentText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
+  planName: { fontSize: 16, fontFamily: "Inter_700Bold" },
   planPriceRow: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
-  planPrice: { fontSize: 28, fontWeight: "800" },
-  planPeriod: { fontSize: 13, fontWeight: "500", marginBottom: 4 },
+  planPrice: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  planPeriod: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 4 },
   planFeatureRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   planFeature: { fontSize: 12, flex: 1 },
   planUpgradeBtn: {
     marginTop: 8, paddingVertical: 10, borderRadius: 10, alignItems: "center",
   },
-  planUpgradeText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  planUpgradeText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
 
   // Invoice Settings
   invoiceCard: {
@@ -455,8 +455,8 @@ const styles = StyleSheet.create<{
     shadowOpacity: 0.08, shadowRadius: 10, elevation: 3,
   },
   invoiceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 13 },
-  invoiceLabel: { fontSize: 14, fontWeight: "500" },
-  invoiceValue: { fontSize: 13, fontWeight: "600" },
+  invoiceLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  invoiceValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   // Rule action buttons (edit/delete)
   ruleActions: { flexDirection: "row", gap: 6, justifyContent: "flex-end", paddingHorizontal: 14, paddingBottom: 4, marginTop: -6 },
@@ -465,14 +465,14 @@ const styles = StyleSheet.create<{
   // Rule Editor Modal
   ruleModal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, gap: 6 },
   ruleModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 12 },
-  ruleModalTitle: { fontSize: 18, fontWeight: "800", marginBottom: 4 },
-  ruleModalLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3, marginTop: 8 },
+  ruleModalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  ruleModalLabel: { fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.3, marginTop: 8 },
   ruleModalInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, marginTop: 4 },
   ruleModalRow: { flexDirection: "row", gap: 12, marginTop: 0 },
   ruleColorRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   ruleColorSwatch: { width: 32, height: 32, borderRadius: 16 },
   ruleModalSaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 12 },
-  ruleModalSaveBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  ruleModalSaveBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
   ruleModalCancelBtn: { alignItems: "center", paddingVertical: 12 },
-  ruleModalCancelText: { fontSize: 14, fontWeight: "600" },
+  ruleModalCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

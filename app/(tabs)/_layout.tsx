@@ -10,9 +10,6 @@ import * as SecureStore from "expo-secure-store";
 import { getApiBaseUrl } from "@/constants/oauth";
 
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
-// On web: check for session cookie via the API (called directly on 3000-xxx domain)
-// On native: check for stored token in SecureStore
-// If not authenticated → redirect to /login
 
 function useAuthGuard() {
   const router = useRouter();
@@ -22,8 +19,6 @@ function useAuthGuard() {
     async function check() {
       try {
         if (Platform.OS === "web") {
-          // Web: call /api/auth/me DIRECTLY on the 3000-xxx domain (not Metro proxy)
-          // so the .manus.computer-scoped cookie is sent and validated correctly.
           const apiBase = getApiBaseUrl();
           const url = apiBase ? `${apiBase}/api/auth/me` : "/api/auth/me";
           const res = await fetch(url, { credentials: "include" });
@@ -32,7 +27,6 @@ function useAuthGuard() {
             return;
           }
         } else {
-          // Native: check for stored session token
           const token = await SecureStore.getItemAsync("nvc360_token");
           if (!token) {
             router.replace("/login" as any);
@@ -40,8 +34,7 @@ function useAuthGuard() {
           }
         }
       } catch {
-        // Network error or API unavailable — fall through to show dashboard
-        // (demo mode: no backend required)
+        // Network error — fall through to show dashboard (demo mode)
       } finally {
         setChecked(true);
       }
@@ -72,11 +65,16 @@ export default function TabLayout() {
   const tabBarHeight = 60 + bottomPadding;
   const authChecked = useAuthGuard();
 
-  // Show a brief loading screen while auth check runs
   if (!authChecked) {
     return (
-      <View style={[styles.loadingScreen, { backgroundColor: NVC_BLUE }]}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
+        <View style={styles.loadingCard}>
+          <View style={[styles.logoMark, { backgroundColor: NVC_BLUE }]}>
+            <Text style={styles.logoText}>N</Text>
+          </View>
+          <ActivityIndicator size="small" color={NVC_ORANGE} style={{ marginTop: 20 }} />
+          <Text style={[styles.loadingLabel, { color: colors.muted }]}>Loading NVC360…</Text>
+        </View>
       </View>
     );
   }
@@ -89,17 +87,24 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          paddingTop: 8,
+          paddingTop: 6,
           paddingBottom: bottomPadding,
           height: tabBarHeight,
-          backgroundColor: colors.background,
+          backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
+          // Subtle elevation for the tab bar
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "600",
+          fontFamily: "Inter_600SemiBold",
           marginTop: 2,
+          letterSpacing: 0.2,
         },
       }}
     >
@@ -108,7 +113,7 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="house.fill" color={color} />
+            <IconSymbol size={24} name="house.fill" color={color} />
           ),
         }}
       />
@@ -117,7 +122,7 @@ export default function TabLayout() {
         options={{
           title: "Work Orders",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="doc.text.fill" color={color} />
+            <IconSymbol size={24} name="doc.text.fill" color={color} />
           ),
         }}
       />
@@ -126,7 +131,7 @@ export default function TabLayout() {
         options={{
           title: "Technicians",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="person.2.fill" color={color} />
+            <IconSymbol size={24} name="person.2.fill" color={color} />
           ),
         }}
       />
@@ -135,7 +140,7 @@ export default function TabLayout() {
         options={{
           title: "Customers",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="person.text.rectangle.fill" color={color} />
+            <IconSymbol size={24} name="person.text.rectangle.fill" color={color} />
           ),
         }}
       />
@@ -144,7 +149,7 @@ export default function TabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="gearshape.fill" color={color} />
+            <IconSymbol size={24} name="gearshape.fill" color={color} />
           ),
         }}
       />
@@ -158,11 +163,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  loadingCard: {
+    alignItems: "center",
+    padding: 40,
+  },
+  logoMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoText: {
+    color: "#fff",
+    fontSize: 32,
+    fontFamily: "Inter_800ExtraBold",
+    letterSpacing: -1,
+  },
+  loadingLabel: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.1,
+  },
   badge: {
     position: "absolute",
     top: -4,
     right: -8,
-    backgroundColor: "#EF4444",
+    backgroundColor: "#DC2626",
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -173,6 +201,6 @@ const styles = StyleSheet.create({
   badgeText: {
     color: "#fff",
     fontSize: 10,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
   },
 });
