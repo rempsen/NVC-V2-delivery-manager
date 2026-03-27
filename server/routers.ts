@@ -613,13 +613,46 @@ export const appRouter = router({
           scheduledAt: z.string().optional(),
         }),
       )
-      .mutation(({ input }) => {
+      .mutation(async ({ input }) => {
         const jobHash = generateJobHash();
-        return db.createTaskRecord({
+        const task = await db.createTaskRecord({
           ...input,
           jobHash,
           scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : undefined,
         } as any);
+        // Fire push notification if a technician was assigned at creation time
+        if (input.technicianId) {
+          try {
+            const tech = await db.getTechnicianById(input.technicianId);
+            if ((tech as any)?.pushToken) {
+              const taskId = (task as any)?.id;
+              const orderRef = input.orderRef ?? `#${taskId ?? "new"}`;
+              const pushTitle = "New Job Assigned \uD83D\uDCCB";
+              const pushBody = `${orderRef} \u2014 ${input.customerName} \u00B7 ${input.jobAddress}`;
+              const deepLink = `/task/${taskId}`;
+              await sendPushToTech(
+                (tech as any).pushToken,
+                pushTitle,
+                pushBody,
+                { taskId, screen: "task-detail", deepLink },
+              );
+              await db.createNotification({
+                tenantId: (task as any)?.tenantId ?? 1,
+                recipientUserId: (tech as any)?.tenantUserId ?? 0,
+                type: "job_assigned",
+                title: pushTitle,
+                body: pushBody,
+                deepLink,
+                entityType: "task",
+                entityId: taskId,
+                pushStatus: "sent",
+                pushToken: (tech as any).pushToken,
+                sentAt: new Date(),
+              } as any);
+            }
+          } catch { /* non-fatal */ }
+        }
+        return task;
       }),
 
     updateStatus: protectedProcedure

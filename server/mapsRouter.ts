@@ -189,6 +189,45 @@ export const mapsRouter = router({
     }),
 
   /**
+   * Public ETA endpoint for the customer-facing tracking page.
+   * No auth required — uses jobHash to look up the task.
+   * Returns ETA in seconds + distance in meters from tech location to job site.
+   */
+  getTrackingEta: publicProcedure
+    .input(z.object({
+      techLat: z.number(),
+      techLng: z.number(),
+      destLat: z.number(),
+      destLng: z.number(),
+    }))
+    .query(async ({ input }) => {
+      const apiKey = getApiKey();
+      const url = new URL(`${GOOGLE_MAPS_BASE}/distancematrix/json`);
+      url.searchParams.set("origins", `${input.techLat},${input.techLng}`);
+      url.searchParams.set("destinations", `${input.destLat},${input.destLng}`);
+      url.searchParams.set("departure_time", "now");
+      url.searchParams.set("traffic_model", "best_guess");
+      url.searchParams.set("units", "metric");
+      url.searchParams.set("key", apiKey);
+
+      try {
+        const res = await fetch(url.toString());
+        if (!res.ok) return { etaSeconds: null, distanceMeters: null, error: `HTTP ${res.status}` };
+        const data = await res.json() as any;
+        if (data.status !== "OK") return { etaSeconds: null, distanceMeters: null, error: data.status };
+        const el = data.rows?.[0]?.elements?.[0];
+        if (!el || el.status !== "OK") return { etaSeconds: null, distanceMeters: null, error: el?.status ?? "NO_RESULT" };
+        return {
+          etaSeconds: el.duration_in_traffic?.value ?? el.duration?.value ?? null,
+          distanceMeters: el.distance?.value ?? null,
+          error: null,
+        };
+      } catch (e: any) {
+        return { etaSeconds: null, distanceMeters: null, error: e?.message ?? "unknown" };
+      }
+    }),
+
+  /**
    * Geocode an address to lat/lng coordinates.
    */
   geocode: publicProcedure

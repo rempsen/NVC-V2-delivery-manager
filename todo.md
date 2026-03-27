@@ -1247,3 +1247,24 @@
 - [x] GAP FIXED: Tracking page company logo and technician avatar now show real images when available
 - [ ] GAP PENDING: GOOGLE_MAPS_API_KEY not configured — ETA calculation falls back to haversine estimate (request from Dan)
 - [ ] GAP PENDING: /track-web/[jobHash] — dedicated Google Maps JS web page for mobile browser (requires Google Maps API key)
+
+## Google Maps + Live Tracking + Auto-Push Sprint (Mar 27 2026)
+- [ ] Store GOOGLE_MAPS_API_KEY as environment secret
+- [ ] Verify Google Maps Distance Matrix API works with the provided key
+- [ ] Build /track-web/[jobHash] — dedicated Google Maps JS web page for mobile browsers
+- [ ] Wire live ETA with traffic (Distance Matrix API) into tracking page — refresh every 30s
+- [ ] Wire route polyline (Directions API) on tracking page — show route from tech to job
+- [ ] Update SMS body to include the /track-web URL instead of /track URL
+- [ ] Auto-push on task assignment — fire Expo push notification to assigned technician on tasks.create and tasks.assignTechnician
+- [ ] Server: sendPushToTech helper — send push via Expo Push API using stored pushToken
+- [ ] Mobile: update NativeMapView to use GOOGLE_MAPS_API_KEY for Android (PROVIDER_GOOGLE)
+
+## Live Tracking & Push Notification Sprint (Mar 27 2026)
+- [x] Auto-push notification on tasks.create when technicianId is provided at creation time
+- [x] Auto-push notification on tasks.assign already existed (verified)
+- [x] Public maps.getTrackingEta procedure added (no auth, uses Distance Matrix API with live traffic)
+- [x] Customer tracking page upgraded: live Google Maps ETA via getTrackingEta (refreshes every 30s)
+- [x] Customer tracking page: NativeMapView uses real destLat/destLng from task record (not hardcoded)
+- [x] Test SMS button in Settings → SMS (Twilio) already wired to notifications.sendTestSms
+- [x] SMS tracking link verified: points to https://tookandeliv-ve29h94a.manus.space/track/{jobHash}
+- [x] TypeScript: 0 errors

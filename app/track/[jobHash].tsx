@@ -233,10 +233,28 @@ export default function CustomerTrackingScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Sync ETA from live data
+  // ── Live ETA from Google Maps Distance Matrix (server-side, no key exposed) ──
+  const techLat = liveTechLat ?? (rawTask ? parseFloat((rawTask as any).techLat ?? (rawTask as any).lastLatitude ?? "0") : 0);
+  const techLng = liveTechLng ?? (rawTask ? parseFloat((rawTask as any).techLng ?? (rawTask as any).lastLongitude ?? "0") : 0);
+  const destLat = rawTask ? parseFloat((rawTask as any).jobLatitude ?? (rawTask as any).latitude ?? "49.8851") : 49.8851;
+  const destLng = rawTask ? parseFloat((rawTask as any).jobLongitude ?? (rawTask as any).longitude ?? "-97.1484") : -97.1484;
+
+  const { data: etaData } = trpc.maps.getTrackingEta.useQuery(
+    { techLat, techLng, destLat, destLng },
+    {
+      enabled: !!rawTask && tracking?.status === "en_route" && techLat !== 0 && techLng !== 0,
+      refetchInterval: 30_000, // refresh every 30s for live traffic ETA
+    },
+  );
+
+  // Sync ETA from live Google Maps data (or fall back to DB value)
   useEffect(() => {
-    if (tracking?.etaMinutes) setEtaMinutes(tracking.etaMinutes);
-  }, [tracking?.etaMinutes]);
+    if (etaData?.etaSeconds != null) {
+      setEtaMinutes(Math.max(1, Math.round(etaData.etaSeconds / 60)));
+    } else if (tracking?.etaMinutes) {
+      setEtaMinutes(tracking.etaMinutes);
+    }
+  }, [etaData?.etaSeconds, tracking?.etaMinutes]);
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !rawTask) return;
@@ -422,7 +440,7 @@ export default function CustomerTrackingScreen() {
             </View>
           )}
 
-          {/* Map — live on all platforms */}
+          {/* Map — live on all platforms using real GPS coordinates */}
           <NativeMapView
             technicians={[
               {
@@ -435,8 +453,8 @@ export default function CustomerTrackingScreen() {
               },
             ]}
             destination={{
-              lat: 49.8851,
-              lng: -97.1484,
+              lat: destLat,
+              lng: destLng,
               label: tracking.jobAddress,
             }}
             center={{ lat: tracking.technician.latitude, lng: tracking.technician.longitude }}
