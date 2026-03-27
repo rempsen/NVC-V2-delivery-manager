@@ -1207,3 +1207,18 @@
 - [x] Role mapping added: admin on NVC platform tenant → nvc_super_admin, manager → nvc_project_manager
 - [x] Demo fallback added: dan@nvc360.com included in DEMO_USERS for resilience
 - [x] Verified end-to-end: login returns role=nvc_super_admin, tenantName=NVC360 Platform
+
+## Super Admin Platform Sprint (Mar 27 2026)
+- [x] DB: auditLogs table created (id, tenantId, actorId, actorEmail, action, targetType, targetId, metadata, createdAt)
+- [x] Server: logAudit() helper — writes to auditLogs on every super admin action
+- [x] Server: tRPC tenants.listWithStats — all tenants with activeJobs, totalTechnicians, totalUsers counts
+- [x] Server: tRPC tenants.create — create new merchant account with plan + API key
+- [x] Server: tRPC tenants.toggleSuspend — suspend/unsuspend a tenant with audit log write
+- [x] Server: tRPC tenants.impersonate — impersonate a merchant tenant with audit log write
+- [x] Server: tRPC auditLogs.list — paginated audit log for super admin view
+- [x] Server: nvc_super_admin (rank 100) + nvc_project_manager (rank 80) added to role hierarchy
+- [x] Web Dashboard: TenantsSection — live table with plan badges, active jobs, user counts, search, create form, Manage/Suspend/Unsuspend buttons
+- [x] Web Dashboard: AuditLogSection — live table showing all super admin actions with color-coded action badges and timestamps
+- [x] Web Dashboard: Tenants + Audit Log nav items gated to nvc_super_admin only (role-aware sidebar)
+- [x] useTenant hook: now exposes userRole so dashboard can gate super-admin nav items
+- [x] Login routing: nvc_super_admin → /super-admin (mobile), web dashboard shows Tenants/AuditLog sections

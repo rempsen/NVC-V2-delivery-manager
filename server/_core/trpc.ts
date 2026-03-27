@@ -15,13 +15,26 @@ import type { TrpcContext } from "./context";
  * Legacy values "user" and "admin" are mapped to "agent" and "merchant_manager" respectively
  * for backward compatibility.
  */
-export type UserRole = "super_admin" | "nvc_manager" | "merchant_manager" | "agent" | "user" | "admin";
+export type UserRole =
+  | "super_admin" | "nvc_super_admin"
+  | "nvc_manager" | "nvc_project_manager"
+  | "merchant_manager" | "company_admin" | "dispatcher"
+  | "agent" | "field_technician"
+  | "user" | "admin";  // legacy aliases
 
 const ROLE_RANK: Record<UserRole, number> = {
+  // NVC platform staff
   super_admin: 100,
+  nvc_super_admin: 100,   // alias for super_admin returned by emailLogin
   nvc_manager: 80,
+  nvc_project_manager: 80, // alias for nvc_manager
+  // Merchant staff
   merchant_manager: 50,
+  company_admin: 50,       // alias for merchant_manager
+  dispatcher: 30,
+  // Field roles
   agent: 10,
+  field_technician: 10,    // alias for agent
   // Legacy aliases
   admin: 50,
   user: 10,

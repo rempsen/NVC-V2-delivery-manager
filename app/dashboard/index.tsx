@@ -17,6 +17,7 @@ import {
   Switch,
   Modal,
   Alert,
+  ActivityIndicator,
   ViewStyle,
   TextStyle,
 } from "react-native";
@@ -87,7 +88,7 @@ const DEPARTMENT_OPTIONS = ["Field Operations", "HVAC", "Plumbing", "Electrical"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SidebarSection = "dashboard" | "workorders" | "technicians" | "customers" | "calendar" | "map" | "reports";
+type SidebarSection = "dashboard" | "workorders" | "technicians" | "customers" | "calendar" | "map" | "reports" | "tenants" | "auditlog";
 
 interface EditableCustomer {
   company: string;
@@ -158,9 +159,12 @@ const NAV_ITEMS: { id: SidebarSection; label: string; icon: any; badge?: number 
   { id: "calendar", label: "Calendar", icon: "calendar" },
   { id: "map", label: "Live Map", icon: "map.fill" },
   { id: "reports", label: "Reports", icon: "chart.bar.fill" },
+  // NVC Super Admin only
+  { id: "tenants", label: "Tenants", icon: "building.2.fill" },
+  { id: "auditlog", label: "Audit Log", icon: "doc.text.fill" },
 ];
 
-function Sidebar({ active, onSelect }: { active: SidebarSection; onSelect: (s: SidebarSection) => void }) {
+function Sidebar({ active, onSelect, isSuperAdmin }: { active: SidebarSection; onSelect: (s: SidebarSection) => void; isSuperAdmin?: boolean }) {
   const router = useRouter();
   return (
     <View style={styles.sidebar}>
@@ -175,7 +179,11 @@ function Sidebar({ active, onSelect }: { active: SidebarSection; onSelect: (s: S
 
       {/* Nav items */}
       <View style={styles.sidebarNav}>
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => {
+          // Tenants and Audit Log only visible to NVC Super Admin
+          if (item.id === "tenants" || item.id === "auditlog") return !!isSuperAdmin;
+          return true;
+        }).map((item) => {
           const isActive = active === item.id;
           return (
             <Pressable
@@ -1763,8 +1771,9 @@ function CustomerModal({ visible, customer, onClose, onSave, onDelete }: {
 
 function CustomersSection() {
   const colors = useColors();
-  const { tenantId: liveTenantId } = useTenant();
+  const { tenantId: liveTenantId, userRole } = useTenant();
   const tenantId = liveTenantId ?? DEMO_TENANT_ID;
+  const isSuperAdmin = userRole === "nvc_super_admin";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Customer["status"] | "all">("all");
   const [modalVisible, setModalVisible] = useState(false);
@@ -3268,8 +3277,9 @@ function CalendarSection({ tasks, technicians, tenantId: propTenantId }: { tasks
 export default function DesktopDashboard() {
   const colors = useColors();
   const router = useRouter();
-  const { tenantId: liveTenantId } = useTenant();
+  const { tenantId: liveTenantId, userRole } = useTenant();
   const tenantId = liveTenantId ?? DEMO_TENANT_ID;
+  const isSuperAdmin = userRole === "nvc_super_admin";
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
   // Real-time WebSocket position overrides (techId → {lat, lng})
@@ -3612,6 +3622,17 @@ export default function DesktopDashboard() {
           </ScrollView>
         );
       }
+      case "tenants": {
+        // Inline Tenant Management for nvc_super_admin on web dashboard
+        return (
+          <TenantsSection tenantId={tenantId} />
+        );
+      }
+      case "auditlog": {
+        return (
+          <AuditLogSection />
+        );
+      }
       default:
         return null;
     }
@@ -3619,7 +3640,7 @@ export default function DesktopDashboard() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <Sidebar active={activeSection} onSelect={setActiveSection} />
+      <Sidebar active={activeSection} onSelect={setActiveSection} isSuperAdmin={isSuperAdmin} />
 
       <View style={styles.mainContent}>
         {/* Top bar */}
@@ -3859,10 +3880,298 @@ export default function DesktopDashboard() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Super Admin: Tenants Section ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: "row" } as ViewStyle,
+function TenantsSection({ tenantId: _tenantId }: { tenantId: number }) {
+  const colors = useColors();
+  const [search, setSearch] = useState("");
+  const [actionId, setActionId] = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newTenant, setNewTenant] = useState({ companyName: "", slug: "", industry: "other", plan: "starter" });
+
+  const { data: tenantsData, isLoading, refetch } = trpc.tenants.listWithStats.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+  });
+
+  const createMutation = trpc.tenants.create.useMutation({ onSuccess: () => { refetch(); setShowCreate(false); setNewTenant({ companyName: "", slug: "", industry: "other", plan: "starter" }); } });
+  const toggleSuspendMutation = trpc.tenants.toggleSuspend.useMutation({ onSuccess: () => { refetch(); setActionId(null); } });
+  const impersonateMutation = trpc.tenants.impersonate.useMutation({
+    onSuccess: (result) => {
+      setActionId(null);
+      if (Platform.OS === "web") {
+        window.alert(`Impersonating ${result.tenantName}. In a full deployment this would switch your session to their account.`);
+      }
+    },
+    onError: (err) => { setActionId(null); if (Platform.OS === "web") window.alert(err.message); },
+  });
+
+  const PLAN_COLORS: Record<string, string> = { starter: "#6B7280", professional: "#3B82F6", enterprise: "#8B5CF6", pro: "#3B82F6" };
+
+  const tenants = (tenantsData ?? []).filter((t: any) =>
+    !search || t.companyName?.toLowerCase().includes(search.toLowerCase()) || t.slug?.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24 }}>
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground } as TextStyle}>Tenant Management</Text>
+          <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 } as TextStyle}>
+            {tenants.length} merchant accounts · NVC360 Platform
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [{
+            flexDirection: "row", alignItems: "center", gap: 6,
+            backgroundColor: NVC_BLUE, paddingHorizontal: 16, paddingVertical: 9,
+            borderRadius: 10, opacity: pressed ? 0.8 : 1,
+          }] as ViewStyle[]}
+          onPress={() => setShowCreate(true)}
+        >
+          <IconSymbol name="plus" size={14} color="#fff" />
+          <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 } as TextStyle}>New Tenant</Text>
+        </Pressable>
+      </View>
+
+      {/* Search */}
+      <View style={[{
+        flexDirection: "row", alignItems: "center", gap: 8,
+        borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16,
+        backgroundColor: colors.surface, borderColor: colors.border,
+      }] as ViewStyle[]}>
+        <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+        <TextInput
+          style={{ flex: 1, fontSize: 14, color: colors.foreground } as TextStyle}
+          placeholder="Search tenants…"
+          placeholderTextColor={colors.muted}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      {/* Create form */}
+      {showCreate && (
+        <View style={[{
+          borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 16,
+          backgroundColor: colors.surface, borderColor: NVC_BLUE + "44",
+        }] as ViewStyle[]}>
+          <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 12 } as TextStyle}>New Tenant</Text>
+          {[
+            { key: "companyName", label: "Company Name", placeholder: "Acme HVAC" },
+            { key: "slug", label: "Slug (URL)", placeholder: "acme-hvac" },
+            { key: "industry", label: "Industry", placeholder: "hvac" },
+            { key: "plan", label: "Plan", placeholder: "starter | professional | enterprise" },
+          ].map(({ key, label, placeholder }) => (
+            <View key={key} style={{ marginBottom: 10 }}>
+              <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4 } as TextStyle}>{label}</Text>
+              <TextInput
+                style={[{
+                  borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
+                  fontSize: 14, backgroundColor: colors.background,
+                  borderColor: colors.border, color: colors.foreground,
+                }] as TextStyle[]}
+                placeholder={placeholder}
+                placeholderTextColor={colors.muted}
+                value={(newTenant as any)[key]}
+                onChangeText={(v) => setNewTenant((p) => ({ ...p, [key]: v }))}
+              />
+            </View>
+          ))}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+            <Pressable
+              style={({ pressed }) => [{ flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: "center", backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+              onPress={() => createMutation.mutate({ companyName: newTenant.companyName, slug: newTenant.slug, industry: newTenant.industry as any, plan: newTenant.plan as any })}
+            >
+              <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 } as TextStyle}>
+                {createMutation.isPending ? "Creating…" : "Create Tenant"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [{ paddingVertical: 9, paddingHorizontal: 16, borderRadius: 8, alignItems: "center", borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              onPress={() => setShowCreate(false)}
+            >
+              <Text style={{ color: colors.muted, fontSize: 13 } as TextStyle}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {isLoading && (
+        <View style={{ alignItems: "center", padding: 32 }}>
+          <ActivityIndicator size="large" color={NVC_BLUE} />
+        </View>
+      )}
+
+      {/* Tenant table */}
+      {!isLoading && (
+        <View style={[{ borderWidth: 1, borderRadius: 12, overflow: "hidden", borderColor: colors.border }] as ViewStyle[]}>
+          {/* Table header */}
+          <View style={[{ flexDirection: "row", backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }] as ViewStyle[]}>
+            {["Tenant", "Plan", "Status", "Techs", "Active Jobs", "Users", "Actions"].map((h, i) => (
+              <Text key={h} style={[{ fontFamily: "Inter_700Bold", fontSize: 11, color: colors.muted, flex: i === 0 ? 2 : 1, textTransform: "uppercase" }] as TextStyle[]}>{h}</Text>
+            ))}
+          </View>
+          {tenants.length === 0 && (
+            <View style={{ padding: 32, alignItems: "center" }}>
+              <Text style={{ color: colors.muted, fontSize: 14 } as TextStyle}>No tenants found.</Text>
+            </View>
+          )}
+          {tenants.map((t: any, idx: number) => (
+            <View
+              key={t.id}
+              style={[{
+                flexDirection: "row", alignItems: "center",
+                paddingHorizontal: 16, paddingVertical: 12,
+                backgroundColor: idx % 2 === 0 ? colors.background : colors.surface,
+                borderBottomWidth: idx < tenants.length - 1 ? 1 : 0,
+                borderBottomColor: colors.border,
+              }] as ViewStyle[]}
+            >
+              <View style={{ flex: 2 }}>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground } as TextStyle} numberOfLines={1}>{t.companyName}</Text>
+                <Text style={{ fontSize: 11, color: colors.muted } as TextStyle}>/{t.slug}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={[{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start", backgroundColor: (PLAN_COLORS[t.plan] ?? "#6B7280") + "20" }] as ViewStyle[]}>
+                  <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: PLAN_COLORS[t.plan] ?? "#6B7280" } as TextStyle}>{(t.plan ?? "").toUpperCase()}</Text>
+                </View>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.suspended ? "#EF4444" : t.isActive ? "#22C55E" : "#9CA3AF", marginBottom: 2 }] as ViewStyle[]} />
+                <Text style={{ fontSize: 11, color: colors.muted } as TextStyle}>{t.suspended ? "Suspended" : t.isActive ? "Active" : "Inactive"}</Text>
+              </View>
+              <Text style={{ flex: 1, fontSize: 13, color: colors.foreground } as TextStyle}>{t.totalTechnicians ?? 0}</Text>
+              <Text style={{ flex: 1, fontSize: 13, color: "#22C55E" } as TextStyle}>{t.activeJobs ?? 0}</Text>
+              <Text style={{ flex: 1, fontSize: 13, color: colors.foreground } as TextStyle}>{t.totalUsers ?? 0}</Text>
+              <View style={{ flex: 1, flexDirection: "row", gap: 6 }}>
+                {actionId === t.id ? (
+                  <ActivityIndicator size="small" color={NVC_BLUE} />
+                ) : (
+                  <>
+                    <Pressable
+                      style={({ pressed }) => [{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: NVC_BLUE + "18", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                      onPress={() => { setActionId(t.id); impersonateMutation.mutate({ tenantId: t.id }); }}
+                    >
+                      <Text style={{ fontSize: 11, color: NVC_BLUE, fontFamily: "Inter_600SemiBold" } as TextStyle}>Manage</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: (t.suspended ? "#22C55E" : "#EF4444") + "18", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+                      onPress={() => { setActionId(t.id); toggleSuspendMutation.mutate({ id: t.id, suspended: !t.suspended }); }}
+                    >
+                      <Text style={{ fontSize: 11, color: t.suspended ? "#22C55E" : "#EF4444", fontFamily: "Inter_600SemiBold" } as TextStyle}>
+                        {t.suspended ? "Unsuspend" : "Suspend"}
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ─── Super Admin: Audit Log Section ─────────────────────────────────────────────────────────────────
+
+const AUDIT_ACTION_LABELS: Record<string, { label: string; color: string }> = {
+  "tenant.suspend":      { label: "Suspended",   color: "#EF4444" },
+  "tenant.unsuspend":    { label: "Unsuspended",  color: "#22C55E" },
+  "tenant.impersonate":  { label: "Impersonated", color: "#F59E0B" },
+  "tenant.create":       { label: "Created",      color: "#3B82F6" },
+  "tenant.update":       { label: "Updated",      color: "#8B5CF6" },
+  "user.create":         { label: "User Created", color: "#3B82F6" },
+  "user.login":          { label: "Login",        color: "#6B7280" },
+};
+
+function AuditLogSection() {
+  const colors = useColors();
+  const { data, isLoading, refetch } = trpc.auditLogs.list.useQuery(
+    { limit: 200, offset: 0 },
+    { refetchOnWindowFocus: true },
+  );
+  const rows = (data as any)?.rows ?? [];
+
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground } as TextStyle}>Audit Log</Text>
+          <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 } as TextStyle}>
+            All super admin actions — {rows.length} events recorded
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+          onPress={() => refetch()}
+        >
+          <IconSymbol name="arrow.clockwise" size={14} color={colors.muted} />
+          <Text style={{ fontSize: 12, color: colors.muted } as TextStyle}>Refresh</Text>
+        </Pressable>
+      </View>
+
+      {isLoading && <ActivityIndicator size="large" color={NVC_BLUE} style={{ marginTop: 40 }} />}
+
+      {!isLoading && rows.length === 0 && (
+        <View style={{ alignItems: "center", padding: 48 }}>
+          <IconSymbol name="doc.text.fill" size={40} color={colors.muted} />
+          <Text style={{ fontSize: 15, fontFamily: "Inter_600SemiBold", color: colors.muted, marginTop: 12 } as TextStyle}>
+            No audit events yet.
+          </Text>
+          <Text style={{ fontSize: 13, color: colors.muted, marginTop: 6, textAlign: "center" } as TextStyle}>
+            Actions like suspend, unsuspend, and impersonate will appear here.
+          </Text>
+        </View>
+      )}
+
+      {!isLoading && rows.length > 0 && (
+        <View style={[{ borderWidth: 1, borderRadius: 12, overflow: "hidden", borderColor: colors.border }] as ViewStyle[]}>
+          {/* Header */}
+          <View style={[{ flexDirection: "row", backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }] as ViewStyle[]}>
+            {["Action", "Actor", "Target", "Time"].map((h) => (
+              <Text key={h} style={[{ fontFamily: "Inter_700Bold", fontSize: 11, color: colors.muted, flex: 1, textTransform: "uppercase" }] as TextStyle[]}>{h}</Text>
+            ))}
+          </View>
+          {rows.map((row: any, idx: number) => {
+            const meta = AUDIT_ACTION_LABELS[row.action] ?? { label: row.action, color: "#6B7280" };
+            const ts = row.createdAt ? new Date(row.createdAt) : null;
+            const timeStr = ts ? ts.toLocaleDateString("en-CA") + " " + ts.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" }) : "";
+            return (
+              <View
+                key={row.id}
+                style={[{
+                  flexDirection: "row", alignItems: "center",
+                  paddingHorizontal: 16, paddingVertical: 10,
+                  backgroundColor: idx % 2 === 0 ? colors.background : colors.surface,
+                  borderBottomWidth: idx < rows.length - 1 ? 1 : 0,
+                  borderBottomColor: colors.border,
+                }] as ViewStyle[]}
+              >
+                <View style={{ flex: 1 }}>
+                  <View style={[{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start", backgroundColor: meta.color + "20" }] as ViewStyle[]}>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter_700Bold", color: meta.color } as TextStyle}>{meta.label}</Text>
+                  </View>
+                </View>
+                <Text style={{ flex: 1, fontSize: 12, color: colors.foreground } as TextStyle} numberOfLines={1}>{row.actorEmail ?? "—"}</Text>
+                <Text style={{ flex: 1, fontSize: 12, color: colors.muted } as TextStyle} numberOfLines={1}>
+                  {row.targetType ?? ""}{row.targetId ? ` #${row.targetId}` : ""}
+                  {row.metadata?.tenantName ? ` — ${row.metadata.tenantName}` : ""}
+                </Text>
+                <Text style={{ flex: 1, fontSize: 11, color: colors.muted } as TextStyle}>{timeStr}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({ root: { flex: 1, flexDirection: "row" } as ViewStyle,
 
   // Sidebar
   sidebar: {

@@ -393,6 +393,76 @@ export const appRouter = router({
         const { tenantId, ...data } = input;
         return db.updateTenant(tenantId, data as any);
       }),
+
+    /** Toggle suspend/unsuspend a tenant — NVC super admin only */
+    toggleSuspend: nvcAdminProcedure
+      .input(z.object({ id: z.number(), suspended: z.boolean() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateTenant(input.id, { suspended: input.suspended } as any);
+        await db.writeAuditLog({
+          tenantId: input.id,
+          actorId: ctx.user?.openId ?? "unknown",
+          actorEmail: ctx.user?.email ?? "unknown",
+          actorRole: ctx.user?.role ?? "nvc_super_admin",
+          action: input.suspended ? "tenant.suspend" : "tenant.unsuspend",
+          targetType: "tenant",
+          targetId: String(input.id),
+          metadata: { suspended: input.suspended },
+        });
+        return { ok: true };
+      }),
+
+    /** List all tenants enriched with active job count, user count, technician count */
+    listWithStats: nvcAdminProcedure.query(async () => {
+      const allTenants = await db.getAllTenants();
+      const statsArr = await Promise.all(
+        allTenants.map((t) => db.getTenantStats(t.id).then((s) => ({ id: t.id, ...s })))
+      );
+      const statsMap = Object.fromEntries(statsArr.map((s) => [s.id, s]));
+      return allTenants.map((t) => ({
+        ...t,
+        activeJobs: statsMap[t.id]?.activeJobs ?? 0,
+        totalUsers: statsMap[t.id]?.totalUsers ?? 0,
+        totalTechnicians: statsMap[t.id]?.totalTechnicians ?? 0,
+      }));
+    }),
+
+    /** Impersonate a merchant tenant — returns a scoped session token */
+    impersonate: nvcAdminProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const tenant = await db.getTenantById(input.tenantId);
+        if (!tenant) throw new TRPCError({ code: "NOT_FOUND", message: "Tenant not found" });
+        await db.writeAuditLog({
+          tenantId: input.tenantId,
+          actorId: ctx.user?.openId ?? "unknown",
+          actorEmail: ctx.user?.email ?? "unknown",
+          actorRole: ctx.user?.role ?? "nvc_super_admin",
+          action: "tenant.impersonate",
+          targetType: "tenant",
+          targetId: String(input.tenantId),
+          metadata: { tenantName: tenant.companyName },
+        });
+        // Return the tenant info so the client can switch context
+        return {
+          tenantId: tenant.id,
+          tenantName: tenant.companyName,
+          tenantColor: (tenant.branding as any)?.primaryColor ?? "#3B82F6",
+          tenantSlug: tenant.slug,
+        };
+      }),
+  }),
+
+  // ─── Audit Logs (NVC Super Admin) ─────────────────────────────────────────
+  auditLogs: router({
+    list: nvcAdminProcedure
+      .input(z.object({
+        tenantId: z.number().optional(),
+        action: z.string().optional(),
+        limit: z.number().min(1).max(200).default(50),
+        offset: z.number().min(0).default(0),
+      }))
+      .query(({ input }) => db.getAuditLogs(input)),
   }),
 
   // ─── Workflow Templates ────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ import {
   consentRecords, InsertConsentRecord,
   taskChecklists, InsertTaskChecklist,
   checklistItems, InsertChecklistItem,
+  auditLogs, InsertAuditLog,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -800,4 +801,87 @@ export async function completeChecklist(
       paymentAuthorizedAt: data.paymentAuthorized ? new Date() : null,
     })
     .where(and(eq(taskChecklists.id, checklistId), eq(taskChecklists.tenantId, tenantId)));
+}
+
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+
+export async function writeAuditLog(entry: {
+  tenantId?: number | null;
+  actorId: string;
+  actorEmail: string;
+  actorRole: string;
+  action: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const db = await getDb();
+  if (!db) return; // Non-fatal — don't block the main action
+  try {
+    await db.insert(auditLogs).values({
+      tenantId: entry.tenantId ?? null,
+      actorId: entry.actorId,
+      actorEmail: entry.actorEmail,
+      actorRole: entry.actorRole,
+      action: entry.action,
+      targetType: entry.targetType ?? null,
+      targetId: entry.targetId != null ? String(entry.targetId) : null,
+      metadata: entry.metadata ?? null,
+    });
+  } catch (e) {
+    // Audit log failures must never crash the main request
+    console.warn("[audit] Failed to write audit log:", e);
+  }
+}
+
+export async function getAuditLogs(opts: {
+  tenantId?: number;
+  actorId?: string;
+  action?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { rows: [], total: 0 };
+  const conditions = [];
+  if (opts.tenantId != null) conditions.push(eq(auditLogs.tenantId, opts.tenantId));
+  if (opts.actorId) conditions.push(eq(auditLogs.actorId, opts.actorId));
+  if (opts.action) conditions.push(eq(auditLogs.action, opts.action));
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const [rows, countRows] = await Promise.all([
+    db.select().from(auditLogs)
+      .where(whereClause)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(opts.limit ?? 50)
+      .offset(opts.offset ?? 0),
+    db.select({ count: auditLogs.id }).from(auditLogs).where(whereClause),
+  ]);
+  return { rows, total: countRows.length };
+}
+
+export async function getTenantStats(tenantId: number) {
+  const db = await getDb();
+  if (!db) return { activeJobs: 0, totalUsers: 0, totalTechnicians: 0 };
+  const [activeJobRows, userRows, techRows] = await Promise.all([
+    db.select({ id: tasks.id }).from(tasks)
+      .where(and(
+        eq(tasks.tenantId, tenantId),
+        // Active = not completed, not cancelled, not failed
+        // Use a raw SQL approach by checking multiple statuses
+      )),
+    db.select({ id: tenantUsers.id }).from(tenantUsers)
+      .where(and(eq(tenantUsers.tenantId, tenantId), eq(tenantUsers.isActive, true))),
+    db.select({ id: technicians.id }).from(technicians)
+      .where(eq(technicians.tenantId, tenantId)),
+  ]);
+  // Count active jobs manually
+  const activeStatuses = ["unassigned", "assigned", "en_route", "on_site"];
+  const allJobs = await db.select({ id: tasks.id, status: tasks.status })
+    .from(tasks).where(eq(tasks.tenantId, tenantId));
+  const activeJobs = allJobs.filter(j => activeStatuses.includes(j.status)).length;
+  return {
+    activeJobs,
+    totalUsers: userRows.length,
+    totalTechnicians: techRows.length,
+  };
 }

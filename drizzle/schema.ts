@@ -549,3 +549,29 @@ export const userMerchantAccess = mysqlTable("userMerchantAccess", {
 });
 export type UserMerchantAccess = typeof userMerchantAccess.$inferSelect;
 export type InsertUserMerchantAccess = typeof userMerchantAccess.$inferInsert;
+
+// ─── Audit Logs (Super Admin action trail) ────────────────────────────────────
+/**
+ * Records every super admin action for compliance and client demos.
+ * actorId = openId of the NVC staff member who performed the action.
+ */
+export const auditLogs = mysqlTable("auditLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Affected tenant — NULL for platform-level actions (e.g. login) */
+  tenantId: int("tenantId"),
+  /** openId of the NVC staff who performed the action */
+  actorId: varchar("actorId", { length: 128 }).notNull(),
+  actorEmail: varchar("actorEmail", { length: 320 }).notNull(),
+  actorRole: varchar("actorRole", { length: 64 }).notNull(),
+  /** Action key, e.g. "tenant.create", "tenant.suspend", "user.login" */
+  action: varchar("action", { length: 128 }).notNull(),
+  /** Type of the affected record, e.g. "tenant", "tenantUser", "task" */
+  targetType: varchar("targetType", { length: 64 }),
+  /** ID of the affected record */
+  targetId: varchar("targetId", { length: 128 }),
+  /** Extra context: before/after values, IP, etc. */
+  metadata: json("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

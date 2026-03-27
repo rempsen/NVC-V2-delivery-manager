@@ -1,6 +1,6 @@
 /**
  * use-tenant.ts
- * Provides the current tenant ID from secure storage (set at login).
+ * Provides the current tenant ID and user role from secure storage (set at login).
  * Returns null when in demo/unauthenticated mode.
  */
 import { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ const USER_KEY = "nvc360_user";
 export interface TenantContext {
   tenantId: number | null;
   userId: number | null;
+  userRole: string | null;
   isDemo: boolean;
   loading: boolean;
 }
@@ -19,6 +20,7 @@ export interface TenantContext {
 export function useTenant(): TenantContext {
   const [tenantId, setTenantId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export function useTenant(): TenantContext {
             const uid = parsed?.id ? parseInt(String(parsed.id), 10) : null;
             setTenantId(isNaN(tid as number) ? null : tid);
             setUserId(isNaN(uid as number) ? null : uid);
+            setUserRole(parsed?.role ?? null);
           }
         } else {
           // Native: read from SecureStore
@@ -43,6 +46,7 @@ export function useTenant(): TenantContext {
             const uid = parsed?.id ? parseInt(String(parsed.id), 10) : null;
             setTenantId(isNaN(tid as number) ? null : tid);
             setUserId(isNaN(uid as number) ? null : uid);
+            setUserRole(parsed?.role ?? null);
           }
         }
       } catch {
@@ -57,6 +61,7 @@ export function useTenant(): TenantContext {
   return {
     tenantId,
     userId,
+    userRole,
     isDemo: tenantId === null,
     loading,
   };

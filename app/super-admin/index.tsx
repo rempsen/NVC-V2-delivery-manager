@@ -340,6 +340,130 @@ function CreateClientModal({
   );
 }
 
+// ─── Audit Log Tab ────────────────────────────────────────────────────────────
+
+const ACTION_LABELS: Record<string, { label: string; color: string }> = {
+  "tenant.suspend":      { label: "Suspended",   color: "#EF4444" },
+  "tenant.unsuspend":    { label: "Unsuspended",  color: "#22C55E" },
+  "tenant.impersonate":  { label: "Impersonated", color: "#F59E0B" },
+  "tenant.create":       { label: "Created",      color: "#3B82F6" },
+  "tenant.update":       { label: "Updated",      color: "#8B5CF6" },
+  "user.create":         { label: "User Created", color: "#3B82F6" },
+  "user.login":          { label: "Login",        color: "#6B7280" },
+};
+
+function AuditLogTab() {
+  const colors = useColors();
+  const { data, isLoading, refetch } = trpc.auditLogs.list.useQuery(
+    { limit: 100, offset: 0 },
+    { refetchOnWindowFocus: true },
+  );
+  const rows = data?.rows ?? [];
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={[auditStyles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[auditStyles.title, { color: colors.foreground }]}>Audit Log</Text>
+        <Pressable
+          style={({ pressed }) => [auditStyles.refreshBtn, { opacity: pressed ? 0.6 : 1 }]}
+          onPress={() => refetch()}
+        >
+          <IconSymbol name="arrow.clockwise" size={16} color={colors.primary} />
+          <Text style={[auditStyles.refreshText, { color: colors.primary }]}>Refresh</Text>
+        </Pressable>
+      </View>
+
+      {isLoading && (
+        <View style={{ padding: 24, alignItems: "center" }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      )}
+
+      {!isLoading && rows.length === 0 && (
+        <View style={{ padding: 32, alignItems: "center" }}>
+          <Text style={[auditStyles.emptyText, { color: colors.muted }]}>
+            No audit events recorded yet.
+          </Text>
+          <Text style={[auditStyles.emptySubText, { color: colors.muted }]}>
+            Actions like suspend, unsuspend, and impersonate will appear here.
+          </Text>
+        </View>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        {rows.map((row: any) => {
+          const actionMeta = ACTION_LABELS[row.action] ?? { label: row.action, color: "#6B7280" };
+          const ts = row.createdAt ? new Date(row.createdAt) : null;
+          const timeStr = ts
+            ? ts.toLocaleDateString("en-CA") + " " + ts.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" })
+            : "";
+          return (
+            <View
+              key={row.id}
+              style={[auditStyles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <View style={[auditStyles.actionBadge, { backgroundColor: actionMeta.color + "20" }]}>
+                <Text style={[auditStyles.actionBadgeText, { color: actionMeta.color }]}>
+                  {actionMeta.label}
+                </Text>
+              </View>
+              <View style={auditStyles.rowBody}>
+                <Text style={[auditStyles.rowActor, { color: colors.foreground }]} numberOfLines={1}>
+                  {row.actorEmail}
+                </Text>
+                {row.targetId && (
+                  <Text style={[auditStyles.rowTarget, { color: colors.muted }]} numberOfLines={1}>
+                    {row.targetType ?? "target"} #{row.targetId}
+                    {row.metadata?.tenantName ? ` — ${row.metadata.tenantName}` : ""}
+                  </Text>
+                )}
+              </View>
+              <Text style={[auditStyles.rowTime, { color: colors.muted }]}>{timeStr}</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const auditStyles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  title: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold" },
+  refreshBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  refreshText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  emptyText: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
+  emptySubText: { fontSize: 13, textAlign: "center" },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    gap: 10,
+  },
+  actionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    minWidth: 88,
+    alignItems: "center",
+  },
+  actionBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold" },
+  rowBody: { flex: 1 },
+  rowActor: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  rowTarget: { fontSize: 11, marginTop: 2 },
+  rowTime: { fontSize: 10 },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 // Map DB tenant industry enum to display-friendly string
@@ -350,20 +474,45 @@ const INDUSTRY_DISPLAY: Record<string, string> = {
   plumbing: "Plumbing", flooring: "Flooring", other: "Other",
 };
 
+type SuperAdminTab = "clients" | "audit";
+
 export default function SuperAdminDashboard() {
   const colors = useColors();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<SuperAdminTab>("clients");
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState<ClientPlan | "all">("all");
   const [showCreate, setShowCreate] = useState(false);
   const [clientViewMode, setClientViewMode] = useState<"list" | "card">("list");
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  // Live DB queries
-  const { data: tenantsData, isLoading, refetch } = trpc.tenants.list.useQuery(undefined, {
+  // Live DB queries — use listWithStats for real active job / user / tech counts
+  const { data: tenantsData, isLoading, refetch } = trpc.tenants.listWithStats.useQuery(undefined, {
     refetchOnWindowFocus: true,
   });
+
   const createTenantMutation = trpc.tenants.create.useMutation({
     onSuccess: () => { refetch(); },
+  });
+
+  const toggleSuspendMutation = trpc.tenants.toggleSuspend.useMutation({
+    onSuccess: () => { refetch(); setActionLoadingId(null); },
+    onError: (err) => { Alert.alert("Error", err.message); setActionLoadingId(null); },
+  });
+
+  const impersonateMutation = trpc.tenants.impersonate.useMutation({
+    onSuccess: (result) => {
+      setActionLoadingId(null);
+      Alert.alert(
+        "Viewing as Merchant",
+        `You are now viewing ${result.tenantName}. Navigate to the main dashboard to see their data.`,
+        [
+          { text: "Go to Dashboard", onPress: () => router.push("/(tabs)" as any) },
+          { text: "Stay Here", style: "cancel" },
+        ],
+      );
+    },
+    onError: (err) => { Alert.alert("Error", err.message); setActionLoadingId(null); },
   });
 
   // Map DB tenant rows to ClientCompany shape for the existing UI
@@ -373,12 +522,13 @@ export default function SuperAdminDashboard() {
     industry: INDUSTRY_DISPLAY[t.industry] ?? t.industry,
     plan: t.plan as ClientPlan,
     status: t.isActive ? (t.suspended ? "suspended" : "active") : "onboarding",
-    technicianCount: 0,
-    activeJobs: 0,
+    technicianCount: t.totalTechnicians ?? 0,
+    activeJobs: t.activeJobs ?? 0,
     monthlyRevenue: 0,
     createdAt: t.createdAt ? new Date(t.createdAt).toISOString().split("T")[0] : "",
     primaryColor: (t.branding as any)?.primaryColor ?? "#3B82F6",
     subdomain: t.slug,
+    suspended: t.suspended ?? false,
   }));
 
   const filteredClients = clients.filter((c) => {
@@ -392,7 +542,6 @@ export default function SuperAdminDashboard() {
   });
 
   // Platform metrics
-  const totalMRR = clients.reduce((sum, c) => sum + c.monthlyRevenue, 0);
   const totalTechs = clients.reduce((sum, c) => sum + c.technicianCount, 0);
   const totalActiveJobs = clients.reduce((sum, c) => sum + c.activeJobs, 0);
   const activeClients = clients.filter((c) => c.status === "active").length;
@@ -416,6 +565,32 @@ export default function SuperAdminDashboard() {
         },
       },
     );
+  };
+
+  const handleSuspend = (client: ClientCompany) => {
+    const isSuspended = (client as any).suspended;
+    Alert.alert(
+      isSuspended ? "Unsuspend Client" : "Suspend Client",
+      isSuspended
+        ? `Restore access for "${client.name}"?`
+        : `Suspend "${client.name}"? All their users will lose access immediately.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: isSuspended ? "Unsuspend" : "Suspend",
+          style: isSuspended ? "default" : "destructive",
+          onPress: () => {
+            setActionLoadingId(client.id);
+            toggleSuspendMutation.mutate({ id: client.id, suspended: !isSuspended });
+          },
+        },
+      ],
+    );
+  };
+
+  const handleImpersonate = (client: ClientCompany) => {
+    setActionLoadingId(client.id);
+    impersonateMutation.mutate({ tenantId: client.id });
   };
 
   return (
@@ -460,20 +635,33 @@ export default function SuperAdminDashboard() {
           <View style={[styles.platformStatDivider, { backgroundColor: "#333" }]} />
           <View style={styles.platformStat}>
             <Text style={[styles.platformStatVal, { color: "#22C55E" }]}>
-              ${totalMRR.toLocaleString()}
+              {clients.filter((c) => c.status === "suspended").length}
             </Text>
-            <Text style={styles.platformStatLabel}>Total MRR</Text>
+            <Text style={styles.platformStatLabel}>Suspended</Text>
           </View>
         </ScrollView>
       </View>
 
-      {isLoading && (
-        <View style={{ padding: 24, alignItems: "center" }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ color: colors.muted, marginTop: 8 }}>Loading clients...</Text>
-        </View>
-      )}
+      {/* Tab Bar */}
+      <View style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {(["clients", "audit"] as SuperAdminTab[]).map((tab) => (
+          <Pressable
+            key={tab}
+            style={[styles.tabBtn, activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabBtnText, { color: activeTab === tab ? colors.primary : colors.muted }]}>
+              {tab === "clients" ? "Clients" : "Audit Log"}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
+      {/* Audit Log Tab */}
+      {activeTab === "audit" && <AuditLogTab />}
+
+      {/* Clients Tab */}
+      {activeTab === "clients" && (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Platform Tools — at top */}
         <View style={[styles.quickActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -593,14 +781,40 @@ export default function SuperAdminDashboard() {
 
           {clientViewMode === "list" ? (
             filteredClients.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                onPress={() => {
-                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(`/super-admin/client/${client.id}` as any);
-                }}
-              />
+              <View key={client.id}>
+                <ClientCard
+                  client={client}
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/super-admin/client/${client.id}` as any);
+                  }}
+                />
+                {/* Action buttons row */}
+                <View style={[styles.clientActions, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                  <Pressable
+                    style={({ pressed }) => [styles.clientActionBtn, { backgroundColor: colors.primary + "15", opacity: pressed ? 0.7 : 1 }]}
+                    onPress={() => handleImpersonate(client)}
+                    disabled={actionLoadingId === client.id}
+                  >
+                    {actionLoadingId === client.id
+                      ? <ActivityIndicator size="small" color={colors.primary} />
+                      : <Text style={[styles.clientActionBtnText, { color: colors.primary }]}>View as Merchant</Text>
+                    }
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.clientActionBtn,
+                      { backgroundColor: (client as any).suspended ? "#22C55E20" : "#EF444420", opacity: pressed ? 0.7 : 1 },
+                    ]}
+                    onPress={() => handleSuspend(client)}
+                    disabled={actionLoadingId === client.id}
+                  >
+                    <Text style={[styles.clientActionBtnText, { color: (client as any).suspended ? "#22C55E" : "#EF4444" }]}>
+                      {(client as any).suspended ? "Unsuspend" : "Suspend"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
             ))
           ) : (
             <View style={styles.clientsCardGrid}>
@@ -647,6 +861,8 @@ export default function SuperAdminDashboard() {
           )}
         </View>
       </ScrollView>
+
+      )}
 
       <CreateClientModal
         visible={showCreate}
@@ -898,5 +1114,38 @@ const styles = StyleSheet.create({
   clientGridIndustry: { fontSize: 11, textAlign: "center" },
   clientGridStats: { flexDirection: "row", alignItems: "center", gap: 4 },
   clientGridStatVal: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  clientGridStatLabel: { fontSize: 10 },
+  clientGridStatLabel: { fontSize: 10, color: "#9BA1A6" },
+  // Tab bar
+  tabBar: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+  },
+  tabBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginRight: 4,
+  },
+  tabBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  // Client action buttons
+  clientActions: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: -8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderRadius: 14,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
+  clientActionBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  clientActionBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 });
