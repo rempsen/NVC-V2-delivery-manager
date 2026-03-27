@@ -65,8 +65,8 @@ export const tenants = mysqlTable("tenants", {
   smsSenderName: varchar("smsSenderName", { length: 64 }),
   /** Email domain for outbound notifications (e.g., "acmehvac.com") */
   emailDomain: varchar("emailDomain", { length: 255 }),
-  /** NVC360 API key for this tenant */
-  nvc360ApiKey: varchar("nvc360ApiKey", { length: 255 }),
+  /** NVC360 / Tookan API key for this tenant */
+  nvc360ApiKey: varchar("tookanApiKey", { length: 255 }),
   /** Twilio credentials for SMS */
   twilioAccountSid: varchar("twilioAccountSid", { length: 64 }),
   twilioAuthToken: varchar("twilioAuthToken", { length: 64 }),

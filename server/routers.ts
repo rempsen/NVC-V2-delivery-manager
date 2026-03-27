@@ -110,6 +110,15 @@ export const appRouter = router({
             const techRecord = await db.getTechnicianByTenantUserId(tenantUser.id);
             technicianId = techRecord?.id ?? null;
           }
+          // Map tenantUser roles to app-level roles.
+          // Users on the NVC360 platform tenant (isNvcPlatform=true) with admin/manager role
+          // are NVC Super Admins with full platform access.
+          let effectiveRole: string = tenantUser.role as string;
+          if (tenant?.isNvcPlatform) {
+            if (tenantUser.role === "admin") effectiveRole = "nvc_super_admin";
+            else if (tenantUser.role === "manager") effectiveRole = "nvc_project_manager";
+            else if (tenantUser.role === "dispatcher") effectiveRole = "nvc_support";
+          }
           return {
             success: true,
             token: sessionToken,
@@ -117,10 +126,10 @@ export const appRouter = router({
               id: openId,
               name: tenantUser.name,
               email: emailLower,
-              role: tenantUser.role as string,
+              role: effectiveRole,
               tenantId: tenantUser.tenantId ?? null,
               tenantName: tenant?.companyName ?? null,
-              tenantColor: (tenant?.branding as any)?.primaryColor ?? null,
+              tenantColor: (tenant?.branding as any)?.primaryColor ?? "#E85D04",
               tenantLogo: (tenant?.branding as any)?.logoUrl ?? null,
               technicianId,
             },
@@ -130,6 +139,7 @@ export const appRouter = router({
         // ── Step 2: Demo account fallback (password = "demo123") ──────────────────
         const DEMO_USERS: Record<string, { openId: string; name: string; email: string; role: string; tenantId: number | null; tenantName: string | null; tenantColor: string | null; tenantLogo: string | null }> = {
           "admin@nvc360.com":      { openId: "demo-nvc-001",  name: "Dan Rosenblat",  email: "admin@nvc360.com",      role: "nvc_super_admin",    tenantId: 3, tenantName: "NVC360",              tenantColor: "#E85D04", tenantLogo: null },
+          "dan@nvc360.com":        { openId: "demo-nvc-dan",  name: "Dan Rosenblat",  email: "dan@nvc360.com",        role: "nvc_super_admin",    tenantId: 3, tenantName: "NVC360",              tenantColor: "#E85D04", tenantLogo: null },
           "pm@nvc360.com":         { openId: "demo-nvc-002",  name: "Sarah Mitchell", email: "pm@nvc360.com",         role: "nvc_project_manager", tenantId: 3, tenantName: "NVC360",              tenantColor: "#8B5CF6", tenantLogo: null },
           "dispatch@acmehvac.com": { openId: "demo-t1-001",   name: "James Chen",     email: "dispatch@acmehvac.com", role: "dispatcher",          tenantId: 1, tenantName: "Acme HVAC Services",  tenantColor: "#3B82F6", tenantLogo: null },
           "tech@acmehvac.com":     { openId: "demo-t1-002",   name: "Mike Torres",    email: "tech@acmehvac.com",     role: "field_technician",    tenantId: 1, tenantName: "Acme HVAC Services",  tenantColor: "#3B82F6", tenantLogo: null },

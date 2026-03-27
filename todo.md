@@ -1199,3 +1199,11 @@
 
 ## Bug Fix — iOS Map Crash (Mar 27 2026)
 - [x] Fix: native-map-view.tsx crashes on iOS Expo Go — root cause was react-native-maps@1.27.2 (incompatible with Expo SDK 54). Fixed by: (1) switching from inline require() to top-level static import, (2) downgrading to react-native-maps@1.20.1 (the version Expo SDK 54 requires)
+
+## Super Admin Account Setup (Mar 27 2026)
+- [x] NVC360 platform tenant confirmed: id=3, slug=nvc360, plan=enterprise, isNvcPlatform=true
+- [x] Super admin user created: dan@nvc360.com / demo123 (tenantUser id=30001, role=admin → maps to nvc_super_admin)
+- [x] Fixed schema mismatch: nvc360ApiKey column mapped to actual DB column tookanApiKey
+- [x] Role mapping added: admin on NVC platform tenant → nvc_super_admin, manager → nvc_project_manager
+- [x] Demo fallback added: dan@nvc360.com included in DEMO_USERS for resilience
+- [x] Verified end-to-end: login returns role=nvc_super_admin, tenantName=NVC360 Platform
