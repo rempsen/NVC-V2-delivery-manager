@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import {
-  View, Text, ScrollView, Pressable, Linking, StyleSheet, Alert, Platform, ActivityIndicator,
+  View, Text, ScrollView, Pressable, Linking, StyleSheet, Alert, Platform, ActivityIndicator, Clipboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -190,12 +190,32 @@ export default function TaskDetailScreen() {
     ]);
   };
 
+  if (!task && !rawTask) {
+    return (
+      <ScreenContainer>
+        <NVCHeader title="Work Order" showBack />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={NVC_BLUE} />
+          <Text style={{ color: colors.muted, marginTop: 12, fontSize: 14 }}>Loading work order…</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
+
   if (!task) {
     return (
       <ScreenContainer>
+        <NVCHeader title="Work Order" showBack />
         <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={{ color: colors.muted, marginTop: 12 }}>Loading work order…</Text>
+          <IconSymbol name="exclamationmark.triangle.fill" size={40} color={colors.warning} />
+          <Text style={{ color: colors.foreground, marginTop: 12, fontSize: 16, fontFamily: "Inter_700Bold" }}>Work order not found</Text>
+          <Text style={{ color: colors.muted, marginTop: 6, fontSize: 13 }}>This order may have been deleted or you don’t have access.</Text>
+          <Pressable
+            style={({ pressed }) => [{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 12, backgroundColor: NVC_BLUE, borderRadius: 10, opacity: pressed ? 0.8 : 1 }]}
+            onPress={() => router.back()}
+          >
+            <Text style={{ color: "#fff", fontFamily: "Inter_700Bold" }}>Go Back</Text>
+          </Pressable>
         </View>
       </ScreenContainer>
     );
@@ -218,14 +238,25 @@ export default function TaskDetailScreen() {
     <ScreenContainer edges={["left", "right"]}>
       <NVCHeader
         title={task.customerName}
-        subtitle={task.orderRef ?? task.templateName}
+        subtitle={`${task.orderRef ?? `WO-${task.id}`} · ${STATUS_LABELS[currentStatus]}`}
+        showBack
         rightElement={
-          <Pressable
-            onPress={handleShareTracking}
-            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
-          >
-            <IconSymbol name="square.and.arrow.up" size={20} color="#fff" />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 4 }}>
+            <Pressable
+              onPress={() => router.push(`/create-task?editId=${task.id}` as any)}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+              accessibilityLabel="Edit work order"
+            >
+              <IconSymbol name="pencil" size={18} color="#fff" />
+            </Pressable>
+            <Pressable
+              onPress={handleShareTracking}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+              accessibilityLabel="Share tracking link"
+            >
+              <IconSymbol name="square.and.arrow.up" size={20} color="#fff" />
+            </Pressable>
+          </View>
         }
       />
 
@@ -313,11 +344,36 @@ export default function TaskDetailScreen() {
           </View>
         </Pressable>
 
+        {/* Scheduled date banner if set */}
+        {task.scheduledAt && (
+          <View style={[styles.scheduledBanner, { backgroundColor: NVC_BLUE + "12", borderColor: NVC_BLUE + "30" }]}>
+            <IconSymbol name="calendar" size={14} color={NVC_BLUE} />
+            <Text style={[styles.scheduledText, { color: NVC_BLUE }]}>
+              Scheduled: {new Date(task.scheduledAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          </View>
+        )}
+
         {/* Customer */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.cardTitle, { color: colors.foreground }]}>Customer</Text>
           <InfoRow icon="person.fill" label="Name" value={task.customerName} color={colors.primary} />
-          <InfoRow icon="location.fill" label="Job Address" value={task.jobAddress} />
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Clipboard.setString(task.jobAddress);
+                Alert.alert("Copied", "Address copied to clipboard");
+              }
+            }}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}
+          >
+            <IconSymbol name="location.fill" size={16} color={colors.muted} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.infoLabel, { color: colors.muted }]}>Job Address</Text>
+              <Text style={[styles.infoValue, { color: colors.foreground }]}>{task.jobAddress}</Text>
+              {Platform.OS !== "web" && <Text style={{ fontSize: 10, color: NVC_BLUE, fontFamily: "Inter_500Medium", marginTop: 2 }}>Tap to copy</Text>}
+            </View>
+          </Pressable>
           {task.description && <InfoRow icon="doc.text.fill" label="Description" value={task.description} />}
           <View style={styles.contactRow}>
             <Pressable
@@ -536,4 +592,6 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   modalConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center", minHeight: 50 },
   modalConfirmText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  scheduledBanner: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginTop: 0, marginBottom: 8, padding: 10, borderRadius: 10, borderWidth: 1, gap: 6 },
+  scheduledText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

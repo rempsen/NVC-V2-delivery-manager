@@ -178,7 +178,7 @@ export default function AgentHomeScreen() {
 
   const clockInMutation = trpc.technicians.clockIn.useMutation();
   const clockOutMutation = trpc.technicians.clockOut.useMutation();
-  const savePushTokenMutation = trpc.technicians.updateStatus.useMutation();
+  const savePushTokenMutation = trpc.technicians.savePushToken.useMutation();
 
   // Register for push notifications on mount
   useEffect(() => {
@@ -199,9 +199,12 @@ export default function AgentHomeScreen() {
           finalStatus = status;
         }
         if (finalStatus !== "granted") return;
-        // Token is obtained — in production, save to DB via technicians.updatePushToken
+        // Save push token to DB so server can send job-assignment notifications
         const tokenData = await Notifications.getExpoPushTokenAsync();
-        console.log("[PushToken]", tokenData.data);
+        const techId = technicianId.current;
+        if (techId && tokenData.data) {
+          savePushTokenMutation.mutate({ technicianId: techId, pushToken: tokenData.data });
+        }
       } catch (e) {
         // Silently ignore — push tokens require physical device
       }
@@ -308,7 +311,7 @@ export default function AgentHomeScreen() {
       isBackgroundLocationRunning().then((running) => {
         if (!running) {
           startBackgroundLocationTracking(techId, apiBase, tenantId ?? undefined).then((started) => {
-            if (started) console.log("[AgentHome] Background GPS started for tech", techId);
+            if (started && __DEV__) console.log("[AgentHome] Background GPS started for tech", techId);
           });
         }
       });

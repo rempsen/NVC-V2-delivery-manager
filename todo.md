@@ -1154,3 +1154,45 @@
 - [x] Live weekly calendar widget on web dashboard — shows scheduled jobs per technician (month/week toggle, double-click to create work order)
 - [x] Calendar: click date to create work order, note, or event (double-click navigates to /create-task with pre-filled date)
 - [ ] Calendar integration on Work Orders, Technician, and Customer pages
+
+## Gap Analysis & Fine-Tune Sprint — March 2026
+
+### Web Dashboard Gaps
+- [x] Dashboard: Revenue Today is hardcoded "$4,280" — replaced with live computed sum from tasks
+- [x] Dashboard: SLA Risk badge — hidden when slaAtRisk === 0
+- [x] Dashboard: Command strip items — now clickable, navigate to relevant section
+- [x] WorkOrders section: sortable column headers (time, status, priority, scheduled date)
+- [x] WorkOrders section: scheduledAt column added to table
+- [x] WorkOrders section: CSV export button added in header
+- [x] Reports section: replaced placeholder with real computed stats (completion rate, SLA at risk, per-tech breakdown, CSV export)
+- [x] Sidebar: "Reports" nav item added
+- [x] theme-provider.tsx: removed console.log debug statement
+- [x] Web Dashboard: loading skeleton + error state with retry button for initial data load
+- [ ] Dashboard: Map center is hardcoded Winnipeg — auto-center on first technician location (future)
+- [ ] WorkOrders section: bulk checkbox selection + bulk assign/complete (future)
+- [ ] Customers section: "0 clients" hardcoded in category list — use real DB count (future)
+- [ ] Technicians section: missing "Today's Schedule" column (future)
+- [ ] Calendar section: Work Orders / Technicians / Customers pages missing mini calendar sidebar (future)
+
+### Mobile App Gaps
+- [x] Tasks screen: TaskGridCard now shows scheduled date/time when set (calendar icon + indigo text)
+- [x] Tasks screen: context-aware empty state with CTA button to create first work order
+- [x] Task Detail: scheduled date banner, copy-to-clipboard address, edit button in header
+- [x] Agent Home: push token console.log replaced with actual DB save via savePushToken mutation
+- [x] Dispatcher screen: GoogleMapView (null on native) replaced with NativeMapView on iOS/Android
+- [ ] Home: notification badge is always shown — only show when there are unread notifications (future)
+- [ ] Home: "Simulated" label on map overlay — remove (future)
+- [ ] Create Work Order: scheduled date field pre-fill from calendar double-click param (future)
+- [ ] Create Work Order: validation feedback on required fields (future)
+- [ ] Execute Task: progress indicator showing checklist completion % (future)
+- [ ] Messages screen: "mark all read" action + empty state illustration (future)
+- [ ] Settings: dark mode toggle persistence across app restarts (future)
+- [ ] Login screen: "Forgot Password" link (future)
+
+### Cross-Cutting Gaps
+- [x] Removed all console.log debug statements — wrapped in __DEV__ guards (app/_layout.tsx, login.tsx, lib/_core/api.ts, agent-home.tsx)
+- [x] Web Dashboard: error state with retry button on tRPC query failure
+- [x] Tasks screen: context-aware empty states across all filter states
+- [ ] Add skeleton loading states to Technicians and Customers list screens (future)
+- [ ] Accessibility: icon-only buttons missing accessibilityLabel (future)
+- [ ] Performance: tasks list re-normalizes on every render — memoize normalization (future)

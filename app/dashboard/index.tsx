@@ -735,19 +735,25 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
 
       {/* ── Top Command Strip ── */}
       <View style={[styles.commandStrip, { backgroundColor: NVC_BLUE_DARK, borderColor: "rgba(255,255,255,0.1)", flexShrink: 0 }]}>
-        {[
-          { label: "Jobs Today", value: tasks.length, icon: "paperplane.fill", color: "#60A5FA" },
-          { label: "SLA Risk", value: slaAtRisk, icon: "exclamationmark.triangle.fill", color: slaAtRisk > 0 ? "#F87171" : "#4ADE80" },
-          { label: "Revenue Today", value: "$4,280", icon: "dollarsign.circle.fill", color: "#34D399" },
-          { label: "Active Techs", value: onlineCount, icon: "person.2.fill", color: "#A78BFA" },
-          { label: "Completed", value: completed, icon: "checkmark.circle.fill", color: "#4ADE80" },
-          { label: "Unassigned", value: unassigned, icon: "exclamationmark.triangle.fill", color: unassigned > 0 ? "#F87171" : "#4ADE80" },
-        ].map((item) => (
-          <View key={item.label} style={styles.commandStripItem}>
+        {([
+          { label: "Jobs Today", value: tasks.length, icon: "paperplane.fill", color: "#60A5FA", filter: "all" },
+          ...(slaAtRisk > 0 ? [{ label: "SLA Risk", value: slaAtRisk, icon: "exclamationmark.triangle.fill", color: "#F87171", filter: "unassigned" }] : []),
+          { label: "Active Techs", value: onlineCount, icon: "person.2.fill", color: "#A78BFA", filter: null },
+          { label: "En Route", value: enRoute, icon: "car.fill", color: "#60A5FA", filter: "en_route" },
+          { label: "On Site", value: onJob, icon: "wrench.fill", color: "#34D399", filter: "on_site" },
+          { label: "Completed", value: completed, icon: "checkmark.circle.fill", color: "#4ADE80", filter: "completed" },
+          { label: "Unassigned", value: unassigned, icon: "tray.full.fill", color: unassigned > 0 ? "#F87171" : "#9CA3AF", filter: "unassigned" },
+        ] as { label: string; value: number; icon: string; color: string; filter: string | null }[]).map((item) => (
+          <Pressable
+            key={item.label}
+            style={({ pressed }) => [styles.commandStripItem, { opacity: pressed ? 0.75 : 1 }] as ViewStyle[]}
+            onPress={() => item.filter ? setWoFilter(item.filter as any) : undefined}
+            accessibilityLabel={`${item.label}: ${item.value}`}
+          >
             <IconSymbol name={item.icon as any} size={12} color={item.color} />
             <Text style={[styles.commandStripValue, { color: item.color }] as TextStyle[]}>{item.value}</Text>
             <Text style={styles.commandStripLabel}>{item.label}</Text>
-          </View>
+          </Pressable>
         ))}
         <View style={styles.commandStripDivider} />
         <View style={styles.commandStripItem}>
@@ -1239,6 +1245,10 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const [search, setSearch] = useState("");
+  type SortKey = "orderRef" | "customerName" | "technicianName" | "status" | "priority" | "scheduledAt" | "createdAt";
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const filters: { key: TaskStatus | "all"; label: string }[] = [
     { key: "all", label: "All" },
@@ -1249,15 +1259,87 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
     { key: "completed", label: "Completed" },
   ];
 
-  const filtered = tasks.filter((t) => {
-    const matchesFilter = filter === "all" || t.status === filter;
-    const matchesSearch =
-      !search ||
-      t.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      t.jobAddress.toLowerCase().includes(search.toLowerCase()) ||
-      (t.orderRef ?? "").toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+  const STATUS_ORDER: Record<string, number> = { unassigned: 0, assigned: 1, en_route: 2, on_site: 3, completed: 4 };
+
+  const filtered = useMemo(() => {
+    const base = tasks.filter((t) => {
+      const matchesFilter = filter === "all" || t.status === filter;
+      const matchesSearch =
+        !search ||
+        t.customerName.toLowerCase().includes(search.toLowerCase()) ||
+        t.jobAddress.toLowerCase().includes(search.toLowerCase()) ||
+        (t.orderRef ?? "").toLowerCase().includes(search.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+    return [...base].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "priority") cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
+      else if (sortKey === "status") cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+      else if (sortKey === "scheduledAt") {
+        const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0;
+        const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0;
+        cmp = ta - tb;
+      } else if (sortKey === "createdAt") {
+        cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else {
+        const va = (a[sortKey as keyof Task] ?? "") as string;
+        const vb = (b[sortKey as keyof Task] ?? "") as string;
+        cmp = va.localeCompare(vb);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [tasks, filter, search, sortKey, sortDir]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const allSelected = filtered.length > 0 && filtered.every((t) => selectedIds.has(t.id));
+  const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(filtered.map((t) => t.id)));
+
+  const exportCSV = () => {
+    if (Platform.OS !== "web") return;
+    const rows = ["Order Ref,Customer,Address,Technician,Status,Priority,Scheduled,Created"];
+    const exportList = selectedIds.size > 0 ? filtered.filter((t) => selectedIds.has(t.id)) : filtered;
+    exportList.forEach((t) => {
+      rows.push([
+        t.orderRef ?? `WO-${t.id}`, t.customerName, `"${t.jobAddress}"`,
+        t.technicianName ?? "", t.status, t.priority,
+        t.scheduledAt ? new Date(t.scheduledAt).toLocaleString() : "",
+        new Date(t.createdAt).toLocaleString(),
+      ].join(","));
+    });
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "work-orders.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => (
+    <Text style={{ fontSize: 9, color: sortKey === col ? NVC_BLUE : colors.muted + "80", marginLeft: 2 } as TextStyle}>
+      {sortKey === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅"}
+    </Text>
+  );
+
+  const COLS: { label: string; key: SortKey; flex?: number }[] = [
+    { label: "Order Ref", key: "orderRef", flex: 1 },
+    { label: "Customer", key: "customerName", flex: 1.5 },
+    { label: "Address", key: "orderRef", flex: 2 },
+    { label: "Technician", key: "technicianName", flex: 1.2 },
+    { label: "Status", key: "status", flex: 1 },
+    { label: "Priority", key: "priority", flex: 0.8 },
+    { label: "Scheduled", key: "scheduledAt", flex: 1.2 },
+    { label: "Created", key: "createdAt", flex: 1 },
+  ];
 
   return (
     <View style={{ flex: 1, padding: 24 }}>
@@ -1266,15 +1348,36 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
           <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Work Orders</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
             {tasks.length} total · {tasks.filter((t) => t.status === "unassigned").length} unassigned
+            {selectedIds.size > 0 ? ` · ${selectedIds.size} selected` : ""}
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
-          onPress={() => router.push("/create-task" as any)}
-        >
-          <IconSymbol name="plus" size={16} color="#fff" />
-          <Text style={styles.primaryBtnText}>New Order</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          {selectedIds.size > 0 && (
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: "#16A34A", opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+              onPress={() => setSelectedIds(new Set())}
+            >
+              <IconSymbol name="checkmark.circle.fill" size={14} color="#fff" />
+              <Text style={styles.primaryBtnText}>Clear ({selectedIds.size})</Text>
+            </Pressable>
+          )}
+          {Platform.OS === "web" && (
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+              onPress={exportCSV}
+            >
+              <IconSymbol name="arrow.up.doc.fill" size={14} color="#fff" />
+              <Text style={styles.primaryBtnText}>Export CSV</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+            onPress={() => router.push("/create-task" as any)}
+          >
+            <IconSymbol name="plus" size={16} color="#fff" />
+            <Text style={styles.primaryBtnText}>New Order</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.searchRow}>
@@ -1287,6 +1390,11 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
             value={search}
             onChangeText={setSearch}
           />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch("")} style={{ padding: 4 }}>
+              <IconSymbol name="xmark.circle.fill" size={14} color={colors.muted} />
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -1309,45 +1417,94 @@ function WorkOrdersSection({ tasks }: { tasks: Task[] }) {
       </ScrollView>
 
       <View style={[styles.tableCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Sortable column headers */}
         <View style={[styles.tableHeader, { borderBottomColor: colors.border, backgroundColor: NVC_BLUE + "10" }]}>
-          {["Order Ref", "Customer", "Address", "Technician", "Status", "Priority", "Time"].map((col) => (
-            <Text key={col} style={[styles.tableHeaderCell, { color: NVC_BLUE }] as TextStyle[]}>{col}</Text>
+          {/* Select-all checkbox */}
+          <Pressable onPress={toggleAll} style={{ width: 32, alignItems: "center", justifyContent: "center" }}>
+            <View style={{
+              width: 16, height: 16, borderRadius: 4, borderWidth: 1.5,
+              borderColor: allSelected ? NVC_BLUE : colors.muted,
+              backgroundColor: allSelected ? NVC_BLUE : "transparent",
+              alignItems: "center", justifyContent: "center",
+            }}>
+              {allSelected && <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>✓</Text>}
+            </View>
+          </Pressable>
+          {COLS.map((col) => (
+            <Pressable
+              key={col.key + col.label}
+              style={[styles.tableHeaderCell as any, { flex: col.flex ?? 1, flexDirection: "row", alignItems: "center" }]}
+              onPress={() => handleSort(col.key)}
+            >
+              <Text style={[{ color: sortKey === col.key ? NVC_BLUE : colors.muted, fontSize: 11, fontFamily: "Inter_700Bold" }] as TextStyle[]}>{col.label}</Text>
+              <SortIcon col={col.key} />
+            </Pressable>
           ))}
         </View>
         <ScrollView showsVerticalScrollIndicator={false}>
           {filtered.length === 0 ? (
             <View style={styles.emptyState}>
-              <IconSymbol name="magnifyingglass" size={32} color={colors.muted} />
-              <Text style={[styles.emptyText, { color: colors.muted }] as TextStyle[]}>No work orders match your filter.</Text>
+              <IconSymbol name="doc.text" size={36} color={colors.muted} />
+              <Text style={[styles.emptyText, { color: colors.foreground, fontFamily: "Inter_700Bold", marginTop: 12 }] as TextStyle[]}>No work orders found</Text>
+              <Text style={[{ color: colors.muted, fontSize: 13, marginTop: 4 }] as TextStyle[]}>
+                {search || filter !== "all" ? "Try adjusting your search or filter" : "Create your first work order to get started"}
+              </Text>
+              {filter === "all" && !search && (
+                <Pressable
+                  style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_ORANGE, marginTop: 16, opacity: pressed ? 0.85 : 1 }] as ViewStyle[]}
+                  onPress={() => router.push("/create-task" as any)}
+                >
+                  <IconSymbol name="plus" size={14} color="#fff" />
+                  <Text style={styles.primaryBtnText}>Create Work Order</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             filtered.map((task) => {
               const statusColor = STATUS_COLORS[task.status];
               const priorityColor = PRIORITY_COLORS[task.priority];
+              const isSelected = selectedIds.has(task.id);
               return (
                 <Pressable
                   key={task.id}
                   style={({ pressed }) => [
                     styles.tableRow,
-                    { borderBottomColor: colors.border, backgroundColor: pressed ? NVC_BLUE + "08" : "transparent" },
+                    { borderBottomColor: colors.border, backgroundColor: isSelected ? NVC_BLUE + "10" : pressed ? NVC_BLUE + "06" : "transparent" },
                   ] as ViewStyle[]}
                   onPress={() => router.push(`/task/${task.id}` as any)}
                 >
-                  <Text style={[styles.tableCell, styles.tableCellRef, { color: NVC_BLUE }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
-                  <Text style={[styles.tableCell, { color: colors.foreground }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
-                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.jobAddress.split(",")[0]}</Text>
-                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]} numberOfLines={1}>{task.technicianName ?? "—"}</Text>
-                  <View style={styles.tableCell as any}>
+                  {/* Row checkbox */}
+                  <Pressable
+                    onPress={(e) => { e.stopPropagation?.(); toggleSelect(task.id); }}
+                    style={{ width: 32, alignItems: "center", justifyContent: "center" }}
+                  >
+                    <View style={{
+                      width: 16, height: 16, borderRadius: 4, borderWidth: 1.5,
+                      borderColor: isSelected ? NVC_BLUE : colors.border,
+                      backgroundColor: isSelected ? NVC_BLUE : "transparent",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      {isSelected && <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_700Bold" }}>✓</Text>}
+                    </View>
+                  </Pressable>
+                  <Text style={[styles.tableCell, styles.tableCellRef, { color: NVC_BLUE, flex: 1 }] as TextStyle[]}>{task.orderRef ?? `WO-${task.id}`}</Text>
+                  <Text style={[styles.tableCell, { color: colors.foreground, flex: 1.5 }] as TextStyle[]} numberOfLines={1}>{task.customerName}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted, flex: 2 }] as TextStyle[]} numberOfLines={1}>{task.jobAddress.split(",")[0]}</Text>
+                  <Text style={[styles.tableCell, { color: colors.muted, flex: 1.2 }] as TextStyle[]} numberOfLines={1}>{task.technicianName ?? "—"}</Text>
+                  <View style={[styles.tableCell as any, { flex: 1 }]}>
                     <View style={[styles.statusPill, { backgroundColor: statusColor + "20" }]}>
                       <Text style={[styles.statusPillText, { color: statusColor }] as TextStyle[]}>{STATUS_LABELS[task.status]}</Text>
                     </View>
                   </View>
-                  <View style={styles.tableCell as any}>
+                  <View style={[styles.tableCell as any, { flex: 0.8 }]}>
                     <View style={[styles.statusPill, { backgroundColor: priorityColor + "20" }]}>
                       <Text style={[styles.statusPillText, { color: priorityColor }] as TextStyle[]}>{task.priority.toUpperCase()}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.tableCell, { color: colors.muted }] as TextStyle[]}>
+                  <Text style={[styles.tableCell, { color: colors.muted, flex: 1.2 }] as TextStyle[]} numberOfLines={1}>
+                    {task.scheduledAt ? new Date(task.scheduledAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                  </Text>
+                  <Text style={[styles.tableCell, { color: colors.muted, flex: 1 }] as TextStyle[]}>
                     {new Date(task.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </Text>
                 </Pressable>
@@ -3250,7 +3407,40 @@ export default function DesktopDashboard() {
     });
   }, [techniciansQuery.data, wsPositions]);
 
+  const isDataLoading = tasksQuery.isLoading || techniciansQuery.isLoading;
+  const isDataError = tasksQuery.isError || techniciansQuery.isError;
+
   const renderContent = () => {
+    // Global loading skeleton for first load
+    if (isDataLoading && liveTasks.length === 0 && liveTechnicians.length === 0) {
+      return (
+        <View style={{ flex: 1, padding: 24, gap: 16 }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.border, height: 80, opacity: 0.5 }
+            ]} />
+          ))}
+        </View>
+      );
+    }
+    // Global error state
+    if (isDataError && liveTasks.length === 0) {
+      return (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 40 }}>
+          <IconSymbol name="exclamationmark.triangle.fill" size={40} color="#EF4444" />
+          <Text style={[{ fontSize: 16, fontFamily: "Inter_700Bold", color: colors.foreground }] as TextStyle[]}>Could not load data</Text>
+          <Text style={[{ fontSize: 13, color: colors.muted, textAlign: "center" }] as TextStyle[]}>Check your connection and try again.</Text>
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+            onPress={() => { tasksQuery.refetch(); techniciansQuery.refetch(); }}
+          >
+            <IconSymbol name="arrow.clockwise" size={14} color="#fff" />
+            <Text style={styles.primaryBtnText}>Retry</Text>
+          </Pressable>
+        </View>
+      );
+    }
     switch (activeSection) {
       case "dashboard":
         return (
@@ -3298,43 +3488,130 @@ export default function DesktopDashboard() {
             </View>
           </View>
         );
-      case "reports":
+      case "reports": {
+        // Compute real stats from live data
+        const rptTotal = liveTasks.length;
+        const rptCompleted = liveTasks.filter((t) => t.status === "completed").length;
+        const rptCompletionRate = rptTotal > 0 ? Math.round((rptCompleted / rptTotal) * 100) : 0;
+        const rptUnassigned = liveTasks.filter((t) => t.status === "unassigned").length;
+        const rptActiveTechs = liveTechnicians.filter((t) => t.status !== "offline").length;
+        const rptSlaAtRisk = liveTasks.filter((t) => t.status !== "completed" && getSlaMinutes(t.createdAt, t.priority) < 30).length;
+        // Per-tech job breakdown
+        const techJobCounts = liveTechnicians.map((tech) => ({
+          name: tech.name,
+          total: liveTasks.filter((t) => t.technicianId === tech.id).length,
+          completed: liveTasks.filter((t) => t.technicianId === tech.id && t.status === "completed").length,
+          active: liveTasks.filter((t) => t.technicianId === tech.id && ["assigned","en_route","on_site"].includes(t.status)).length,
+        })).sort((a, b) => b.total - a.total);
+        // Status breakdown
+        const statusBreakdown: { status: TaskStatus; label: string; count: number; color: string }[] = (
+          ["unassigned","assigned","en_route","on_site","completed"] as TaskStatus[]
+        ).map((s) => ({
+          status: s, label: STATUS_LABELS[s] ?? s,
+          count: liveTasks.filter((t) => t.status === s).length,
+          color: STATUS_COLORS[s] ?? "#6B7280",
+        }));
+        const exportReportCSV = () => {
+          if (Platform.OS !== "web") return;
+          const rows = ["Technician,Total Jobs,Completed,Active"];
+          techJobCounts.forEach((r) => rows.push(`${r.name},${r.total},${r.completed},${r.active}`));
+          const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a"); a.href = url; a.download = "nvc360-report.csv"; a.click();
+          URL.revokeObjectURL(url);
+        };
         return (
-          <View style={{ flex: 1, padding: 24 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24 }}>
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Reports</Text>
-                <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>Analytics and performance insights</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
+                  Live performance insights · {rptTotal} total jobs
+                </Text>
               </View>
-              <Pressable
-                style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
-                onPress={() => router.push("/integrations" as any)}
-              >
-                <IconSymbol name="arrow.up.doc.fill" size={14} color="#fff" />
-                <Text style={styles.primaryBtnText}>Export Data</Text>
-              </Pressable>
+              {Platform.OS === "web" && (
+                <Pressable
+                  style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                  onPress={exportReportCSV}
+                >
+                  <IconSymbol name="arrow.up.doc.fill" size={14} color="#fff" />
+                  <Text style={styles.primaryBtnText}>Export CSV</Text>
+                </Pressable>
+              )}
             </View>
+
+            {/* KPI Cards */}
             <View style={styles.statsRow}>
-              <StatCard label="Jobs This Month" value={liveTasks.length * 4} gradient={["#1E6FBF", "#3B8FDF"]} icon="paperplane.fill" sub="↑ 12% vs last month" />
-              <StatCard label="Completion Rate" value="94%" gradient={["#16A34A", "#22C55E"]} icon="checkmark.circle.fill" sub="Target: 90%" />
-              <StatCard label="Avg Response" value="14m" gradient={["#0891B2", "#06B6D4"]} icon="clock.fill" sub="Target: 20m" />
-              <StatCard label="Revenue MTD" value="$42k" gradient={["#E85D04", "#F97316"]} icon="dollarsign.circle.fill" sub="↑ 8% vs last month" />
+              <StatCard label="Total Jobs" value={rptTotal} gradient={["#1E6FBF", "#3B8FDF"]} icon="paperplane.fill" sub={`${rptUnassigned} unassigned`} />
+              <StatCard label="Completion Rate" value={`${rptCompletionRate}%`} gradient={rptCompletionRate >= 90 ? ["#16A34A","#22C55E"] : ["#D97706","#F59E0B"]} icon="checkmark.circle.fill" sub={rptCompletionRate >= 90 ? "Above target (90%)" : "Below target (90%)"} />
+              <StatCard label="Active Techs" value={rptActiveTechs} gradient={["#7C3AED","#8B5CF6"]} icon="person.2.fill" sub={`${liveTechnicians.length} total`} />
+              <StatCard label="SLA at Risk" value={rptSlaAtRisk} gradient={rptSlaAtRisk > 0 ? ["#DC2626","#EF4444"] : ["#16A34A","#22C55E"]} icon="exclamationmark.triangle.fill" sub={rptSlaAtRisk > 0 ? "Needs attention" : "All on track"} />
             </View>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 20, padding: 32, alignItems: "center" }]}>
-              <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
-              <Text style={[{ color: colors.foreground, fontSize: 18, fontFamily: "Inter_700Bold", marginTop: 16 }] as TextStyle[]}>Detailed Reports Coming Soon</Text>
-              <Text style={[{ color: colors.muted, fontSize: 14, marginTop: 8, textAlign: "center" }] as TextStyle[]}>
-                Connect QuickBooks or Xero in Integrations to unlock financial reports.
+
+            {/* Status Breakdown */}
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 20, padding: 20 }]}>
+              <Text style={[{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 16 }] as TextStyle[]}>Job Status Breakdown</Text>
+              {statusBreakdown.map((s) => (
+                <View key={s.status} style={{ flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 12 }}>
+                  <View style={{ width: 90 }}>
+                    <Text style={[{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: s.color }] as TextStyle[]}>{s.label}</Text>
+                  </View>
+                  <View style={{ flex: 1, height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: "hidden" }}>
+                    <View style={{ width: rptTotal > 0 ? `${(s.count / rptTotal) * 100}%` as any : "0%", height: 8, backgroundColor: s.color, borderRadius: 4 }} />
+                  </View>
+                  <Text style={[{ fontSize: 12, fontFamily: "Inter_700Bold", color: colors.foreground, width: 32, textAlign: "right" }] as TextStyle[]}>{s.count}</Text>
+                  <Text style={[{ fontSize: 11, color: colors.muted, width: 40, textAlign: "right" }] as TextStyle[]}>{rptTotal > 0 ? `${Math.round((s.count / rptTotal) * 100)}%` : "0%"}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Per-Technician Breakdown */}
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 16, padding: 20 }]}>
+              <Text style={[{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 16 }] as TextStyle[]}>Jobs by Technician</Text>
+              {techJobCounts.length === 0 ? (
+                <View style={{ padding: 24, alignItems: "center" }}>
+                  <IconSymbol name="person.2.fill" size={32} color={colors.muted} />
+                  <Text style={[{ color: colors.muted, fontSize: 13, marginTop: 8 }] as TextStyle[]}>No technicians found</Text>
+                </View>
+              ) : techJobCounts.map((row, idx) => (
+                <View key={row.name} style={[
+                  { flexDirection: "row", alignItems: "center", paddingVertical: 10, gap: 12 },
+                  idx < techJobCounts.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                ] as ViewStyle[]}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: NVC_BLUE + "20", alignItems: "center", justifyContent: "center" }}>
+                    <Text style={[{ fontSize: 12, fontFamily: "Inter_700Bold", color: NVC_BLUE }] as TextStyle[]}>
+                      {row.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground }] as TextStyle[]}>{row.name}</Text>
+                    <Text style={[{ fontSize: 11, color: colors.muted }] as TextStyle[]}>{row.total} jobs · {row.completed} completed · {row.active} active</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={[{ fontSize: 16, fontFamily: "Inter_700Bold", color: row.completed > 0 ? "#22C55E" : colors.muted }] as TextStyle[]}>{row.total > 0 ? `${Math.round((row.completed / row.total) * 100)}%` : "—"}</Text>
+                    <Text style={[{ fontSize: 10, color: colors.muted }] as TextStyle[]}>completion</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Integration CTA */}
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 16, padding: 24, alignItems: "center" }]}>
+              <IconSymbol name="link" size={32} color={NVC_BLUE} />
+              <Text style={[{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_700Bold", marginTop: 12 }] as TextStyle[]}>Connect Accounting Software</Text>
+              <Text style={[{ color: colors.muted, fontSize: 13, marginTop: 6, textAlign: "center" }] as TextStyle[]}>
+                Link QuickBooks or Xero to unlock revenue, invoicing, and financial reports.
               </Text>
               <Pressable
-                style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, marginTop: 20, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+                style={({ pressed }) => [styles.primaryBtn, { backgroundColor: NVC_BLUE, marginTop: 16, opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
                 onPress={() => router.push("/integrations" as any)}
               >
                 <Text style={styles.primaryBtnText}>Go to Integrations</Text>
               </Pressable>
             </View>
-          </View>
+          </ScrollView>
         );
+      }
       default:
         return null;
     }

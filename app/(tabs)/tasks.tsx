@@ -127,6 +127,16 @@ function TaskGridCard({
           {task.technicianName ?? "Unassigned"}
         </Text>
 
+        {/* Scheduled date if set */}
+        {task.scheduledAt && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <IconSymbol name="calendar" size={10} color="#6366F1" />
+            <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#6366F1" }}>
+              {new Date(task.scheduledAt).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </Text>
+          </View>
+        )}
+
         {/* Footer: ref + time */}
         <View style={styles.gridFooter}>
           {task.orderRef ? (
@@ -415,8 +425,21 @@ export default function TasksScreen() {
             <View style={styles.emptyIcon}>
               <IconSymbol name="doc.text.fill" size={32} color="#C0C8D8" />
             </View>
-            <Text style={styles.emptyTitle}>No work orders found</Text>
-            <Text style={styles.emptySubtitle}>Try adjusting your filters or search</Text>
+            <Text style={styles.emptyTitle}>
+              {search ? "No matching orders" : filter !== "all" ? `No ${filter.replace("_", " ")} orders` : "No work orders yet"}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {search ? "Try a different search term" : filter !== "all" ? "Try a different status filter" : "Create your first work order to get started"}
+            </Text>
+            {!search && filter === "all" && (
+              <Pressable
+                style={({ pressed }) => [{ marginTop: 16, backgroundColor: NVC_BLUE, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, opacity: pressed ? 0.8 : 1, flexDirection: "row", alignItems: "center", gap: 6 }]}
+                onPress={() => router.push("/create-task")}
+              >
+                <IconSymbol name="plus" size={14} color="#fff" />
+                <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 14 }}>Create Work Order</Text>
+              </Pressable>
+            )}
           </View>
         }
         renderItem={renderItem}

@@ -191,7 +191,7 @@ export default function LoginScreen() {
       if (pushToken && technicianId) {
         try {
           await savePushTokenMutation.mutateAsync({ technicianId, pushToken });
-          console.log("[push] Token registered for technician", technicianId);
+          if (__DEV__) console.log("[push] Token registered for technician", technicianId);
         } catch (e) {
           console.warn("[push] Failed to save push token:", e);
         }

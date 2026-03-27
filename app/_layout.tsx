@@ -98,7 +98,7 @@ export default function RootLayout() {
         if (status === "granted") {
           const tokenData = await Notifications.getExpoPushTokenAsync();
           // Token available at tokenData.data — saved to server via the technician profile flow
-          console.log("[NVC360] Expo push token:", tokenData.data);
+          if (__DEV__) console.log("[NVC360] Expo push token:", tokenData.data);
         }
       } catch {
         // Push token unavailable in Expo Go on Android SDK 53+ — silently ignore

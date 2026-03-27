@@ -27,6 +27,7 @@ import {
   type TaskStatus,
 } from "@/lib/nvc-types";
 import { GoogleMapView, type RoutePolyline } from "@/components/google-map-view";
+import { NativeMapView } from "@/components/native-map-view";
 import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { trpc } from "@/lib/trpc";
@@ -686,28 +687,49 @@ export default function DispatcherDashboard() {
             <Text style={[styles.optimizeErrorText, { color: "#EF4444" }]}>{optimizeError}</Text>
           )}
           <View style={[styles.mapContainer, { height: mapHeight }]}>
-            <GoogleMapView
-              technicians={technicians.map((t) => ({
-                id: t.id, name: t.name,
-                latitude: t.latitude, longitude: t.longitude,
-                status: t.status, transportType: t.transportType,
-              }))}
-              tasks={tasks.filter((t: Task) => t.status !== "completed" && t.status !== "cancelled").map((t: Task) => ({
-                id: t.id,
-                jobLatitude: t.jobLatitude,
-                jobLongitude: t.jobLongitude,
-                status: t.status,
-                customerName: t.customerName,
-                jobAddress: t.jobAddress,
-              }))}
-              selectedId={selectedTechId}
-              onSelectTech={(id) => setSelectedTechId(selectedTechId === id ? null : id)}
-              center={{ lat: 49.8951, lng: -97.1384 }}
-              zoom={11}
-              height={mapHeight}
-              etaData={etaData}
-              routePolylines={routePolylines}
-            />
+            {Platform.OS === "web" ? (
+              <GoogleMapView
+                technicians={technicians.map((t) => ({
+                  id: t.id, name: t.name,
+                  latitude: t.latitude, longitude: t.longitude,
+                  status: t.status, transportType: t.transportType,
+                }))}
+                tasks={tasks.filter((t: Task) => t.status !== "completed" && t.status !== "cancelled").map((t: Task) => ({
+                  id: t.id,
+                  jobLatitude: t.jobLatitude,
+                  jobLongitude: t.jobLongitude,
+                  status: t.status,
+                  customerName: t.customerName,
+                  jobAddress: t.jobAddress,
+                }))}
+                selectedId={selectedTechId}
+                onSelectTech={(id) => setSelectedTechId(selectedTechId === id ? null : id)}
+                center={{ lat: 49.8951, lng: -97.1384 }}
+                zoom={11}
+                height={mapHeight}
+                etaData={etaData}
+                routePolylines={routePolylines}
+              />
+            ) : (
+              <NativeMapView
+                technicians={technicians.map((t) => ({
+                  id: t.id, name: t.name,
+                  latitude: t.latitude, longitude: t.longitude,
+                  status: t.status, transportType: t.transportType,
+                }))}
+                tasks={tasks.filter((t: Task) => t.status !== "completed" && t.status !== "cancelled").map((t: Task) => ({
+                  id: t.id,
+                  jobLatitude: t.jobLatitude,
+                  jobLongitude: t.jobLongitude,
+                  status: t.status,
+                  customerName: t.customerName,
+                }))}
+                selectedId={selectedTechId}
+                onSelectTech={(id) => setSelectedTechId(selectedTechId === id ? null : id)}
+                center={{ lat: 49.8951, lng: -97.1384 }}
+                zoom={11}
+              />
+            )}
           </View>
         </View>
 
