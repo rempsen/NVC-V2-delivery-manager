@@ -44,7 +44,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
-import { MOCK_TASKS, STATUS_COLORS, STATUS_LABELS, type Task } from "@/lib/nvc-types";
+import { STATUS_COLORS, STATUS_LABELS, type Task } from "@/lib/nvc-types";
 import { useTenant } from "@/hooks/use-tenant";
 import {
   startBackgroundLocationTracking,
@@ -417,18 +417,15 @@ export default function AgentTaskScreen() {
   const taskId = parseInt(id ?? "0", 10);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { tenantId, isDemo } = useTenant();
+  const { tenantId } = useTenant();
 
   // ── Task data ────────────────────────────────────────────────────────────────
   const { data: apiTask, isLoading } = trpc.tasks.getById.useQuery(
     { id: taskId, tenantId: tenantId ?? 0 },
-    { enabled: !isDemo && taskId > 0 && tenantId != null },
+    { enabled: taskId > 0 && tenantId != null },
   );
 
   const task = useMemo<Task | null>(() => {
-    if (isDemo) {
-      return MOCK_TASKS.find((t) => t.id === taskId) ?? MOCK_TASKS[0] ?? null;
-    }
     if (!apiTask) return null;
     const t = apiTask as any;
     return {
@@ -452,7 +449,7 @@ export default function AgentTaskScreen() {
       scheduledAt: t.scheduledAt ? new Date(t.scheduledAt).toISOString() : undefined,
       createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
     };
-  }, [apiTask, isDemo, taskId]);
+  }, [apiTask]);
 
   // ── Workflow state ───────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<WorkflowPhase>("pre_start");
@@ -502,14 +499,14 @@ export default function AgentTaskScreen() {
   const pushLocationToServer = useCallback((lat: number, lng: number) => {
     // Always cache last known position for startTask SMS
     currentPosRef.current = { lat, lng };
-    if (isDemo || !task?.technicianId) return;
+    if (!task?.technicianId) return;
     updateLocationMutation.mutate({
       id: task.technicianId,
       tenantId: tenantId ?? undefined,
       latitude: String(lat),
       longitude: String(lng),
     });
-  }, [isDemo, task?.technicianId, updateLocationMutation]);
+  }, [task?.technicianId, updateLocationMutation]);
 
   const startLocationTracking = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -545,11 +542,11 @@ export default function AgentTaskScreen() {
       },
     );
     // Also start background tracking so GPS continues when app is backgrounded
-    if (!isDemo && task?.technicianId) {
+    if (task?.technicianId) {
       const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
       await startBackgroundLocationTracking(task.technicianId, apiBase);
     }
-  }, [task, pushLocationToServer, isDemo]);
+  }, [task, pushLocationToServer]);
 
   const stopLocationTracking = useCallback(() => {
     locationWatchRef.current?.remove();
@@ -603,7 +600,7 @@ export default function AgentTaskScreen() {
           });
         }
       }
-      if (!isDemo) await startTaskMutation.mutateAsync({
+      await startTaskMutation.mutateAsync({
         taskId,
         tenantId: tenantId ?? 0,
         latitude: lat,
@@ -611,31 +608,29 @@ export default function AgentTaskScreen() {
       });
       setPhase("en_route");
     } catch { Alert.alert("Error", "Could not start task. Please try again."); }
-  }, [taskId, isDemo, tenantId, startTaskMutation]);
+  }, [taskId, tenantId, startTaskMutation]);
 
   const handleArrive = useCallback(async (lat?: number, lng?: number) => {
     try {
-      if (!isDemo) await arriveTaskMutation.mutateAsync({ taskId, tenantId: tenantId ?? 0, latitude: lat, longitude: lng });
+      await arriveTaskMutation.mutateAsync({ taskId, tenantId: tenantId ?? 0, latitude: lat, longitude: lng });
       setPhase("on_site");
     } catch { Alert.alert("Error", "Could not mark as arrived."); }
-  }, [taskId, isDemo]);
+  }, [taskId, arriveTaskMutation, tenantId]);
 
   const handleSuccess = useCallback(async () => {
     try {
-      if (!isDemo) {
-        await completeTaskMutation.mutateAsync({
-          taskId,
-          tenantId: tenantId ?? 0,
-          notes: notes || undefined,
-          signatureUri: signatureUri || undefined,
-          paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
-          paymentMethod: paymentMethod || undefined,
-        });
-      }
+      await completeTaskMutation.mutateAsync({
+        taskId,
+        tenantId: tenantId ?? 0,
+        notes: notes || undefined,
+        signatureUri: signatureUri || undefined,
+        paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
+        paymentMethod: paymentMethod || undefined,
+      });
       setPhase("completed");
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch { Alert.alert("Error", "Could not complete task."); }
-  }, [taskId, isDemo, notes, signatureUri, totalBill, paymentMethod]);
+  }, [taskId, tenantId, notes, signatureUri, totalBill, paymentMethod, completeTaskMutation]);
 
   const handleFail = useCallback(() => {
     setShowFailModal(true);
@@ -645,32 +640,28 @@ export default function AgentTaskScreen() {
     if (!selectedFailReason) { Alert.alert("Select Reason", "Please select a reason for failing this task."); return; }
     setShowFailModal(false);
     try {
-      if (!isDemo) {
-        await saveNotesMutation.mutateAsync({
-          taskId,
-          tenantId: tenantId ?? 0,
-          notes: `FAILED: ${selectedFailReason}${notes ? `\n${notes}` : ""}`,
-        });
-      }
-      setPhase("failed");
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } catch { Alert.alert("Error", "Could not mark task as failed."); }
-  }, [selectedFailReason, taskId, isDemo, notes]);
-
-  const handleSaveProgress = useCallback(async () => {
-    if (!isDemo) {
       await saveNotesMutation.mutateAsync({
         taskId,
         tenantId: tenantId ?? 0,
-        notes: notes || undefined,
-        photoUris: photos.length > 0 ? photos : undefined,
-        signatureUri: signatureUri || undefined,
-        paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
-        paymentMethod: paymentMethod || undefined,
+        notes: `FAILED: ${selectedFailReason}${notes ? `\n${notes}` : ""}`,
       });
-    }
+      setPhase("failed");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch { Alert.alert("Error", "Could not mark task as failed."); }
+  }, [selectedFailReason, taskId, tenantId, notes, saveNotesMutation]);
+
+  const handleSaveProgress = useCallback(async () => {
+    await saveNotesMutation.mutateAsync({
+      taskId,
+      tenantId: tenantId ?? 0,
+      notes: notes || undefined,
+      photoUris: photos.length > 0 ? photos : undefined,
+      signatureUri: signatureUri || undefined,
+      paymentAmount: totalBill ? parseFloat(totalBill) : undefined,
+      paymentMethod: paymentMethod || undefined,
+    });
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [taskId, isDemo, notes, photos, signatureUri, totalBill, paymentMethod]);
+  }, [taskId, tenantId, notes, photos, signatureUri, totalBill, paymentMethod, saveNotesMutation]);
 
   const handleChargeCard = useCallback(async () => {
     const amountFloat = parseFloat(totalBill || "0");
@@ -706,10 +697,6 @@ export default function AgentTaskScreen() {
   }, [totalBill, taskId, task, createPaymentIntentMutation]);
 
   const handleDownloadInvoice = useCallback(async () => {
-    if (isDemo) {
-      Alert.alert("Demo Mode", "Invoice PDF download is not available in demo mode.");
-      return;
-    }
     const numericTaskId = typeof taskId === "string" ? parseInt(taskId) : (taskId as number);
     if (!numericTaskId || isNaN(numericTaskId)) {
       Alert.alert("Error", "Invalid task ID.");
@@ -750,7 +737,7 @@ export default function AgentTaskScreen() {
     } finally {
       setInvoiceLoading(false);
     }
-  }, [taskId, isDemo]);
+  }, [taskId]);
 
   const callCustomer = () => {
     if (task?.customerPhone) Linking.openURL(`tel:${task.customerPhone}`);

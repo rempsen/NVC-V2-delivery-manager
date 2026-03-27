@@ -1268,3 +1268,30 @@
 - [x] Test SMS button in Settings → SMS (Twilio) already wired to notifications.sendTestSms
 - [x] SMS tracking link verified: points to https://tookandeliv-ve29h94a.manus.space/track/{jobHash}
 - [x] TypeScript: 0 errors
+
+## Production Readiness Sprint — Remove All Demo/Mock Data (Mar 27 2026)
+- [ ] Add arrival SMS in arriveOnSite server mutation (SMS customer when tech arrives)
+- [ ] Build push notification inbox screen on mobile (bell icon in header → last 10 notifications)
+- [ ] Remove isDemo guard from tasks.tsx — always use live tRPC data
+- [ ] Remove isDemo guard from agents.tsx — always use live tRPC data
+- [ ] Remove isDemo guard from customers.tsx — always use live tRPC data
+- [ ] Remove isDemo guard from agent-home.tsx — always use live tRPC data
+- [ ] Remove isDemo guard from agent-task/[id].tsx — always use live tRPC data
+- [ ] Remove MOCK_CHECKLIST from execute-task/[id].tsx — load checklist from template
+- [ ] Remove MOCK_CLIENTS from super-admin/index.tsx — always use live tRPC data
+- [ ] Remove MOCK_USERS quick-fill from login.tsx — remove demo hint buttons
+- [ ] Remove isDemo from use-tenant.ts (keep tenantId null check but remove demo fallbacks in screens)
+
+## Production Readiness Sprint — Mar 27 2026
+
+- [x] Push notification inbox screen for technicians (bell icon in agent-home header with unread badge → /notifications-inbox)
+- [x] Arrival SMS automated via arriveOnSite mutation (confirmed live, sends personalized SMS with tech name and order ref)
+- [x] Remove isDemo guard from agent-task/[id].tsx — all mutations (start, arrive, complete, fail, saveNotes, invoice) now fire against live DB
+- [x] Remove isDemo guard from app/(tabs)/tasks.tsx — live tRPC data only
+- [x] Remove isDemo guard from app/(tabs)/agents.tsx — live tRPC data only
+- [x] Remove isDemo guard from app/(tabs)/customers.tsx — live tRPC data only
+- [x] Replace MOCK_CHECKLIST with DEFAULT_CHECKLIST + live customFields sync in execute-task/[id].tsx
+- [x] Replace hardcoded tenantId=1 with useTenant() in merchant/index.tsx
+- [x] Remove DEMO_TENANT_ID from web dashboard (dashboard/index.tsx) — AIInsightsPanel, CustomersSection, DesktopDashboard all use live tenantId
+- [x] Remove unused isDemo destructure from agent-home.tsx
+- [x] TypeScript: 0 errors confirmed

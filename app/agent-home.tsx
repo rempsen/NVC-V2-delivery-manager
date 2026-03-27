@@ -35,7 +35,6 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK } from "@/constants/brand";
 import {
-  MOCK_TASKS,
   STATUS_COLORS,
   STATUS_LABELS,
   PRIORITY_COLORS,
@@ -167,7 +166,7 @@ function JobCard({ task, onPress }: { task: Task; onPress: () => void }) {
 export default function AgentHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { tenantId, isDemo } = useTenant();
+  const { tenantId, userId } = useTenant();
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Geo-clock state ───────────────────────────────────────────────────────────────────
@@ -180,9 +179,19 @@ export default function AgentHomeScreen() {
   const clockOutMutation = trpc.technicians.clockOut.useMutation();
   const savePushTokenMutation = trpc.technicians.savePushToken.useMutation();
 
+  // ── Unread notification count ────────────────────────────────────────────────
+  const { data: notifData } = trpc.notifications.list.useQuery(
+    { tenantId: tenantId ?? 0, userId: userId ?? 0, limit: 50 },
+    { enabled: tenantId !== null && userId !== null, staleTime: 30_000 },
+  );
+  const unreadNotifCount = useMemo(() => {
+    if (!notifData) return 0;
+    return (notifData as any[]).filter((n) => !n.readAt).length;
+  }, [notifData]);
+
   // Register for push notifications on mount
   useEffect(() => {
-    if (Platform.OS === "web" || isDemo) return;
+    if (Platform.OS === "web") return;
     (async () => {
       try {
         if (Platform.OS === "android") {
@@ -209,7 +218,7 @@ export default function AgentHomeScreen() {
         // Silently ignore — push tokens require physical device
       }
     })();
-  }, [isDemo]);
+  }, []);
 
   const handleClockToggle = useCallback(async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -237,7 +246,7 @@ export default function AgentHomeScreen() {
         setIsClockedIn(false);
         setClockInTime(null);
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Clocked Out", `Shift ended. Total: ${result.minutesWorked} min`);
+        Alert.alert("Clocked Out", `Shift ended. Total: ${(result as any).minutesWorked ?? 0} min`);
       }
     } catch (e: any) {
       Alert.alert("Clock Error", e?.message ?? "Could not record clock event. Try again.");
@@ -249,7 +258,7 @@ export default function AgentHomeScreen() {
   // ── Real API query ───────────────────────────────────────────────────────────
   const { data: apiTasks, isLoading, refetch } = trpc.tasks.list.useQuery(
     { tenantId: tenantId ?? 0 },
-    { enabled: !isDemo && tenantId !== null, staleTime: 30_000 },
+    { enabled: tenantId !== null, staleTime: 30_000 },
   );
 
   const normalizedApiTasks: Task[] = useMemo(() => {
@@ -277,7 +286,7 @@ export default function AgentHomeScreen() {
     }));
   }, [apiTasks]);
 
-  const allTasks = isDemo ? MOCK_TASKS : normalizedApiTasks;
+  const allTasks = normalizedApiTasks;
 
   // Sort by priority: active jobs first
   const sortedTasks = useMemo(() =>
@@ -298,7 +307,7 @@ export default function AgentHomeScreen() {
   // ── Background GPS: start/stop based on active job status ────────────────────
   // Keeps the dispatcher fleet map live even when the phone is locked.
   useEffect(() => {
-    if (Platform.OS === "web" || isDemo) return;
+    if (Platform.OS === "web") return;
     const techId = technicianId.current;
     if (!techId) return;
 
@@ -319,7 +328,7 @@ export default function AgentHomeScreen() {
       stopBackgroundLocationTracking();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allTasks, isDemo]);
+  }, [allTasks]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -389,6 +398,22 @@ export default function AgentHomeScreen() {
                   {isClockedIn ? "Clock Out" : "Clock In"}
                 </Text>
               </>
+            )}
+          </Pressable>
+          {/* Bell icon with unread badge */}
+          <Pressable
+            style={({ pressed }) => [styles.headerIconBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/notifications-inbox" as any);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name="bell.fill" size={18} color="#fff" />
+            {unreadNotifCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</Text>
+              </View>
             )}
           </Pressable>
           <Pressable
@@ -770,5 +795,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_700Bold",
     color: "#fff",
+  } as TextStyle,
+
+  // Bell notification badge
+  bellBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: NVC_ORANGE,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: NVC_BLUE,
+  } as ViewStyle,
+  bellBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
   } as TextStyle,
 });

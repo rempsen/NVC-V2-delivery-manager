@@ -27,7 +27,6 @@ import {
   WIDGET_SURFACE_LIGHT,
 } from "@/constants/brand";
 import {
-  MOCK_TASKS,
   STATUS_COLORS,
   STATUS_LABELS,
   PRIORITY_COLORS,
@@ -160,7 +159,7 @@ export default function TasksScreen() {
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const { tenantId, isDemo } = useTenant();
+  const { tenantId } = useTenant();
   const [exportLoading, setExportLoading] = useState(false);
 
   // ── Export queries (lazy, triggered on demand) ──────────────────────────────
@@ -174,7 +173,6 @@ export default function TasksScreen() {
   );
 
   const handleExport = useCallback(async (format: "csv" | "pdf") => {
-    if (isDemo) { Alert.alert("Demo Mode", "Export is available with a live account."); return; }
     setExportLoading(true);
     try {
       const result = format === "csv"
@@ -205,7 +203,7 @@ export default function TasksScreen() {
     } finally {
       setExportLoading(false);
     }
-  }, [isDemo, filter, exportCsvQuery, exportPdfQuery]);
+  }, [filter, exportCsvQuery, exportPdfQuery]);
 
   // Responsive columns: 2 on narrow mobile, 3 on wide/tablet, 4 on desktop
   const numColumns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
@@ -216,7 +214,7 @@ export default function TasksScreen() {
   // ── Real API query ──────────────────────────────────────────────────────────
   const { data: apiTasks, isLoading: apiLoading, refetch } = trpc.tasks.list.useQuery(
     { tenantId: tenantId ?? 0, status: filter === "all" ? undefined : filter },
-    { enabled: !isDemo && tenantId !== null, staleTime: 30_000 },
+    { enabled: tenantId !== null, staleTime: 30_000 },
   );
 
   // ── Normalize API tasks ─────────────────────────────────────────────────────
@@ -245,11 +243,10 @@ export default function TasksScreen() {
     }));
   }, [apiTasks]);
 
-  const allTasks = isDemo ? MOCK_TASKS : normalizedApiTasks;
+  const allTasks = normalizedApiTasks;
 
   const filtered = useMemo(() => {
     let list = allTasks;
-    if (isDemo && filter !== "all") list = list.filter((t) => t.status === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -261,7 +258,7 @@ export default function TasksScreen() {
       );
     }
     return list;
-  }, [allTasks, filter, search, isDemo]);
+  }, [allTasks, filter, search]);
 
   const countFor = useCallback(
     (key: "all" | TaskStatus) =>
@@ -400,7 +397,7 @@ export default function TasksScreen() {
       </View>
 
       {/* ── Loading ── */}
-      {!isDemo && apiLoading && (
+      {apiLoading && (
         <View style={{ alignItems: "center", paddingVertical: 12 }}>
           <ActivityIndicator size="small" color={NVC_BLUE} />
         </View>
@@ -416,9 +413,7 @@ export default function TasksScreen() {
         contentContainerStyle={styles.gridContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          !isDemo ? (
-            <RefreshControl refreshing={apiLoading} onRefresh={() => refetch()} tintColor={NVC_BLUE} />
-          ) : undefined
+          <RefreshControl refreshing={apiLoading} onRefresh={() => refetch()} tintColor={NVC_BLUE} />
         }
         ListEmptyComponent={
           <View style={styles.empty}>

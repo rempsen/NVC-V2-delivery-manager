@@ -291,7 +291,7 @@ export default function CustomersScreen() {
   const [filter, setFilter] = useState<Customer["status"] | "all">("all");
   const [sortKey, setSortKey] = useState<CustomerSortKey>("name_asc");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const { tenantId, isDemo } = useTenant();
+  const { tenantId } = useTenant();
   const [exportLoading, setExportLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("card");
 
@@ -301,7 +301,6 @@ export default function CustomersScreen() {
   );
 
   const handleExportCsv = useCallback(async () => {
-    if (isDemo) { Alert.alert("Demo Mode", "Export is available with a live account."); return; }
     setExportLoading(true);
     try {
       const result = await exportCsvQuery.refetch();
@@ -321,7 +320,7 @@ export default function CustomersScreen() {
     } finally {
       setExportLoading(false);
     }
-  }, [isDemo, exportCsvQuery]);
+  }, [exportCsvQuery]);
 
   // Responsive columns
   const numColumns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
@@ -332,7 +331,7 @@ export default function CustomersScreen() {
   // ── Real API query ───────────────────────────────────────────────────────────────
   const { data: apiCustomers, isLoading: apiLoading, refetch } = trpc.customers.list.useQuery(
     { tenantId: tenantId ?? 0 },
-    { enabled: !isDemo && tenantId !== null, staleTime: 60_000 },
+    { enabled: tenantId !== null, staleTime: 60_000 },
   );
 
   // ── Normalize API customers to local Customer shape ───────────────────────────
@@ -362,7 +361,7 @@ export default function CustomersScreen() {
     }));
   }, [apiCustomers]);
 
-  const customers = isDemo ? MOCK_CUSTOMERS : normalizedApiCustomers;
+  const customers = normalizedApiCustomers;
 
   // ── Advanced search + sort ────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -637,7 +636,7 @@ export default function CustomersScreen() {
           contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            !isDemo ? <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} /> : undefined
+            <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} />
           }
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -681,13 +680,11 @@ export default function CustomersScreen() {
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            !isDemo ? (
-              <RefreshControl
-                refreshing={apiLoading}
-                onRefresh={refetch}
-                tintColor={NVC_BLUE}
-              />
-            ) : undefined
+            <RefreshControl
+              refreshing={apiLoading}
+              onRefresh={refetch}
+              tintColor={NVC_BLUE}
+            />
           }
           ListEmptyComponent={
             <View style={styles.empty}>

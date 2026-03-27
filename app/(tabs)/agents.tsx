@@ -20,7 +20,6 @@ import { GoogleMapView } from "@/components/google-map-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 import {
-  MOCK_TECHNICIANS,
   TECH_STATUS_LABELS,
   type Technician,
 } from "@/lib/nvc-types";
@@ -180,7 +179,7 @@ export default function AgentsScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const { tenantId, isDemo } = useTenant();
+  const { tenantId } = useTenant();
 
   // Responsive columns: 2 on narrow mobile, 3 on wide mobile/tablet, 4 on desktop
   const numColumns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
@@ -191,7 +190,7 @@ export default function AgentsScreen() {
   // ── Real API query ───────────────────────────────────────────────────────────────
   const { data: apiTechs, isLoading: apiLoading, refetch } = trpc.technicians.list.useQuery(
     { tenantId: tenantId ?? 0 },
-    { enabled: !isDemo && tenantId !== null, staleTime: 30_000 },
+    { enabled: tenantId !== null, staleTime: 30_000 },
   );
 
   // ── Normalize API technicians to local Technician shape ─────────────────────────
@@ -215,7 +214,7 @@ export default function AgentsScreen() {
     }));
   }, [apiTechs]);
 
-  const allTechs = isDemo ? MOCK_TECHNICIANS : normalizedApiTechs;
+  const allTechs = normalizedApiTechs;
 
   const sorted = useMemo(() =>
     [...allTechs].sort((a, b) => {
@@ -328,7 +327,7 @@ export default function AgentsScreen() {
           contentContainerStyle={{ padding: HORIZONTAL_PADDING, gap: CARD_GAP }}
           columnWrapperStyle={numColumns > 1 ? { gap: CARD_GAP } : undefined}
           refreshControl={
-            !isDemo ? <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} /> : undefined
+            <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} />
           }
           ListHeaderComponent={
             <View style={{ marginBottom: 8 }}>
@@ -435,7 +434,7 @@ export default function AgentsScreen() {
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
               refreshControl={
-                !isDemo ? <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} /> : undefined
+                <RefreshControl refreshing={apiLoading} onRefresh={refetch} tintColor={NVC_BLUE} />
               }
               ListEmptyComponent={
                 <View style={styles.empty}>

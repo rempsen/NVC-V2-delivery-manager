@@ -43,7 +43,7 @@ import { useLocationHub } from "@/hooks/use-location-hub";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEMO_TENANT_ID = 1;
+// DEMO_TENANT_ID removed — all queries now use live tenantId from useTenant()
 
 const INDUSTRY_OPTIONS = [
   "HVAC", "Plumbing", "Electrical", "Construction", "IT Services",
@@ -457,6 +457,8 @@ const INSIGHT_TYPE_CONFIG: Record<string, { icon: any; color: string }> = {
 
 function AIInsightsPanel() {
   const colors = useColors();
+  const { tenantId: liveTenantId } = useTenant();
+  const aiTenantId = liveTenantId ?? 0;
   const [dismissed, setDismissed] = React.useState<number[]>([]);
   const [isExpanded, setIsExpanded] = React.useState(true);
 
@@ -464,14 +466,14 @@ function AIInsightsPanel() {
 
   const handleRefresh = React.useCallback(() => {
     setDismissed([]);
-    briefingMutation.mutate({ tenantId: DEMO_TENANT_ID });
-  }, []);
+    if (aiTenantId) briefingMutation.mutate({ tenantId: aiTenantId });
+  }, [aiTenantId]);
 
-  // Auto-fetch on mount
+  // Auto-fetch on mount when tenantId is available
   React.useEffect(() => {
-    briefingMutation.mutate({ tenantId: DEMO_TENANT_ID });
+    if (aiTenantId) briefingMutation.mutate({ tenantId: aiTenantId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [aiTenantId]);
 
   const briefing = briefingMutation.data;
   const isLoading = briefingMutation.isPending;
@@ -1772,7 +1774,7 @@ function CustomerModal({ visible, customer, onClose, onSave, onDelete }: {
 function CustomersSection() {
   const colors = useColors();
   const { tenantId: liveTenantId, userRole } = useTenant();
-  const tenantId = liveTenantId ?? DEMO_TENANT_ID;
+  const tenantId = liveTenantId ?? 0;
   const isSuperAdmin = userRole === "nvc_super_admin";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Customer["status"] | "all">("all");
@@ -3278,7 +3280,7 @@ export default function DesktopDashboard() {
   const colors = useColors();
   const router = useRouter();
   const { tenantId: liveTenantId, userRole } = useTenant();
-  const tenantId = liveTenantId ?? DEMO_TENANT_ID;
+  const tenantId = liveTenantId ?? 0;
   const isSuperAdmin = userRole === "nvc_super_admin";
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -50,9 +50,9 @@ interface VoiceNote {
   timestamp: Date;
 }
 
-// ─── Mock Checklist (from template) ──────────────────────────────────────────
+// ─── Default Checklist (used when task has no custom checklist) ───────────────
 
-const MOCK_CHECKLIST: ChecklistItem[] = [
+const DEFAULT_CHECKLIST: ChecklistItem[] = [
   { id: "c1", label: "Verify customer identity and address", required: true, checked: false },
   { id: "c2", label: "Inspect site conditions before starting", required: true, checked: false },
   { id: "c3", label: "Take before photos", required: true, checked: false },
@@ -343,7 +343,26 @@ export default function ExecuteTaskScreen() {
     onError: (err) => Alert.alert("Error", err.message ?? "Failed to save notes."),
   });
 
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(MOCK_CHECKLIST);
+  // Build checklist from task customFields if available, otherwise use default
+  const initialChecklist = useMemo<ChecklistItem[]>(() => {
+    const cf = (rawTask as any)?.customFields;
+    if (cf?.checklist && Array.isArray(cf.checklist) && cf.checklist.length > 0) {
+      return cf.checklist.map((item: any, i: number) => ({
+        id: item.id ?? `c${i}`,
+        label: item.label ?? item.text ?? `Step ${i + 1}`,
+        required: item.required ?? true,
+        checked: item.checked ?? false,
+      }));
+    }
+    return DEFAULT_CHECKLIST;
+  }, [rawTask]);
+
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(DEFAULT_CHECKLIST);
+
+  // Sync checklist when task loads
+  useEffect(() => {
+    setChecklist(initialChecklist);
+  }, [initialChecklist]);
   const [photos, setPhotos] = useState<PhotoAttachment[]>([]);
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
   const [fieldNotes, setFieldNotes] = useState<FieldNote[]>([]);

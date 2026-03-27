@@ -20,6 +20,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { trpc } from "@/lib/trpc";
 import { useColors } from "@/hooks/use-colors";
+import { useTenant } from "@/hooks/use-tenant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -377,9 +378,8 @@ export default function MerchantManagerScreen() {
   const [activeTab, setActiveTab] = useState<MerchantTab>("team");
   const colors = useColors();
 
-  // In production, tenantId comes from the authenticated user's session
-  // For now we use a placeholder that will be replaced by the auth context
-  const tenantId = 1;
+  const { tenantId: rawTenantId } = useTenant();
+  const tenantId = rawTenantId ?? 0;
 
   const tabs: { id: MerchantTab; label: string; icon: string }[] = [
     { id: "team", label: "Team", icon: "👥" },
