@@ -15,8 +15,18 @@ export interface MapTechnician {
   transportType?: string;
 }
 
+export interface MapTask {
+  id: number;
+  customerName?: string;
+  jobAddress?: string;
+  jobLatitude: number;
+  jobLongitude: number;
+  status: string;
+}
+
 export interface NativeMapViewProps {
   technicians?: MapTechnician[];
+  tasks?: MapTask[];
   selectedId?: number | null;
   onSelectTech?: (id: number) => void;
   center?: { lat: number; lng: number };
@@ -47,7 +57,7 @@ function WebMapView(props: NativeMapViewProps) {
 function NativeOnlyMapView(props: NativeMapViewProps) {
   // Lazy import so web bundler never processes react-native-maps
   const MapView = require("react-native-maps").default;
-  const { Marker, PROVIDER_GOOGLE } = require("react-native-maps");
+  const { Marker, Callout, PROVIDER_DEFAULT } = require("react-native-maps");
 
   const STATUS_COLORS: Record<string, string> = {
     online: "#22C55E",
@@ -68,9 +78,9 @@ function NativeOnlyMapView(props: NativeMapViewProps) {
   const lngDelta = latDelta * 1.5;
 
   return (
-    <View style={[styles.container, { height: props.height ?? 300 }]}>
+    <View style={[styles.container, props.height != null ? { height: props.height } : { flex: 1 }]}>
       <MapView
-        provider={PROVIDER_GOOGLE}
+        provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFillObject}
         initialRegion={{
           latitude: centerLat,
@@ -78,7 +88,7 @@ function NativeOnlyMapView(props: NativeMapViewProps) {
           latitudeDelta: latDelta,
           longitudeDelta: lngDelta,
         }}
-        showsUserLocation={false}
+        showsUserLocation={true}
         showsMyLocationButton={false}
         showsCompass={true}
         showsScale={false}
@@ -92,17 +102,32 @@ function NativeOnlyMapView(props: NativeMapViewProps) {
           />
         )}
 
+        {/* Task/job markers */}
+        {(props.tasks ?? []).filter(t => t.jobLatitude && t.jobLongitude && t.status !== "completed" && t.status !== "cancelled").map((task) => {
+          const TASK_COLORS: Record<string, string> = { unassigned: "#F59E0B", assigned: "#3B82F6", en_route: "#8B5CF6", on_site: "#06B6D4", completed: "#22C55E", cancelled: "#EF4444" };
+          const color = TASK_COLORS[task.status] ?? "#F59E0B";
+          return (
+            <Marker
+              key={`task-${task.id}`}
+              coordinate={{ latitude: task.jobLatitude, longitude: task.jobLongitude }}
+              title={task.customerName ?? "Job"}
+              description={task.jobAddress ?? ""}
+              pinColor={color}
+            />
+          );
+        })}
+
         {/* Technician markers */}
-        {(props.technicians ?? []).map((tech) => {
+        {(props.technicians ?? []).filter(t => t.latitude && t.longitude && t.status !== "offline").map((tech) => {
           const color = STATUS_COLORS[tech.status] ?? "#6B7280";
           const isSelected = props.selectedId === tech.id;
           return (
             <Marker
-              key={tech.id}
+              key={`tech-${tech.id}`}
               coordinate={{ latitude: tech.latitude, longitude: tech.longitude }}
               title={tech.name}
               description={tech.status.replace("_", " ")}
-              pinColor={isSelected ? "#FFFFFF" : color}
+              pinColor={isSelected ? "#1E6FBF" : color}
               onPress={() => props.onSelectTech?.(tech.id)}
             />
           );
@@ -124,6 +149,5 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     overflow: "hidden",
-    borderRadius: 12,
   },
 });

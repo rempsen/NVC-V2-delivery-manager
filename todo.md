@@ -1138,3 +1138,10 @@
 - [x] Fix duplicate fontFamily TS errors in merchant/index.tsx and notification-settings.tsx
 - [x] Confirmed 0 remaining fontWeight strings across entire codebase
 - [x] TypeScript: 0 errors
+
+## Map Fix — March 2026
+
+- [ ] Fix blank map on mobile Dashboard screen (Mapbox failing without API key)
+- [ ] Replace Mapbox with expo-maps (Apple Maps on iOS, Google Maps on Android — works in Expo Go)
+- [ ] Add live technician location markers to map
+- [ ] Add task pin markers to map

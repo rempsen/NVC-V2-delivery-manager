@@ -31,7 +31,7 @@ import {
 } from "@/lib/nvc-types";
 import { trpc } from "@/lib/trpc";
 import { useTenant } from "@/hooks/use-tenant";
-import { GoogleMapView } from "@/components/google-map-view";
+import { NativeMapView } from "@/components/native-map-view";
 
 const { width: SW } = Dimensions.get("window");
 const IS_WEB = Platform.OS === "web";
@@ -946,14 +946,13 @@ export default function DashboardScreen() {
 
       {/* ── Full-Bleed Map ── */}
       <View style={{ flex: 1 }}>
-        <GoogleMapView
+        <NativeMapView
           technicians={mapTechs}
           tasks={mapTasks}
           selectedId={selectedTechId}
           onSelectTech={handleSelectTech}
           center={{ lat: 49.8951, lng: -97.1384 }}
           zoom={12}
-          style={{ width: "100%", height: "100%" }}
         />
 
         {/* ── Map Controls (bottom-right) ── */}
