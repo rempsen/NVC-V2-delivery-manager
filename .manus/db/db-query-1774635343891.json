@@ -1,0 +1,60 @@
+{
+  "query": "SELECT tu.id, tu.tenantId, tu.email, tu.name, tu.role, tu.passwordHash, tu.isActive, t.companyName FROM tenantUsers tu LEFT JOIN tenants t ON tu.tenantId = t.id ORDER BY tu.id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT tu.id, tu.tenantId, tu.email, tu.name, tu.role, tu.passwordHash, tu.isActive, t.companyName FROM tenantUsers tu LEFT JOIN tenants t ON tu.tenantId = t.id ORDER BY tu.id",
+  "rows": [
+    {
+      "id": "1",
+      "tenantId": "1",
+      "email": "dispatch@acmehvac.com",
+      "name": "James Chen",
+      "role": "dispatcher",
+      "passwordHash": "$2a$12$placeholder",
+      "isActive": "1",
+      "companyName": "NULL"
+    },
+    {
+      "id": "2",
+      "tenantId": "1",
+      "email": "tech@acmehvac.com",
+      "name": "Mike Torres",
+      "role": "technician",
+      "passwordHash": "$2a$12$placeholder",
+      "isActive": "1",
+      "companyName": "NULL"
+    },
+    {
+      "id": "3",
+      "tenantId": "2",
+      "email": "admin@plumbpro.com",
+      "name": "Lisa Park",
+      "role": "manager",
+      "passwordHash": "$2a$12$placeholder",
+      "isActive": "1",
+      "companyName": "NULL"
+    },
+    {
+      "id": "4",
+      "tenantId": "3",
+      "email": "admin@nvc360.com",
+      "name": "Dan Rosenblat",
+      "role": "manager",
+      "passwordHash": "$2a$12$placeholder",
+      "isActive": "1",
+      "companyName": "NVC360 Platform"
+    },
+    {
+      "id": "30001",
+      "tenantId": "3",
+      "email": "dan@nvc360.com",
+      "name": "Dan Rosenblat",
+      "role": "admin",
+      "passwordHash": "$2b$12$RSxW6p3lDPZJ9PT1gbX5D.mKspU9gzqFmkX3swAak46JAANoLdrya",
+      "isActive": "1",
+      "companyName": "NVC360 Platform"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttenantId\temail\tname\trole\tpasswordHash\tisActive\tcompanyName\n1\t1\tdispatch@acmehvac.com\tJames Chen\tdispatcher\t$2a$12$placeholder\t1\tNULL\n2\t1\ttech@acmehvac.com\tMike Torres\ttechnician\t$2a$12$placeholder\t1\tNULL\n3\t2\tadmin@plumbpro.com\tLisa Park\tmanager\t$2a$12$placeholder\t1\tNULL\n4\t3\tadmin@nvc360.com\tDan Rosenblat\tmanager\t$2a$12$placeholder\t1\tNVC360 Platform\n30001\t3\tdan@nvc360.com\tDan Rosenblat\tadmin\t$2b$12$RSxW6p3lDPZJ9PT1gbX5D.mKspU9gzqFmkX3swAak46JAANoLdrya\t1\tNVC360 Platform\n",
+  "stderr": "",
+  "execution_time_ms": 358
+}

@@ -1,0 +1,15 @@
+{
+  "query": "SELECT id, email, \"passwordHash\" FROM users ORDER BY id LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, email, \"passwordHash\" FROM users ORDER BY id LIMIT 20;",
+  "rows": [
+    {
+      "id": "1",
+      "email": "admin@nvc360.com",
+      "passwordHash": "passwordHash"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\tpasswordHash\n1\tadmin@nvc360.com\tpasswordHash\n",
+  "stderr": "",
+  "execution_time_ms": 486
+}

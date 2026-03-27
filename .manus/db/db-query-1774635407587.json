@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO tenantUsers (tenantId, name, email, role, passwordHash, isActive) VALUES (30002, 'Test Dispatcher', 'dispatch@nvctest.com', 'dispatcher', '$2b$12$ICUJ07CqygCHm795vIA.Y.1QoZM6b3QwIAq5uAE1vv2A1CgD6jq7e', 1), (30002, 'Test Technician', 'tech@nvctest.com', 'technician', '$2b$12$vPKshMHkTiBhQQ2ar9n4KuHlMXB.fRl54fNjFAEP2TDuW6PYUMG72', 1)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute INSERT INTO tenantUsers (tenantId, name, email, role, passwordHash, isActive) VALUES (30002, 'Test Dispatcher', 'dispatch@nvctest.com', 'dispatcher', '$2b$12$ICUJ07CqygCHm795vIA.Y.1QoZM6b3QwIAq5uAE1vv2A1CgD6jq7e', 1), (30002, 'Test Technician', 'tech@nvctest.com', 'technician', '$2b$12$vPKshMHkTiBhQQ2ar9n4KuHlMXB.fRl54fNjFAEP2TDuW6PYUMG72', 1)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 361
+}

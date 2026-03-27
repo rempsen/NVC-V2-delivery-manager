@@ -32,7 +32,7 @@ import { getApiBaseUrl } from "@/constants/oauth";
 export type UserRole =
   | "nvc_super_admin" | "nvc_project_manager" | "nvc_support"
   | "company_admin" | "divisional_manager" | "dispatcher"
-  | "field_technician" | "office_staff";
+  | "field_technician" | "technician" | "office_staff";
 
 export interface AuthUser {
   id: string; name: string; email: string; role: UserRole;
@@ -56,13 +56,13 @@ const ROLE_LABELS: Record<UserRole, string> = {
   nvc_super_admin: "NVC360 Super Admin", nvc_project_manager: "NVC360 Project Manager",
   nvc_support: "NVC360 Support", company_admin: "Company Admin",
   divisional_manager: "Divisional Manager", dispatcher: "Dispatcher",
-  field_technician: "Field Technician", office_staff: "Office Staff",
+  field_technician: "Field Technician", technician: "Technician", office_staff: "Office Staff",
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
   nvc_super_admin: "#E85D04", nvc_project_manager: "#8B5CF6", nvc_support: "#3B82F6",
   company_admin: "#22C55E", divisional_manager: "#06B6D4", dispatcher: "#F59E0B",
-  field_technician: "#6366F1", office_staff: "#6B7280",
+  field_technician: "#6366F1", technician: "#6366F1", office_staff: "#6B7280",
 };
 
 // ─── Demo Chip ────────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ export default function LoginScreen() {
     }
     if (user.role === "nvc_super_admin" || user.role === "nvc_project_manager") {
       router.replace("/super-admin" as any);
-    } else if (user.role === "field_technician") {
+    } else if (user.role === "field_technician" || user.role === "technician") {
       router.replace("/agent-home" as any);
     } else {
       router.replace("/(tabs)" as any);
@@ -408,24 +408,7 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* ── Demo Accounts ── */}
-          <Pressable
-            style={({ pressed }) => [styles.demoToggle, pressed && { opacity: 0.7 }] as ViewStyle[]}
-            onPress={() => setShowDemo((v) => !v)}
-          >
-            <IconSymbol name="person.2.fill" size={14} color="#9CA3AF" />
-            <Text style={styles.demoToggleText}>{showDemo ? "Hide" : "Show"} demo accounts</Text>
-            <IconSymbol name={showDemo ? "chevron.up" : "chevron.down"} size={12} color="#9CA3AF" />
-          </Pressable>
 
-          {showDemo && (
-            <View style={styles.demoSection}>
-              <Text style={styles.demoSectionTitle}>TAP TO LOGIN — password: demo123</Text>
-              {Object.entries(MOCK_USERS).map(([demoEmail, user]) => (
-                <DemoChip key={demoEmail} email={demoEmail} role={user.role} onPress={() => handleDemoLogin(demoEmail)} />
-              ))}
-            </View>
-          )}
 
           {/* Footer */}
           <View style={styles.footer}>
