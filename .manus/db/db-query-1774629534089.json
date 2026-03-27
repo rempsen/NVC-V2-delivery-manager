@@ -1,0 +1,183 @@
+{
+  "query": "\nDESCRIBE technicians;\nSELECT id, companyName, slug, plan, isActive FROM tenants ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nDESCRIBE technicians;\nSELECT id, companyName, slug, plan, isActive FROM tenants ORDER BY id;\n",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "tenantId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "tenantUserId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('online','busy','on_break','offline')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "offline",
+      "Extra": ""
+    },
+    {
+      "Field": "latitude",
+      "Type": "decimal(10,7)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "longitude",
+      "Type": "decimal(10,7)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "lastLocationAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "transportType",
+      "Type": "enum('car','van','truck','bike','foot')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "car",
+      "Extra": ""
+    },
+    {
+      "Field": "skills",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "hourlyRateCents",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "photoUrl",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "pushToken",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "clockInAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clockInLat",
+      "Type": "decimal(10,7)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clockInLng",
+      "Type": "decimal(10,7)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clockOutAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clockOutLat",
+      "Type": "decimal(10,7)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clockOutLng",
+      "Type": "decimal(10,7)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "todayMinutesWorked",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    }
+  ],
+  "messages": [
+    "id\tcompanyName\tslug\tplan\tisActive",
+    "1\tAcme HVAC Services\tacme-hvac\tprofessional\t1",
+    "2\tPlumbPro Solutions\tplumb-pro\tstarter\t1",
+    "3\tNVC360 Platform\tnvc360\tenterprise\t1"
+  ],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\ntenantId\tint\tNO\t\tNULL\t\ntenantUserId\tint\tNO\t\tNULL\t\nstatus\tenum('online','busy','on_break','offline')\tNO\t\toffline\t\nlatitude\tdecimal(10,7)\tYES\t\tNULL\t\nlongitude\tdecimal(10,7)\tYES\t\tNULL\t\nlastLocationAt\ttimestamp\tYES\t\tNULL\t\ntransportType\tenum('car','van','truck','bike','foot')\tNO\t\tcar\t\nskills\tjson\tYES\t\tNULL\t\nhourlyRateCents\tint\tYES\t\t0\t\nphotoUrl\tvarchar(500)\tYES\t\tNULL\t\npushToken\tvarchar(255)\tYES\t\tNULL\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nclockInAt\ttimestamp\tYES\t\tNULL\t\nclockInLat\tdecimal(10,7)\tYES\t\tNULL\t\nclockInLng\tdecimal(10,7)\tYES\t\tNULL\t\nclockOutAt\ttimestamp\tYES\t\tNULL\t\nclockOutLat\tdecimal(10,7)\tYES\t\tNULL\t\nclockOutLng\tdecimal(10,7)\tYES\t\tNULL\t\ntodayMinutesWorked\tint\tNO\t\t0\t\nid\tcompanyName\tslug\tplan\tisActive\n1\tAcme HVAC Services\tacme-hvac\tprofessional\t1\n2\tPlumbPro Solutions\tplumb-pro\tstarter\t1\n3\tNVC360 Platform\tnvc360\tenterprise\t1\n",
+  "stderr": "",
+  "execution_time_ms": 390
+}

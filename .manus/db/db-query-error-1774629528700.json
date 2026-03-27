@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT t.id, t.name, t.email, t.status, ten.companyName AS tenant, ten.slug\nFROM technicians t\nLEFT JOIN tenants ten ON t.tenantId = ten.id\nORDER BY ten.id, t.id\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT t.id, t.name, t.email, t.status, ten.companyName AS tenant, ten.slug\nFROM technicians t\nLEFT JOIN tenants ten ON t.tenantId = ten.id\nORDER BY ten.id, t.id\nLIMIT 20;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 't.name' in 'field list'"
+  ]
+}

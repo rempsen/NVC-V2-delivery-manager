@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Remove all tasks, technicians, customers, messages tied to demo tenants\nDELETE FROM tasks WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\nDELETE FROM technicians WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\nDELETE FROM customers WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\nDELETE FROM messages WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\n-- Remove demo tenant users\nDELETE FROM users WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\n-- Remove demo tenants\nDELETE FROM tenants WHERE slug != 'nvc360';\n-- Remove all demo users (seeded test accounts) except the super admin\nDELETE FROM users WHERE email NOT IN ('admin@nvc360.com');\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \n-- Remove all tasks, technicians, customers, messages tied to demo tenants\nDELETE FROM tasks WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\nDELETE FROM technicians WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\nDELETE FROM customers WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\nDELETE FROM messages WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\n-- Remove demo tenant users\nDELETE FROM users WHERE tenantId IN (SELECT id FROM tenants WHERE slug != 'nvc360');\n-- Remove demo tenants\nDELETE FROM tenants WHERE slug != 'nvc360';\n-- Remove all demo users (seeded test accounts) except the super admin\nDELETE FROM users WHERE email NOT IN ('admin@nvc360.com');\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 828
+}

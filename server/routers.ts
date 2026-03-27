@@ -67,16 +67,15 @@ export const appRouter = router({
       return { success: true } as const;
     }),
     /**
-     * Email + password login for demo accounts.
-     * Creates a real signed JWT session cookie so the web auth guard passes.
-     * Password is always "demo123" for all demo accounts.
+     * Email + password login.
+     * Authenticates against real tenantUsers in the DB only — no demo fallback.
      */
     emailLogin: publicProcedure
       .input(z.object({ email: z.string().email(), password: z.string() }))
       .mutation(async ({ input, ctx }) => {
         const emailLower = input.email.toLowerCase().trim();
 
-        // ── Step 1: Try real tenantUser authentication against the DB ──────────────
+        // Authenticate against real tenantUsers in the DB
         const tenantUser = await db.getTenantUserByEmailAnyTenant(emailLower);
         if (tenantUser && tenantUser.passwordHash) {
           const passwordValid = await bcrypt.compare(input.password, tenantUser.passwordHash);
@@ -136,47 +135,7 @@ export const appRouter = router({
           } as const;
         }
 
-        // ── Step 2: Demo account fallback (password = "demo123") ──────────────────
-        const DEMO_USERS: Record<string, { openId: string; name: string; email: string; role: string; tenantId: number | null; tenantName: string | null; tenantColor: string | null; tenantLogo: string | null }> = {
-          "admin@nvc360.com":      { openId: "demo-nvc-001",  name: "Dan Rosenblat",  email: "admin@nvc360.com",      role: "nvc_super_admin",    tenantId: 3, tenantName: "NVC360",              tenantColor: "#E85D04", tenantLogo: null },
-          "dan@nvc360.com":        { openId: "demo-nvc-dan",  name: "Dan Rosenblat",  email: "dan@nvc360.com",        role: "nvc_super_admin",    tenantId: 3, tenantName: "NVC360",              tenantColor: "#E85D04", tenantLogo: null },
-          "pm@nvc360.com":         { openId: "demo-nvc-002",  name: "Sarah Mitchell", email: "pm@nvc360.com",         role: "nvc_project_manager", tenantId: 3, tenantName: "NVC360",              tenantColor: "#8B5CF6", tenantLogo: null },
-          "dispatch@acmehvac.com": { openId: "demo-t1-001",   name: "James Chen",     email: "dispatch@acmehvac.com", role: "dispatcher",          tenantId: 1, tenantName: "Acme HVAC Services",  tenantColor: "#3B82F6", tenantLogo: null },
-          "tech@acmehvac.com":     { openId: "demo-t1-002",   name: "Mike Torres",    email: "tech@acmehvac.com",     role: "field_technician",    tenantId: 1, tenantName: "Acme HVAC Services",  tenantColor: "#3B82F6", tenantLogo: null },
-          "admin@plumbpro.com":    { openId: "demo-t2-001",   name: "Lisa Park",      email: "admin@plumbpro.com",    role: "company_admin",       tenantId: 2, tenantName: "PlumbPro Solutions", tenantColor: "#22C55E", tenantLogo: null },
-        };
-        const demoUser = DEMO_USERS[emailLower];
-        if (!demoUser || input.password !== "demo123") {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password. Please check your credentials and try again." });
-        }
-        await db.upsertUser({
-          openId: demoUser.openId,
-          name: demoUser.name,
-          email: demoUser.email,
-          loginMethod: "email",
-          lastSignedIn: new Date(),
-        });
-        const sessionToken = await sdk.createSessionToken(demoUser.openId, {
-          name: demoUser.name,
-          expiresInMs: 365 * 24 * 60 * 60 * 1000,
-        });
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
-        return {
-            success: true,
-            token: sessionToken,
-            user: {
-              id: demoUser.openId,
-              name: demoUser.name,
-              email: emailLower,
-              role: demoUser.role,
-              tenantId: demoUser.tenantId,
-              tenantName: demoUser.tenantName,
-              tenantColor: demoUser.tenantColor,
-              tenantLogo: demoUser.tenantLogo,
-              technicianId: null as number | null,
-            },
-          } as const;
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password. Please check your credentials and try again." });
       }),
 
     /**

@@ -2334,56 +2334,101 @@ function TechnicianModal({ visible, technician, onClose, onSave, onDelete }: {
 
 // ─── Technicians Section ──────────────────────────────────────────────────────
 
-function TechniciansSection({ technicians: initialTechs }: { technicians: Technician[] }) {
+function TechniciansSection({ technicians: initialTechs, tenantId, onRefetch }: { technicians: Technician[]; tenantId: number; onRefetch?: () => void }) {
   const colors = useColors();
   const router = useRouter();
-  const [technicians, setTechnicians] = useState<Technician[]>(initialTechs);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modalVisible, setModalVisible] = useState(false);
   const [editingTech, setEditingTech] = useState<Technician | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const inviteEmployeeMutation = trpc.auth.inviteEmployee.useMutation();
+  const createTechnicianMutation = trpc.technicians.create.useMutation();
+  const updateTechnicianMutation = trpc.technicians.update.useMutation();
 
   const filtered = useMemo(() => {
-    const sorted = [...technicians].sort((a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5));
+    const sorted = [...initialTechs].sort((a, b) => (STATUS_SORT_ORDER[a.status] ?? 5) - (STATUS_SORT_ORDER[b.status] ?? 5));
     return sorted.filter((t) => {
       const matchStatus = statusFilter === "all" || t.status === statusFilter;
       const q = search.toLowerCase();
       const matchSearch = !q || t.name.toLowerCase().includes(q) || t.skills.some((s) => s.toLowerCase().includes(q));
       return matchStatus && matchSearch;
     });
-  }, [technicians, search, statusFilter]);
+  }, [initialTechs, search, statusFilter]);
 
-  const handleSave = useCallback((data: EditableTechnician) => {
-    const fullName = `${data.firstName} ${data.lastName}`.trim();
-    if (editingTech) {
-      setTechnicians((prev) => prev.map((t) => t.id === editingTech.id ? {
-        ...t,
-        name: fullName,
-        phone: data.phone,
-        email: data.email,
-        status: data.status as any,
-        transportType: data.transportType as any,
-        skills: data.skills,
-      } : t));
-    } else {
-      const newTech: Technician = {
-        id: Date.now(),
-        name: fullName,
-        phone: data.phone,
-        email: data.email,
-        status: data.status as any,
-        latitude: 49.8951,
-        longitude: -97.1384,
-        transportType: data.transportType as any,
-        skills: data.skills,
-        todayJobs: 0,
-        todayDistanceKm: 0,
-      };
-      setTechnicians((prev) => [newTech, ...prev]);
+  const handleSave = useCallback(async (data: EditableTechnician) => {
+    if (!tenantId) {
+      Alert.alert("Error", "No company context. Please log out and log in again.");
+      return;
     }
-    setModalVisible(false);
-    setEditingTech(null);
-  }, [editingTech]);
+    setSaving(true);
+    try {
+      if (editingTech) {
+        // Update existing technician
+        await updateTechnicianMutation.mutateAsync({
+          id: editingTech.id,
+          tenantId,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email || undefined,
+          phone: data.phone || undefined,
+          skills: data.skills,
+          certifications: data.certifications,
+          departments: data.department ? [data.department] : undefined,
+          hourlyRate: data.hourlyRate || undefined,
+          overtimeRate: data.overtimeRate || undefined,
+        });
+      } else {
+        // 1. Create login account via inviteEmployee
+        if (!data.email) {
+          Alert.alert("Email Required", "Please enter an email address for the technician's login account.");
+          setSaving(false);
+          return;
+        }
+        const inviteResult = await inviteEmployeeMutation.mutateAsync({
+          tenantId,
+          name: `${data.firstName} ${data.lastName}`.trim(),
+          email: data.email,
+          role: "technician",
+          phone: data.phone || undefined,
+        });
+        // 2. Create technician field record linked to the new user
+        await createTechnicianMutation.mutateAsync({
+          tenantId,
+          tenantUserId: inviteResult.userId,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone || undefined,
+          skills: data.skills,
+          certifications: data.certifications,
+          departments: data.department ? [data.department] : undefined,
+          hourlyRate: data.hourlyRate || undefined,
+          overtimeRate: data.overtimeRate || undefined,
+          employmentType: data.employmentType as any || undefined,
+          employeeId: data.employeeId || undefined,
+          hireDate: data.hireDate || undefined,
+        });
+        const tempPwd = inviteResult.tempPassword;
+        const emailSent = inviteResult.emailSent;
+        if (emailSent) {
+          Alert.alert("Technician Created!", `${data.firstName} ${data.lastName} has been added. A welcome email with login credentials was sent to ${data.email}.`);
+        } else if (tempPwd) {
+          Alert.alert("Technician Created!", `${data.firstName} ${data.lastName} has been added.\n\nTemporary password: ${tempPwd}\n\nShare this with them to log in.`);
+        } else {
+          Alert.alert("Technician Created!", `${data.firstName} ${data.lastName} has been added to your team.`);
+        }
+      }
+      setModalVisible(false);
+      setEditingTech(null);
+      onRefetch?.();
+    } catch (err: any) {
+      Alert.alert("Error", err?.message ?? "Failed to save technician. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }, [editingTech, tenantId, inviteEmployeeMutation, createTechnicianMutation, updateTechnicianMutation, onRefetch]);
 
   const handleDelete = useCallback(() => {
     if (!editingTech) return;
@@ -2391,14 +2436,19 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete", style: "destructive",
-        onPress: () => {
-          setTechnicians((prev) => prev.filter((t) => t.id !== editingTech.id));
+        onPress: async () => {
+          try {
+            await trpc.technicians.delete.useMutation().mutateAsync({ id: editingTech.id, tenantId });
+          } catch {
+            // Ignore delete errors — refetch will correct the list
+          }
           setModalVisible(false);
           setEditingTech(null);
+          onRefetch?.();
         },
       },
     ]);
-  }, [editingTech]);
+  }, [editingTech, tenantId, onRefetch]);
 
   const statusTabs = [
     { key: "all", label: "All", color: NVC_BLUE },
@@ -2409,7 +2459,7 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
     { key: "offline", label: "Offline", color: "#6B7280" },
   ];
 
-  const onlineCount = technicians.filter((t) => t.status !== "offline").length;
+  const onlineCount = initialTechs.filter((t) => t.status !== "offline").length;
 
   return (
     <View style={{ flex: 1, padding: 24 }}>
@@ -2417,7 +2467,7 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }] as TextStyle[]}>Field Team</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.muted }] as TextStyle[]}>
-            {onlineCount} active · {technicians.length} total
+            {onlineCount} active · {initialTechs.length} total
           </Text>
         </View>
         <Pressable
@@ -2432,10 +2482,10 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
       {/* KPI row */}
       <View style={styles.kpiRow}>
         {[
-          { label: "Total Team", value: technicians.length.toString(), color: NVC_BLUE },
-          { label: "On Job", value: technicians.filter((t) => t.status === "busy").length.toString(), color: "#F59E0B" },
-          { label: "En Route", value: technicians.filter((t) => (t.status as any) === "en_route").length.toString(), color: "#8B5CF6" },
-          { label: "Available", value: technicians.filter((t) => t.status === "online").length.toString(), color: "#22C55E" },
+          { label: "Total Team", value: initialTechs.length.toString(), color: NVC_BLUE },
+          { label: "On Job", value: initialTechs.filter((t) => t.status === "busy").length.toString(), color: "#F59E0B" },
+          { label: "En Route", value: initialTechs.filter((t) => (t.status as any) === "en_route").length.toString(), color: "#8B5CF6" },
+          { label: "Available", value: initialTechs.filter((t) => t.status === "online").length.toString(), color: "#22C55E" },
         ].map((kpi) => (
           <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.kpiValue, { color: kpi.color }] as TextStyle[]}>{kpi.value}</Text>
@@ -2461,7 +2511,7 @@ function TechniciansSection({ technicians: initialTechs }: { technicians: Techni
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
         {statusTabs.map((t) => {
           const isActive = statusFilter === t.key;
-          const count = t.key === "all" ? technicians.length : technicians.filter((tech) => tech.status === t.key).length;
+          const count = t.key === "all" ? initialTechs.length : initialTechs.filter((tech) => tech.status === t.key).length;
           return (
             <Pressable
               key={t.key}
@@ -3469,7 +3519,7 @@ export default function DesktopDashboard() {
       case "workorders":
         return <WorkOrdersSection tasks={liveTasks} />;
       case "technicians":
-        return <TechniciansSection technicians={liveTechnicians} />;
+        return <TechniciansSection technicians={liveTechnicians} tenantId={tenantId} onRefetch={() => techniciansQuery.refetch()} />;
       case "customers":
         return <CustomersSection />;
       case "calendar":

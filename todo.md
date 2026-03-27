@@ -1295,3 +1295,41 @@
 - [x] Remove DEMO_TENANT_ID from web dashboard (dashboard/index.tsx) — AIInsightsPanel, CustomersSection, DesktopDashboard all use live tenantId
 - [x] Remove unused isDemo destructure from agent-home.tsx
 - [x] TypeScript: 0 errors confirmed
+
+## Super Admin UX Sprint — Mar 27 2026
+
+- [ ] Fix empty client list on super-admin screen (tenants not loading from DB)
+- [ ] Add fixed bottom action bar to super-admin screen: Create Company, Manage Company, Create User, Impersonate, Platform Settings
+- [ ] Wire Create Company modal with full form (name, industry, plan, slug, admin email)
+- [ ] Wire Manage Company to drill into selected tenant detail
+- [ ] Wire Create User modal (name, email, role, tenant assignment)
+
+## Clean Slate & Super Admin UX — Mar 27 2026
+
+- [ ] Wipe all seeded demo tenants (Acme HVAC, PlumbPro) from DB
+- [ ] Wipe all seeded demo users except the NVC super admin login
+- [ ] Remove DEMO_USERS fallback from auth.emailLogin — only real DB users can log in
+- [ ] Create a single clean super admin account (admin@nvc360.com) with a real bcrypt password
+- [ ] Super admin screen: add fixed bottom action bar (Create Company, Manage Company, Create User, Platform Settings)
+- [ ] Super admin screen: improve empty state (no clients yet message + prominent Create Company CTA)
+- [ ] Wire Create Company modal fully (name, industry, plan, slug, admin email, password)
+- [ ] Wire Create User modal (name, email, role, tenant assignment)
+- [ ] Wire Manage Company to drill into tenant detail page
+
+## Bug Fixes — Creation Flows (Mar 27 2026)
+
+- [ ] Fix Create Technician button — does nothing on press (agent/new screen)
+- [ ] Fix Create Company button — does nothing on press (super-admin screen)
+- [ ] Fix Create Customer button — does nothing on press (customers screen)
+
+## Clean Slate & Bug Fix Sprint — Completed (Mar 27 2026)
+
+- [x] Wipe all seeded demo tenants and users from database (only NVC360 platform tenant + admin@nvc360.com remain)
+- [x] Remove DEMO_USERS fallback from auth.emailLogin — only real DB users can log in
+- [x] Fix web login: write nvc360_user to localStorage so useTenant() returns correct tenantId on web
+- [x] Fix Create Technician — wired to inviteEmployee + technicians.create mutations (shows temp password or confirms email sent)
+- [x] Fix Create Customer — was already wired correctly; fixed by tenantId localStorage fix above
+- [x] Fix Create Company — wired to admin.createMerchant with owner name/email/password fields
+- [x] Super admin bottom action bar: New Company, New User, Manage, Audit Log — all functional
+- [x] Super admin manage-company screen: AddEmployee and AddCustomer modals confirmed wired to real mutations
+- [x] TypeScript: 0 errors confirmed

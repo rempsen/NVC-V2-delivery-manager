@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT tech.id AS techId, u.name, u.email, u.role, tech.status, ten.companyName AS tenant, ten.slug\nFROM technicians tech\nJOIN users u ON tech.tenantUserId = u.id\nLEFT JOIN tenants ten ON tech.tenantId = ten.id\nORDER BY ten.id, tech.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT tech.id AS techId, u.name, u.email, u.role, tech.status, ten.companyName AS tenant, ten.slug\nFROM technicians tech\nJOIN users u ON tech.tenantUserId = u.id\nLEFT JOIN tenants ten ON tech.tenantId = ten.id\nORDER BY ten.id, tech.id;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 382
+}

@@ -21,7 +21,7 @@ import { trpc } from "@/lib/trpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ClientPlan = "starter" | "pro" | "enterprise";
+type ClientPlan = "starter" | "professional" | "enterprise";
 type ClientStatus = "active" | "trial" | "suspended" | "onboarding";
 
 interface ClientCompany {
@@ -58,7 +58,7 @@ const MOCK_CLIENTS: ClientCompany[] = [
     id: 2,
     name: "Prairie Electric Co.",
     industry: "Electrical",
-    plan: "pro",
+    plan: "professional",
     status: "active",
     technicianCount: 12,
     activeJobs: 4,
@@ -71,7 +71,7 @@ const MOCK_CLIENTS: ClientCompany[] = [
     id: 3,
     name: "Swift Couriers",
     industry: "Delivery",
-    plan: "pro",
+    plan: "professional",
     status: "active",
     technicianCount: 31,
     activeJobs: 15,
@@ -97,7 +97,7 @@ const MOCK_CLIENTS: ClientCompany[] = [
     id: 5,
     name: "ClearView IT Solutions",
     industry: "IT Repair",
-    plan: "pro",
+    plan: "professional",
     status: "active",
     technicianCount: 9,
     activeJobs: 3,
@@ -123,8 +123,14 @@ const MOCK_CLIENTS: ClientCompany[] = [
 
 const PLAN_COLORS: Record<ClientPlan, string> = {
   starter: "#6B7280",
-  pro: "#3B82F6",
+  professional: "#3B82F6",
   enterprise: "#8B5CF6",
+};
+
+const PLAN_DISPLAY: Record<ClientPlan, string> = {
+  starter: "Starter — $99/mo",
+  professional: "Professional — $299/mo",
+  enterprise: "Enterprise — $799/mo",
 };
 
 const STATUS_COLORS: Record<ClientStatus, string> = {
@@ -218,19 +224,62 @@ function ClientCard({ client, onPress }: { client: ClientCompany; onPress: () =>
 function CreateClientModal({
   visible,
   onClose,
-  onCreate,
+  onCreated,
 }: {
   visible: boolean;
   onClose: () => void;
-  onCreate: (data: Partial<ClientCompany>) => void;
+  onCreated: () => void;
 }) {
   const colors = useColors();
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("HVAC");
-  const [plan, setPlan] = useState<ClientPlan>("pro");
+  const [plan, setPlan] = useState<ClientPlan>("starter");
   const [subdomain, setSubdomain] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerPassword, setOwnerPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const createMerchantMutation = trpc.admin.createMerchant.useMutation();
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !subdomain.trim() || !ownerName.trim() || !ownerEmail.trim() || !ownerPassword.trim()) {
+      Alert.alert("Required Fields", "Please fill in all required fields including owner details.");
+      return;
+    }
+    if (ownerPassword.length < 8) {
+      Alert.alert("Password Too Short", "Owner password must be at least 8 characters.");
+      return;
+    }
+    const industryKey = INDUSTRY_DISPLAY_TO_KEY[industry] ?? "other";
+    setLoading(true);
+    try {
+      await createMerchantMutation.mutateAsync({
+        companyName: name.trim(),
+        slug: subdomain.trim(),
+        industry: industryKey as any,
+        plan: plan as any,
+        ownerName: ownerName.trim(),
+        ownerEmail: ownerEmail.toLowerCase().trim(),
+        ownerPassword: ownerPassword,
+      });
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Company Created!", `${name} has been added to the platform. The owner can log in with ${ownerEmail}.`);
+      // Reset form
+      setName(""); setSubdomain(""); setOwnerName(""); setOwnerEmail(""); setOwnerPassword("");
+      setIndustry("HVAC"); setPlan("starter");
+      onCreated();
+      onClose();
+    } catch (err: any) {
+      Alert.alert("Error", err?.message ?? "Failed to create company. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!visible) return null;
+
+  const isValid = name.trim() && subdomain.trim() && ownerName.trim() && ownerEmail.trim() && ownerPassword.length >= 8;
 
   return (
     <View style={styles.modalOverlay}>
@@ -243,17 +292,18 @@ function CreateClientModal({
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Company Info */}
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>Company Name *</Text>
           <TextInput
             style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
             value={name}
-            onChangeText={setName}
+            onChangeText={(v) => { setName(v); if (!subdomain) setSubdomain(v.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")); }}
             placeholder="e.g. Arctic HVAC Services"
             placeholderTextColor={colors.muted}
             returnKeyType="next"
           />
 
-          <Text style={[styles.fieldLabel, { color: colors.muted }]}>Subdomain *</Text>
+          <Text style={[styles.fieldLabel, { color: colors.muted }]}>Subdomain / Slug *</Text>
           <View style={[styles.subdomainRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <TextInput
               style={[styles.subdomainInput, { color: colors.foreground }]}
@@ -289,7 +339,7 @@ function CreateClientModal({
 
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>Plan</Text>
           <View style={styles.planRow}>
-            {(["starter", "pro", "enterprise"] as ClientPlan[]).map((p) => (
+            {(["starter", "professional", "enterprise"] as ClientPlan[]).map((p) => (
               <Pressable
                 key={p}
                 style={[
@@ -303,13 +353,52 @@ function CreateClientModal({
                 onPress={() => setPlan(p)}
               >
                 <Text style={[styles.planOptionText, { color: plan === p ? PLAN_COLORS[p] : colors.muted }]}>
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                  {p === "professional" ? "Pro" : p.charAt(0).toUpperCase() + p.slice(1)}
                 </Text>
                 <Text style={[styles.planOptionPrice, { color: plan === p ? PLAN_COLORS[p] : colors.border }]}>
-                  {p === "starter" ? "$99/mo" : p === "pro" ? "$299/mo" : "$799/mo"}
+                  {p === "starter" ? "$99/mo" : p === "professional" ? "$299/mo" : "$799/mo"}
                 </Text>
               </Pressable>
             ))}
+          </View>
+
+          {/* Owner / First Admin Account */}
+          <View style={[styles.ownerSection, { borderColor: colors.border }]}>
+            <Text style={[styles.ownerSectionTitle, { color: colors.foreground }]}>Owner / Admin Account</Text>
+            <Text style={[styles.ownerSectionSub, { color: colors.muted }]}>This person will be the company admin and can log in immediately.</Text>
+
+            <Text style={[styles.fieldLabel, { color: colors.muted }]}>Full Name *</Text>
+            <TextInput
+              style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              value={ownerName}
+              onChangeText={setOwnerName}
+              placeholder="Jane Smith"
+              placeholderTextColor={colors.muted}
+              returnKeyType="next"
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.muted }]}>Email *</Text>
+            <TextInput
+              style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              value={ownerEmail}
+              onChangeText={setOwnerEmail}
+              placeholder="admin@company.com"
+              placeholderTextColor={colors.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="next"
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.muted }]}>Temporary Password * (min 8 chars)</Text>
+            <TextInput
+              style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              value={ownerPassword}
+              onChangeText={setOwnerPassword}
+              placeholder="Minimum 8 characters"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              returnKeyType="done"
+            />
           </View>
         </ScrollView>
 
@@ -317,22 +406,19 @@ function CreateClientModal({
           style={({ pressed }) => [
             styles.createBtn,
             {
-              backgroundColor: name.trim() && subdomain.trim() ? colors.primary : colors.border,
+              backgroundColor: isValid ? colors.primary : colors.border,
               opacity: pressed ? 0.85 : 1,
             },
           ]}
-          onPress={() => {
-            if (!name.trim() || !subdomain.trim()) {
-              Alert.alert("Required Fields", "Please fill in company name and subdomain.");
-              return;
-            }
-            onCreate({ name, industry, plan, subdomain, status: "onboarding" });
-            onClose();
-          }}
+          onPress={handleSubmit}
+          disabled={loading}
         >
-          <IconSymbol name="plus.circle.fill" size={16} color={name.trim() && subdomain.trim() ? "#fff" : colors.muted} />
-          <Text style={[styles.createBtnText, { color: name.trim() && subdomain.trim() ? "#fff" : colors.muted }]}>
-            Create Client
+          {loading
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <IconSymbol name="plus.circle.fill" size={16} color={isValid ? "#fff" : colors.muted} />
+          }
+          <Text style={[styles.createBtnText, { color: isValid ? "#fff" : colors.muted }]}>
+            {loading ? "Creating..." : "Create Company"}
           </Text>
         </Pressable>
       </View>
@@ -467,6 +553,14 @@ const auditStyles = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 // Map DB tenant industry enum to display-friendly string
+const INDUSTRY_DISPLAY_TO_KEY: Record<string, string> = {
+  "HVAC": "hvac", "Construction": "construction", "Delivery": "delivery",
+  "Home Repair": "home_repair", "IT Repair": "it_repair", "Telecom": "telecom",
+  "Fitness": "home_fitness", "Elder Care": "elder_care", "Electrical": "electrical",
+  "Plumbing": "plumbing", "Flooring": "flooring", "Security": "other",
+  "Landscaping": "other", "Cleaning": "other", "Pest Control": "other", "Home Care": "elder_care", "Other": "other",
+};
+
 const INDUSTRY_DISPLAY: Record<string, string> = {
   hvac: "HVAC", construction: "Construction", delivery: "Delivery",
   home_repair: "Home Repair", it_repair: "IT Repair", telecom: "Telecom",
@@ -481,7 +575,7 @@ export default function SuperAdminDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<SuperAdminTab>("clients");
   const [searchQuery, setSearchQuery] = useState("");
-  const [planFilter, setPlanFilter] = useState<ClientPlan | "all">("all");
+  const [planFilter, setPlanFilter] = useState<ClientPlan | "all" | "pro">("all");
   const [showCreate, setShowCreate] = useState(false);
   const [clientViewMode, setClientViewMode] = useState<"list" | "card">("list");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
@@ -491,9 +585,6 @@ export default function SuperAdminDashboard() {
     refetchOnWindowFocus: true,
   });
 
-  const createTenantMutation = trpc.tenants.create.useMutation({
-    onSuccess: () => { refetch(); },
-  });
 
   const toggleSuspendMutation = trpc.tenants.toggleSuspend.useMutation({
     onSuccess: () => { refetch(); setActionLoadingId(null); },
@@ -520,7 +611,7 @@ export default function SuperAdminDashboard() {
     id: t.id,
     name: t.companyName,
     industry: INDUSTRY_DISPLAY[t.industry] ?? t.industry,
-    plan: t.plan as ClientPlan,
+    plan: (t.plan === "pro" ? "professional" : t.plan) as ClientPlan,
     status: t.isActive ? (t.suspended ? "suspended" : "active") : "onboarding",
     technicianCount: t.totalTechnicians ?? 0,
     activeJobs: t.activeJobs ?? 0,
@@ -546,26 +637,6 @@ export default function SuperAdminDashboard() {
   const totalActiveJobs = clients.reduce((sum, c) => sum + c.activeJobs, 0);
   const activeClients = clients.filter((c) => c.status === "active").length;
 
-  const handleCreate = (data: Partial<ClientCompany>) => {
-    const industryKey = Object.entries(INDUSTRY_DISPLAY).find(([, v]) => v === data.industry)?.[0] ?? "other";
-    createTenantMutation.mutate(
-      {
-        slug: data.subdomain ?? "new-client",
-        companyName: data.name ?? "New Client",
-        industry: industryKey as any,
-        plan: (data.plan ?? "starter") as any,
-      },
-      {
-        onSuccess: () => {
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Client Created!", `${data.name} has been added to the platform.`);
-        },
-        onError: (err) => {
-          Alert.alert("Error", err.message ?? "Failed to create client.");
-        },
-      },
-    );
-  };
 
   const handleSuspend = (client: ClientCompany) => {
     const isSuspended = (client as any).suspended;
@@ -717,23 +788,23 @@ export default function SuperAdminDashboard() {
 
         {/* Plan Filter */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {(["all", "starter", "pro", "enterprise"] as const).map((p) => (
+          {(["all", "starter", "professional", "enterprise"] as const).map((p) => (
             <Pressable
               key={p}
               style={[
                 styles.filterChip,
                 {
                   backgroundColor:
-                    planFilter === p
-                      ? p === "all"
-                        ? colors.primary
-                        : PLAN_COLORS[p as ClientPlan]
-                      : colors.surface,
+              planFilter === p
+                        ? p === "all"
+                          ? colors.primary
+                          : PLAN_COLORS[p as ClientPlan] ?? "#3B82F6"
+                        : colors.surface,
                   borderColor:
                     planFilter === p
                       ? p === "all"
                         ? colors.primary
-                        : PLAN_COLORS[p as ClientPlan]
+                        : PLAN_COLORS[p as ClientPlan] ?? "#3B82F6"
                       : colors.border,
                 },
               ]}
@@ -745,7 +816,7 @@ export default function SuperAdminDashboard() {
                   { color: planFilter === p ? "#fff" : colors.muted },
                 ]}
               >
-                {p === "all" ? "All Plans" : p.charAt(0).toUpperCase() + p.slice(1)}
+                {p === "all" ? "All Plans" : p === "professional" ? "Pro" : p.charAt(0).toUpperCase() + p.slice(1)}
               </Text>
             </Pressable>
           ))}
@@ -867,8 +938,43 @@ export default function SuperAdminDashboard() {
       <CreateClientModal
         visible={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreate={handleCreate}
+        onCreated={() => refetch()}
       />
+
+      {/* Bottom Action Bar */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <Pressable
+          style={({ pressed }) => [styles.bottomBarBtn, { backgroundColor: "#3B82F620", opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => setShowCreate(true)}
+        >
+          <IconSymbol name="building.2.fill" size={18} color="#3B82F6" />
+          <Text style={[styles.bottomBarBtnText, { color: "#3B82F6" }]}>New Company</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.bottomBarBtn, { backgroundColor: "#22C55E20", opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => router.push("/super-admin/create-user" as any)}
+        >
+          <IconSymbol name="person.badge.plus" size={18} color="#22C55E" />
+          <Text style={[styles.bottomBarBtnText, { color: "#22C55E" }]}>New User</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.bottomBarBtn, { backgroundColor: "#F59E0B20", opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => {
+            if (clients.length === 0) { Alert.alert("No Companies", "Create a company first, then manage it from the list."); return; }
+            router.push(`/super-admin/client/${clients[0].id}` as any);
+          }}
+        >
+          <IconSymbol name="gearshape.fill" size={18} color="#F59E0B" />
+          <Text style={[styles.bottomBarBtnText, { color: "#F59E0B" }]}>Manage</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.bottomBarBtn, { backgroundColor: "#8B5CF620", opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => setActiveTab("audit")}
+        >
+          <IconSymbol name="doc.text.fill" size={18} color="#8B5CF6" />
+          <Text style={[styles.bottomBarBtnText, { color: "#8B5CF6" }]}>Audit Log</Text>
+        </Pressable>
+      </View>
     </ScreenContainer>
   );
 }
@@ -1148,4 +1254,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   clientActionBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  // Bottom action bar
+  bottomBar: {
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  bottomBarBtn: {
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 4,
+  },
+  bottomBarBtnText: { fontSize: 11, fontFamily: "Inter_700Bold" },
+  // Owner section in create modal
+  ownerSection: {
+    borderTopWidth: 1,
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  ownerSectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  ownerSectionSub: { fontSize: 12, marginBottom: 4 },
 });

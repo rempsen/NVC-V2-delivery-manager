@@ -178,7 +178,10 @@ export default function LoginScreen() {
   };
 
   const saveAndNavigate = async (user: AuthUser, sessionToken?: string, technicianId?: number | null) => {
-    if (Platform.OS !== "web") {
+    if (Platform.OS === "web") {
+      // Web: persist user to localStorage so useTenant() can read tenantId
+      try { localStorage.setItem("nvc360_user", JSON.stringify(user)); } catch { /* ignore */ }
+    } else {
       await SecureStore.setItemAsync("nvc360_user", JSON.stringify(user));
       await SecureStore.setItemAsync("nvc360_token", sessionToken ?? `mock_jwt_${user.id}_${Date.now()}`);
       // Store technicianId for field technicians so agent screens can use it

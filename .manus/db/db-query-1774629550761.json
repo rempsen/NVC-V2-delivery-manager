@@ -1,0 +1,52 @@
+{
+  "query": "\nSELECT id, name, email, role, loginMethod FROM users ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, name, email, role, loginMethod FROM users ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Dan Rosenblat",
+      "email": "admin@nvc360.com",
+      "role": "super_admin",
+      "loginMethod": "email"
+    },
+    {
+      "id": "6",
+      "name": "James Chen",
+      "email": "dispatch@acmehvac.com",
+      "role": "merchant_manager",
+      "loginMethod": "email"
+    },
+    {
+      "id": "7",
+      "name": "Mike Torres",
+      "email": "tech@acmehvac.com",
+      "role": "agent",
+      "loginMethod": "email"
+    },
+    {
+      "id": "8",
+      "name": "Lisa Park",
+      "email": "admin@plumbpro.com",
+      "role": "merchant_manager",
+      "loginMethod": "email"
+    },
+    {
+      "id": "183",
+      "name": "Sarah Mitchell",
+      "email": "pm@nvc360.com",
+      "role": "agent",
+      "loginMethod": "email"
+    },
+    {
+      "id": "120007",
+      "name": "Dan Rosenblat",
+      "email": "dan@nvc360.com",
+      "role": "agent",
+      "loginMethod": "email"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tloginMethod\n1\tDan Rosenblat\tadmin@nvc360.com\tsuper_admin\temail\n6\tJames Chen\tdispatch@acmehvac.com\tmerchant_manager\temail\n7\tMike Torres\ttech@acmehvac.com\tagent\temail\n8\tLisa Park\tadmin@plumbpro.com\tmerchant_manager\temail\n183\tSarah Mitchell\tpm@nvc360.com\tagent\temail\n120007\tDan Rosenblat\tdan@nvc360.com\tagent\temail\n",
+  "stderr": "",
+  "execution_time_ms": 357
+}

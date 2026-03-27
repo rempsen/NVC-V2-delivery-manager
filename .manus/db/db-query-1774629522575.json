@@ -1,0 +1,64 @@
+{
+  "query": "\nSELECT u.id, u.name, u.email, u.role, u.loginMethod, t.companyName AS tenant, t.slug\nFROM users u\nLEFT JOIN tenants t ON u.tenantId = t.id\nORDER BY u.role, u.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT u.id, u.name, u.email, u.role, u.loginMethod, t.companyName AS tenant, t.slug\nFROM users u\nLEFT JOIN tenants t ON u.tenantId = t.id\nORDER BY u.role, u.id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Dan Rosenblat",
+      "email": "admin@nvc360.com",
+      "role": "super_admin",
+      "loginMethod": "email",
+      "tenant": "NULL",
+      "slug": "NULL"
+    },
+    {
+      "id": "6",
+      "name": "James Chen",
+      "email": "dispatch@acmehvac.com",
+      "role": "merchant_manager",
+      "loginMethod": "email",
+      "tenant": "NULL",
+      "slug": "NULL"
+    },
+    {
+      "id": "8",
+      "name": "Lisa Park",
+      "email": "admin@plumbpro.com",
+      "role": "merchant_manager",
+      "loginMethod": "email",
+      "tenant": "NULL",
+      "slug": "NULL"
+    },
+    {
+      "id": "7",
+      "name": "Mike Torres",
+      "email": "tech@acmehvac.com",
+      "role": "agent",
+      "loginMethod": "email",
+      "tenant": "NULL",
+      "slug": "NULL"
+    },
+    {
+      "id": "183",
+      "name": "Sarah Mitchell",
+      "email": "pm@nvc360.com",
+      "role": "agent",
+      "loginMethod": "email",
+      "tenant": "NULL",
+      "slug": "NULL"
+    },
+    {
+      "id": "120007",
+      "name": "Dan Rosenblat",
+      "email": "dan@nvc360.com",
+      "role": "agent",
+      "loginMethod": "email",
+      "tenant": "NVC360 Platform",
+      "slug": "nvc360"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tloginMethod\ttenant\tslug\n1\tDan Rosenblat\tadmin@nvc360.com\tsuper_admin\temail\tNULL\tNULL\n6\tJames Chen\tdispatch@acmehvac.com\tmerchant_manager\temail\tNULL\tNULL\n8\tLisa Park\tadmin@plumbpro.com\tmerchant_manager\temail\tNULL\tNULL\n7\tMike Torres\ttech@acmehvac.com\tagent\temail\tNULL\tNULL\n183\tSarah Mitchell\tpm@nvc360.com\tagent\temail\tNULL\tNULL\n120007\tDan Rosenblat\tdan@nvc360.com\tagent\temail\tNVC360 Platform\tnvc360\n",
+  "stderr": "",
+  "execution_time_ms": 358
+}

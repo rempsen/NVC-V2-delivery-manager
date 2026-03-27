@@ -1,0 +1,31 @@
+{
+  "query": "\nSELECT 'tenants' AS tbl, COUNT(*) AS cnt FROM tenants\nUNION ALL\nSELECT 'users', COUNT(*) FROM users\nUNION ALL\nSELECT 'tasks', COUNT(*) FROM tasks\nUNION ALL\nSELECT 'technicians', COUNT(*) FROM technicians;\n\nSELECT id, email, role FROM users;\nSELECT id, companyName, slug FROM tenants;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT 'tenants' AS tbl, COUNT(*) AS cnt FROM tenants\nUNION ALL\nSELECT 'users', COUNT(*) FROM users\nUNION ALL\nSELECT 'tasks', COUNT(*) FROM tasks\nUNION ALL\nSELECT 'technicians', COUNT(*) FROM technicians;\n\nSELECT id, email, role FROM users;\nSELECT id, companyName, slug FROM tenants;\n",
+  "rows": [
+    {
+      "tbl": "users",
+      "cnt": "1"
+    },
+    {
+      "tbl": "tenants",
+      "cnt": "1"
+    },
+    {
+      "tbl": "tasks",
+      "cnt": "0"
+    },
+    {
+      "tbl": "technicians",
+      "cnt": "0"
+    }
+  ],
+  "messages": [
+    "id\temail\trole",
+    "1\tadmin@nvc360.com\tsuper_admin",
+    "id\tcompanyName\tslug",
+    "3\tNVC360 Platform\tnvc360"
+  ],
+  "stdout": "tbl\tcnt\nusers\t1\ntenants\t1\ntasks\t0\ntechnicians\t0\nid\temail\trole\n1\tadmin@nvc360.com\tsuper_admin\nid\tcompanyName\tslug\n3\tNVC360 Platform\tnvc360\n",
+  "stderr": "",
+  "execution_time_ms": 456
+}
