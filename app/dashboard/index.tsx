@@ -271,7 +271,8 @@ function FleetMapPanel({ technicians, selectedId, onSelect }: {
         onSelectTech={onSelect}
         center={{ lat: 49.8951, lng: -97.1384 }}
         zoom={11}
-        height={340}
+        height={0}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
       />
     </View>
   );
@@ -4599,7 +4600,7 @@ const styles = StyleSheet.create({ root: { flex: 1, flexDirection: "row" } as Vi
 
   // Map
   mapPanel: {
-    height: 220, backgroundColor: "#0d1b2a", position: "relative", overflow: "hidden",
+    flex: 1, backgroundColor: "#0d1b2a", position: "relative", overflow: "hidden",
   } as ViewStyle,
   mapGridH: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: "rgba(255,255,255,0.05)" } as ViewStyle,
   mapGridV: { position: "absolute", top: 0, bottom: 0, width: 1, backgroundColor: "rgba(255,255,255,0.05)" } as ViewStyle,

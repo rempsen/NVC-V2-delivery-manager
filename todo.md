@@ -1345,3 +1345,7 @@
 - [ ] Dedicated Audit Log page at /super-admin/audit-log with live tRPC data
 - [ ] Audit Log page: filter by action type, actor, date range
 - [ ] Audit Log page: paginated table with action badge, actor email, target, timestamp
+
+## Map Layout Fix — Mar 28, 2026
+
+- [x] Fix dispatcher dashboard map height to fill entire center+right area (eliminate blank grey area below map)
