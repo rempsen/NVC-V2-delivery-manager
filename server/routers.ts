@@ -1060,11 +1060,33 @@ export const appRouter = router({
           overtimeRate: z.string().optional(),
           status: z.enum(["online", "busy", "on_break", "offline"]).optional(),
           isActive: z.boolean().optional(),
+          photoUrl: z.string().url().optional(),
         }),
       )
       .mutation(({ input }) => {
         const { id, tenantId, ...data } = input;
         return db.updateTechnician(id, tenantId, data as any);
+      }),
+
+    /**
+     * Upload a profile photo for a technician.
+     * Accepts base64-encoded image data, uploads to S3, updates photoUrl in DB.
+     */
+    uploadPhoto: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        tenantId: z.number(),
+        base64: z.string(),          // base64-encoded image bytes
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input }) => {
+        const { storagePut } = await import("./storage.js");
+        const buffer = Buffer.from(input.base64, "base64");
+        const ext = input.mimeType === "image/png" ? "png" : "jpg";
+        const key = `technicians/${input.tenantId}/${input.id}-${Date.now()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        await db.updateTechnician(input.id, input.tenantId, { photoUrl: url } as any);
+        return { photoUrl: url };
       }),
 
     delete: protectedProcedure

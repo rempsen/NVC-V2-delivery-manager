@@ -1365,3 +1365,9 @@
 - [x] Test Create Company end-to-end (API + DB verify)
 - [x] Test Create Work Order end-to-end (API + DB verify)
 - [x] Fix any broken flows found during testing
+
+## Demo Readiness Sprint — Mar 28, 2026
+
+- [x] Wipe E2E test data: tenants 90003-90005, customers 120001-120003, technicians/tasks 30001-30003
+- [x] Wire Forgot Password flow — send reset email via server built-in email capability
+- [x] Add technician profile photo upload to Edit Technician screen (S3 storage)

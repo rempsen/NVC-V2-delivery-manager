@@ -1,0 +1,12 @@
+{
+  "query": "\nSELECT 'tenants' as tbl, id, company_name FROM tenants WHERE id >= 90003 AND id <= 90005\nUNION ALL\nSELECT 'customers', id, COALESCE(company, contact_name) FROM customers WHERE id >= 120001 AND id <= 120003\nUNION ALL\nSELECT 'technicians', id, CAST(tenant_id AS TEXT) FROM technicians WHERE id >= 30001 AND id <= 30003\nUNION ALL\nSELECT 'tasks', id, CAST(tenant_id AS TEXT) FROM tasks WHERE id >= 30001 AND id <= 30003\nUNION ALL\nSELECT 'tenant_users', id, email FROM tenant_users WHERE id >= 120001 AND id <= 120010;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT 'tenants' as tbl, id, company_name FROM tenants WHERE id >= 90003 AND id <= 90005\nUNION ALL\nSELECT 'customers', id, COALESCE(company, contact_name) FROM customers WHERE id >= 120001 AND id <= 120003\nUNION ALL\nSELECT 'technicians', id, CAST(tenant_id AS TEXT) FROM technicians WHERE id >= 30001 AND id <= 30003\nUNION ALL\nSELECT 'tasks', id, CAST(tenant_id AS TEXT) FROM tasks WHERE id >= 30001 AND id <= 30003\nUNION ALL\nSELECT 'tenant_users', id, email FROM tenant_users WHERE id >= 120001 AND id <= 120010;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 2: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 5 column 49 near \"TEXT) FROM technicians WHERE id >= 30001 AND id <= 30003",
+    "UNION ALL",
+    "SELECT 'tasks', id, CAST(tenant_id AS TEXT) FROM tasks WHERE id >= 30001 AND id <= 30003",
+    "UNION ALL",
+    "SELECT 'tenant_users', id, email FROM tenant_users WHERE id >= 120001 AND id <= 120010\""
+  ]
+}

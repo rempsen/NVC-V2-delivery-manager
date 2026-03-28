@@ -1,0 +1,30 @@
+{
+  "query": "\nSELECT id, tenantId, status FROM tasks WHERE tenantId = 30002 ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, tenantId, status FROM tasks WHERE tenantId = 30002 ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "tenantId": "30002",
+      "status": "unassigned"
+    },
+    {
+      "id": "30001",
+      "tenantId": "30002",
+      "status": "unassigned"
+    },
+    {
+      "id": "30002",
+      "tenantId": "30002",
+      "status": "unassigned"
+    },
+    {
+      "id": "30003",
+      "tenantId": "30002",
+      "status": "unassigned"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttenantId\tstatus\n1\t30002\tunassigned\n30001\t30002\tunassigned\n30002\t30002\tunassigned\n30003\t30002\tunassigned\n",
+  "stderr": "",
+  "execution_time_ms": 349
+}

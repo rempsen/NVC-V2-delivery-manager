@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback } from "react";
 import {
   View, Text, ScrollView, Pressable, TextInput, StyleSheet,
-  Alert, Linking, Platform, ViewStyle, TextStyle, Switch,
+  Alert, Linking, Platform, ViewStyle, TextStyle, Switch, Image, ActivityIndicator,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BottomNavBar } from "@/components/bottom-nav-bar";
@@ -246,6 +247,8 @@ export default function AgentDetailScreen() {
   const [profile, setProfile] = useState<TechProfile>(BLANK_PROFILE);
   const [editMode, setEditMode] = useState(isNew);
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const utils = trpc.useUtils();
@@ -269,6 +272,42 @@ export default function AgentDetailScreen() {
     onError: (err) => Alert.alert("Error", err.message ?? "Failed to save profile."),
     onSettled: () => setSaving(false),
   });
+  const uploadPhotoMutation = trpc.technicians.uploadPhoto.useMutation({
+    onSuccess: () => {
+      setLocalPhotoUri(null);
+      utils.technicians.list.invalidate();
+      Alert.alert("Photo Updated", "Profile photo has been saved.");
+    },
+    onError: (err) => Alert.alert("Upload Failed", err.message ?? "Could not upload photo."),
+    onSettled: () => setPhotoUploading(false),
+  });
+
+  const handlePickPhoto = useCallback(async () => {
+    if (isNew) { Alert.alert("Save First", "Please create the technician before uploading a photo."); return; }
+    if (Platform.OS !== "web") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") { Alert.alert("Permission Required", "Please allow photo library access in Settings."); return; }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"] as any,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.75,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    if (!asset.base64) { Alert.alert("Error", "Could not read image data."); return; }
+    setLocalPhotoUri(asset.uri);
+    setPhotoUploading(true);
+    uploadPhotoMutation.mutate({
+      id: Number(id),
+      tenantId: tenantId ?? 0,
+      base64: asset.base64,
+      mimeType: (asset as any).mimeType ?? "image/jpeg",
+    });
+  }, [id, tenantId, isNew, uploadPhotoMutation]);
+
   const deleteMutation = trpc.technicians.delete.useMutation({
     onSuccess: () => {
       utils.technicians.list.invalidate();
@@ -364,12 +403,32 @@ export default function AgentDetailScreen() {
     <>
       {/* Hero Card */}
       <View style={[styles.heroCard, { backgroundColor: NVC_BLUE }] as ViewStyle[]}>
-        <View style={styles.heroAvatar}>
-          <Text style={styles.heroInitials}>
-            {technician ? technician.name.split(" ").map((n) => n[0]).join("") : "NT"}
-          </Text>
+        <Pressable
+          style={({ pressed }) => [styles.heroAvatar, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+          onPress={handlePickPhoto}
+          accessibilityLabel="Change profile photo"
+        >
+          {(localPhotoUri || technician?.photoUrl) ? (
+            <Image
+              source={{ uri: localPhotoUri ?? technician!.photoUrl! }}
+              style={styles.heroAvatarPhoto as any}
+            />
+          ) : (
+            <Text style={styles.heroInitials}>
+              {technician ? technician.name.split(" ").map((n) => n[0]).join("") : "NT"}
+            </Text>
+          )}
+          {photoUploading ? (
+            <View style={styles.photoUploadOverlay as any}>
+              <ActivityIndicator color="#fff" size="small" />
+            </View>
+          ) : (
+            <View style={styles.photoCameraBtn as any}>
+              <Text style={{ fontSize: 10 }}>📷</Text>
+            </View>
+          )}
           <View style={[styles.heroDot, { backgroundColor: dotColor }] as ViewStyle[]} />
-        </View>
+        </Pressable>
         <Text style={styles.heroName}>{displayName}</Text>
         <Text style={styles.heroRole}>{technician?.skills?.[0] ?? "Field Technician"}</Text>
         <Text style={styles.heroAddress}>{technician?.activeTaskAddress ?? "Winnipeg, MB"}</Text>
@@ -695,10 +754,25 @@ const styles = StyleSheet.create({
     shadowColor: "#0A1929", shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22, shadowRadius: 18, elevation: 8,
   },
-  heroAvatar: { position: "relative", marginBottom: 12 },
+  heroAvatar: { position: "relative", marginBottom: 12, width: 76, height: 76 },
+  heroAvatarPhoto: {
+    width: 76, height: 76, borderRadius: 38, borderWidth: 2.5, borderColor: "rgba(255,255,255,0.4)",
+  },
   heroInitials: {
     width: 76, height: 76, borderRadius: 38, backgroundColor: "rgba(255,255,255,0.22)",
     fontSize: 26, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center", lineHeight: 76,
+  },
+  photoUploadOverlay: {
+    position: "absolute", top: 0, left: 0, width: 76, height: 76,
+    borderRadius: 38, backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center",
+  },
+  photoCameraBtn: {
+    position: "absolute", bottom: 0, right: 0,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "rgba(0,0,0,0.15)",
   },
   heroDot: {
     position: "absolute", bottom: 2, right: 2,

@@ -1,0 +1,30 @@
+{
+  "query": "\nSELECT id, tenantId, contactName FROM customers WHERE tenantId IN (30002, 90003, 90004, 90005) OR id >= 120001 ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, tenantId, contactName FROM customers WHERE tenantId IN (30002, 90003, 90004, 90005) OR id >= 120001 ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "90001",
+      "tenantId": "30002",
+      "contactName": "2049556052"
+    },
+    {
+      "id": "120001",
+      "tenantId": "30002",
+      "contactName": "E2E Contact"
+    },
+    {
+      "id": "120002",
+      "tenantId": "30002",
+      "contactName": "E2E Contact"
+    },
+    {
+      "id": "120003",
+      "tenantId": "30002",
+      "contactName": "E2E Contact"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttenantId\tcontactName\n90001\t30002\t2049556052\n120001\t30002\tE2E Contact\n120002\t30002\tE2E Contact\n120003\t30002\tE2E Contact\n",
+  "stderr": "",
+  "execution_time_ms": 460
+}

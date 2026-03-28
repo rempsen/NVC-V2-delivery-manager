@@ -1,0 +1,25 @@
+{
+  "query": "\nSELECT id, companyName, slug FROM tenants ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, companyName, slug FROM tenants ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "3",
+      "companyName": "NVC360 Platform",
+      "slug": "nvc360"
+    },
+    {
+      "id": "30002",
+      "companyName": "NVC Test Company",
+      "slug": "nvc-test"
+    },
+    {
+      "id": "60002",
+      "companyName": "Test HVAC Co",
+      "slug": "test-hvac-co"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcompanyName\tslug\n3\tNVC360 Platform\tnvc360\n30002\tNVC Test Company\tnvc-test\n60002\tTest HVAC Co\ttest-hvac-co\n",
+  "stderr": "",
+  "execution_time_ms": 351
+}

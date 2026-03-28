@@ -1,0 +1,25 @@
+{
+  "query": "SELECT id, companyName, slug FROM tenants WHERE id >= 90003 ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, companyName, slug FROM tenants WHERE id >= 90003 ORDER BY id;",
+  "rows": [
+    {
+      "id": "90003",
+      "companyName": "E2E HVAC Test Co",
+      "slug": "e2e-hvac-1774733164136"
+    },
+    {
+      "id": "90004",
+      "companyName": "E2E HVAC Test Co",
+      "slug": "e2e-hvac-1774733198811"
+    },
+    {
+      "id": "90005",
+      "companyName": "E2E HVAC Test Co",
+      "slug": "e2e-hvac-1774733225731"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcompanyName\tslug\n90003\tE2E HVAC Test Co\te2e-hvac-1774733164136\n90004\tE2E HVAC Test Co\te2e-hvac-1774733198811\n90005\tE2E HVAC Test Co\te2e-hvac-1774733225731\n",
+  "stderr": "",
+  "execution_time_ms": 367
+}

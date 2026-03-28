@@ -1,0 +1,64 @@
+{
+  "query": "\nSELECT id, tenantId, email, role FROM tenantUsers WHERE id >= 90000 ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute \nSELECT id, tenantId, email, role FROM tenantUsers WHERE id >= 90000 ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "90001",
+      "tenantId": "3",
+      "email": "john.smith.tech@nvc360.com",
+      "role": "technician"
+    },
+    {
+      "id": "90002",
+      "tenantId": "60002",
+      "email": "bob@testhvac.com",
+      "role": "manager"
+    },
+    {
+      "id": "120001",
+      "tenantId": "90002",
+      "email": "e2e-owner-1774732973676@testhvac.com",
+      "role": "manager"
+    },
+    {
+      "id": "120002",
+      "tenantId": "90003",
+      "email": "e2e-owner-1774733164136@testhvac.com",
+      "role": "manager"
+    },
+    {
+      "id": "120003",
+      "tenantId": "30002",
+      "email": "e2e-tech-1774733165275@test.com",
+      "role": "technician"
+    },
+    {
+      "id": "120004",
+      "tenantId": "90004",
+      "email": "e2e-owner-1774733198812@testhvac.com",
+      "role": "manager"
+    },
+    {
+      "id": "120005",
+      "tenantId": "30002",
+      "email": "e2e-tech-1774733199926@test.com",
+      "role": "technician"
+    },
+    {
+      "id": "120006",
+      "tenantId": "90005",
+      "email": "e2e-owner-1774733225731@testhvac.com",
+      "role": "manager"
+    },
+    {
+      "id": "120007",
+      "tenantId": "30002",
+      "email": "e2e-tech-1774733226848@test.com",
+      "role": "technician"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttenantId\temail\trole\n90001\t3\tjohn.smith.tech@nvc360.com\ttechnician\n90002\t60002\tbob@testhvac.com\tmanager\n120001\t90002\te2e-owner-1774732973676@testhvac.com\tmanager\n120002\t90003\te2e-owner-1774733164136@testhvac.com\tmanager\n120003\t30002\te2e-tech-1774733165275@test.com\ttechnician\n120004\t90004\te2e-owner-1774733198812@testhvac.com\tmanager\n120005\t30002\te2e-tech-1774733199926@test.com\ttechnician\n120006\t90005\te2e-owner-1774733225731@testhvac.com\tmanager\n120007\t30002\te2e-tech-1774733226848@test.com\ttechnician\n",
+  "stderr": "",
+  "execution_time_ms": 351
+}
