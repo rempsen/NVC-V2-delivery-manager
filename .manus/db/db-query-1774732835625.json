@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE tenantUsers SET passwordHash = '$2b$10$.1o3K6Dv2XalSDyGzlGNq.oDrtFbp/Fm0mVb1ISL26yNS8Zn6r2l2' WHERE email IN ('dispatch@nvctest.com', 'tech@nvctest.com', 'admin@nvc360.com');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute UPDATE tenantUsers SET passwordHash = '$2b$10$.1o3K6Dv2XalSDyGzlGNq.oDrtFbp/Fm0mVb1ISL26yNS8Zn6r2l2' WHERE email IN ('dispatch@nvctest.com', 'tech@nvctest.com', 'admin@nvc360.com');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 497
+}

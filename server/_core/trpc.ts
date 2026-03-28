@@ -136,7 +136,7 @@ export const superAdminProcedure = t.procedure.use(
     }
 
     const role = ctx.user.role as UserRole;
-    if (role !== "super_admin") {
+    if (role !== "super_admin" && role !== "nvc_super_admin") {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "Super admin access required (10005)",

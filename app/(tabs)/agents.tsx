@@ -405,8 +405,8 @@ export default function AgentsScreen() {
                 </Pressable>
               )}
             </View>
-            {/* Filter tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterList, { paddingHorizontal: 8 }] as ViewStyle[]}>
+            {/* Compact filter strip */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", gap: 4, paddingHorizontal: 8, paddingVertical: 6 }}>
               {(STATUS_FILTERS as unknown as StatusFilter[]).map((item) => {
                 const isActive = statusFilter === item;
                 const dotColor = item === "all" ? NVC_BLUE : (STATUS_COLOR[item] ?? NVC_BLUE);
@@ -414,14 +414,14 @@ export default function AgentsScreen() {
                 return (
                   <Pressable
                     key={item}
-                    style={[styles.filterTab, { backgroundColor: isActive ? NVC_BLUE : "#F1F5F9", borderColor: isActive ? NVC_BLUE : "#E2E8F0" }] as ViewStyle[]}
+                    style={[{ flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, backgroundColor: isActive ? NVC_BLUE : "#F1F5F9", borderColor: isActive ? NVC_BLUE : "#E2E8F0" }] as ViewStyle[]}
                     onPress={() => setStatusFilter(item)}
                   >
-                    {item !== "all" && <View style={[styles.filterDot, { backgroundColor: dotColor }] as ViewStyle[]} />}
-                    <Text style={[styles.filterTabText, { color: isActive ? "#fff" : "#374151" }] as TextStyle[]}>{FILTER_LABELS[item]}</Text>
+                    {item !== "all" && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isActive ? "#fff" : dotColor }} />}
+                    <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: isActive ? "#fff" : "#374151" }}>{FILTER_LABELS[item]}</Text>
                     {count > 0 && (
-                      <View style={[styles.filterCount, { backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "#E2E8F0" }] as ViewStyle[]}>
-                        <Text style={[styles.filterCountText, { color: isActive ? "#fff" : "#374151" }] as TextStyle[]}>{count}</Text>
+                      <View style={{ paddingHorizontal: 4, paddingVertical: 1, borderRadius: 6, backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "#E2E8F0", minWidth: 16, alignItems: "center" }}>
+                        <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: isActive ? "#fff" : "#374151" }}>{count}</Text>
                       </View>
                     )}
                   </Pressable>
@@ -445,21 +445,37 @@ export default function AgentsScreen() {
               renderItem={({ item }) => {
                 const color = STATUS_COLOR[item.status as string] ?? "#9CA3AF";
                 const isSelected = selectedTechId === item.id;
+                const initials = item.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+                const statusLabel = FILTER_LABELS[item.status as string] ?? item.status;
                 return (
                   <Pressable
-                    style={[styles.listRow, isSelected && styles.listRowSelected] as ViewStyle[]}
+                    style={[{
+                      flexDirection: "row", alignItems: "center",
+                      paddingVertical: 7, paddingRight: 10,
+                      borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
+                      backgroundColor: isSelected ? "#EFF6FF" : "#fff",
+                    }] as ViewStyle[]}
                     onPress={() => setSelectedTechId(isSelected ? null : item.id)}
                   >
-                    <View style={[styles.listDot, { backgroundColor: color }] as ViewStyle[]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={[styles.listSub, { color }] as TextStyle[]} numberOfLines={1}>
-                        {FILTER_LABELS[item.status as string] ?? item.status}
-                        {item.activeTaskAddress ? ` · ${item.activeTaskAddress}` : ""}
-                      </Text>
+                    {/* Left accent bar */}
+                    <View style={{ width: 3, alignSelf: "stretch", backgroundColor: color, borderRadius: 2, marginRight: 8, marginLeft: 0 }} />
+                    {/* Avatar circle */}
+                    <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: color + "22", alignItems: "center", justifyContent: "center", marginRight: 8, flexShrink: 0 }}>
+                      <Text style={{ fontSize: 11, fontFamily: "Inter_700Bold", color, letterSpacing: 0.3 }}>{initials}</Text>
                     </View>
-                    <Pressable onPress={() => handleCall(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <IconSymbol name="phone.fill" size={14} color="#22C55E" />
+                    {/* Name + status */}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#0F172A", lineHeight: 16 }} numberOfLines={1}>{item.name}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 }}>
+                        <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: color }} />
+                        <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color, lineHeight: 14 }} numberOfLines={1}>
+                          {statusLabel}{item.activeTaskAddress ? ` · ${item.activeTaskAddress}` : ""}
+                        </Text>
+                      </View>
+                    </View>
+                    {/* Call button */}
+                    <Pressable onPress={() => handleCall(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ padding: 4 }}>
+                      <IconSymbol name="phone.fill" size={13} color="#22C55E" />
                     </Pressable>
                   </Pressable>
                 );
@@ -727,7 +743,7 @@ const styles = StyleSheet.create<{
   emptyActionText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
   // Map-first layout
   leftPanel: {
-    width: 268, backgroundColor: "#fff",
+    width: 220, backgroundColor: "#fff",
     borderRightWidth: 1, borderRightColor: "#E2E8F0",
     flexDirection: "column",
   },
@@ -744,13 +760,13 @@ const styles = StyleSheet.create<{
   },
   listRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
+    paddingHorizontal: 14, paddingVertical: 7,
     borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
   },
   listRowSelected: { backgroundColor: "#EFF6FF" },
   listDot: { width: 9, height: 9, borderRadius: 4.5 },
-  listName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#0F172A" },
-  listSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  listName: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#0F172A" },
+  listSub: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 1 },
   rightPanel: {
     width: 248, backgroundColor: "#fff",
     borderLeftWidth: 1, borderLeftColor: "#E2E8F0",

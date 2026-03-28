@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, email, role, tenantId FROM tenantUsers WHERE role IN ('nvc_super_admin', 'admin') LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, email, role, tenantId FROM tenantUsers WHERE role IN ('nvc_super_admin', 'admin') LIMIT 10;",
+  "rows": [
+    {
+      "id": "4",
+      "email": "admin@nvc360.com",
+      "role": "admin",
+      "tenantId": "3"
+    },
+    {
+      "id": "30001",
+      "email": "dan@nvc360.com",
+      "role": "admin",
+      "tenantId": "3"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\trole\ttenantId\n4\tadmin@nvc360.com\tadmin\t3\n30001\tdan@nvc360.com\tadmin\t3\n",
+  "stderr": "",
+  "execution_time_ms": 410
+}

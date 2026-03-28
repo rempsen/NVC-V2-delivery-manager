@@ -1318,9 +1318,9 @@
 
 ## Bug Fixes — Creation Flows (Mar 27 2026)
 
-- [ ] Fix Create Technician button — does nothing on press (agent/new screen)
-- [ ] Fix Create Company button — does nothing on press (super-admin screen)
-- [ ] Fix Create Customer button — does nothing on press (customers screen)
+- [x] Fix Create Technician button — does nothing on press (agent/new screen)
+- [x] Fix Create Company button — does nothing on press (super-admin screen)
+- [x] Fix Create Customer button — does nothing on press (customers screen)
 
 ## Clean Slate & Bug Fix Sprint — Completed (Mar 27 2026)
 
@@ -1349,3 +1349,19 @@
 ## Map Layout Fix — Mar 28, 2026
 
 - [x] Fix dispatcher dashboard map height to fill entire center+right area (eliminate blank grey area below map)
+
+## Create Flows & Technician Panel Fix — Mar 28, 2026
+
+- [x] Fix Create Technician button — wire to real tRPC mutation and save to DB
+- [x] Fix Create Customer button — wire to real tRPC mutation and save to DB
+- [x] Fix Create Company button — wire to real tRPC mutation and save to DB
+- [x] Redesign technicians screen left panel: vertical list of 6-10 technicians, color-coded by status (en_route=purple, on_site=amber, available=green, offline=grey)
+- [x] Test all three creation flows end-to-end with real DB verification
+
+## End-to-End Creation Flow Testing — Mar 28, 2026
+
+- [x] Test Create Customer end-to-end (API + DB verify)
+- [x] Test Create Technician end-to-end (API + DB verify)
+- [x] Test Create Company end-to-end (API + DB verify)
+- [x] Test Create Work Order end-to-end (API + DB verify)
+- [x] Fix any broken flows found during testing

@@ -1,0 +1,25 @@
+{
+  "query": "SELECT id, email, LEFT(passwordHash, 10) as hashStart FROM tenantUsers WHERE email IN ('dispatch@nvctest.com', 'tech@nvctest.com', 'admin@nvc360.com');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, email, LEFT(passwordHash, 10) as hashStart FROM tenantUsers WHERE email IN ('dispatch@nvctest.com', 'tech@nvctest.com', 'admin@nvc360.com');",
+  "rows": [
+    {
+      "id": "4",
+      "email": "admin@nvc360.com",
+      "hashStart": "$2b$12$i4J"
+    },
+    {
+      "id": "60001",
+      "email": "dispatch@nvctest.com",
+      "hashStart": "$2b$12$ICU"
+    },
+    {
+      "id": "60002",
+      "email": "tech@nvctest.com",
+      "hashStart": "$2b$12$vPK"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\thashStart\n4\tadmin@nvc360.com\t$2b$12$i4J\n60001\tdispatch@nvctest.com\t$2b$12$ICU\n60002\ttech@nvctest.com\t$2b$12$vPK\n",
+  "stderr": "",
+  "execution_time_ms": 354
+}

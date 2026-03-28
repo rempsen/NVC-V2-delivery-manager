@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, tenantId, tenantUserId, status, skills FROM technicians LIMIT 5; SELECT COUNT(*) as customerCount FROM customers WHERE tenantId = 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, tenantId, tenantUserId, status, skills FROM technicians LIMIT 5; SELECT COUNT(*) as customerCount FROM customers WHERE tenantId = 3;",
+  "rows": [
+    {
+      "id": "1",
+      "tenantId": "3",
+      "tenantUserId": "90001",
+      "status": "offline",
+      "skills": "[\"HVAC\", \"Plumbing\"]"
+    }
+  ],
+  "messages": [
+    "customerCount",
+    "0"
+  ],
+  "stdout": "id\ttenantId\ttenantUserId\tstatus\tskills\n1\t3\t90001\toffline\t[\"HVAC\", \"Plumbing\"]\ncustomerCount\n0\n",
+  "stderr": "",
+  "execution_time_ms": 1958
+}

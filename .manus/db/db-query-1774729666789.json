@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, openId, email, role FROM users LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, openId, email, role FROM users LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "openId": "demo-nvc-001",
+      "email": "admin@nvc360.com",
+      "role": "super_admin"
+    },
+    {
+      "id": "270001",
+      "openId": "tu-4",
+      "email": "admin@nvc360.com",
+      "role": "agent"
+    },
+    {
+      "id": "270002",
+      "openId": "tu-60001",
+      "email": "dispatch@nvctest.com",
+      "role": "agent"
+    },
+    {
+      "id": "270003",
+      "openId": "tu-60002",
+      "email": "tech@nvctest.com",
+      "role": "agent"
+    },
+    {
+      "id": "270004",
+      "openId": "tu-30001",
+      "email": "dan@nvc360.com",
+      "role": "agent"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\temail\trole\n1\tdemo-nvc-001\tadmin@nvc360.com\tsuper_admin\n270001\ttu-4\tadmin@nvc360.com\tagent\n270002\ttu-60001\tdispatch@nvctest.com\tagent\n270003\ttu-60002\ttech@nvctest.com\tagent\n270004\ttu-30001\tdan@nvc360.com\tagent\n",
+  "stderr": "",
+  "execution_time_ms": 401
+}

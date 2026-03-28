@@ -114,10 +114,21 @@ export const appRouter = router({
           // are NVC Super Admins with full platform access.
           let effectiveRole: string = tenantUser.role as string;
           if (tenant?.isNvcPlatform) {
-            if (tenantUser.role === "admin") effectiveRole = "nvc_super_admin";
-            else if (tenantUser.role === "manager") effectiveRole = "nvc_project_manager";
+            if (tenantUser.role === "admin") effectiveRole = "super_admin";
+            else if (tenantUser.role === "manager") effectiveRole = "nvc_manager";
             else if (tenantUser.role === "dispatcher") effectiveRole = "nvc_support";
           }
+          // Persist the effective role to the users table so server-side auth checks work
+          const dbRole = effectiveRole as any;
+          await db.upsertUser({
+            openId,
+            name: tenantUser.name,
+            email: emailLower,
+            loginMethod: "email",
+            tenantId: tenantUser.tenantId ?? undefined,
+            lastSignedIn: new Date(),
+            role: ["super_admin", "nvc_manager", "merchant_manager", "agent", "user", "admin"].includes(dbRole) ? dbRole : "agent",
+          });
           return {
             success: true,
             token: sessionToken,
@@ -125,7 +136,7 @@ export const appRouter = router({
               id: openId,
               name: tenantUser.name,
               email: emailLower,
-              role: effectiveRole,
+              role: effectiveRole === "super_admin" ? "nvc_super_admin" : effectiveRole,
               tenantId: tenantUser.tenantId ?? null,
               tenantName: tenant?.companyName ?? null,
               tenantColor: (tenant?.branding as any)?.primaryColor ?? "#E85D04",
@@ -981,7 +992,56 @@ export const appRouter = router({
           hireDate: z.string().optional(),
         }),
       )
-      .mutation(({ input }) => db.createTechnician(input as any) as any),
+      .mutation(async ({ input }) => {
+        // technicians.tenantUserId is NOT NULL — we must create a tenantUser first
+        let tenantUserId = input.tenantUserId;
+        let tempPassword: string | undefined;
+        if (!tenantUserId) {
+          const fullName = `${input.firstName.trim()} ${input.lastName.trim()}`;
+          // Use provided email or generate a placeholder
+          const email = input.email?.trim() || `tech.${Date.now()}@nvc360.internal`;
+          // Check for duplicate
+          const existing = await db.getTenantUserByEmail(email, input.tenantId);
+          if (existing) {
+            tenantUserId = existing.id;
+          } else {
+            tempPassword = nodeCrypto.randomBytes(6).toString("hex");
+            const passwordHash = await bcrypt.hash(tempPassword, 10);
+            tenantUserId = await db.createTenantUser({
+              tenantId: input.tenantId,
+              name: fullName,
+              email,
+              phone: input.phone ?? null,
+              role: "technician",
+              passwordHash,
+              isActive: true,
+            });
+          }
+        }
+        const hourlyRateCents = input.hourlyRate
+          ? Math.round(parseFloat(input.hourlyRate) * 100)
+          : 0;
+        const techId = await db.createTechnician({
+          tenantId: input.tenantId,
+          tenantUserId,
+          skills: input.skills ?? null,
+        } as any);
+        // Send welcome email if SMTP configured and email was provided
+        if (input.email && tempPassword) {
+          try {
+            const { resolveSmtpCredentials, sendEmail } = await import("./email.js");
+            const creds = resolveSmtpCredentials();
+            if (creds) {
+              const loginUrl = "https://tookandeliv-ve29h94a.manus.space/login";
+              const html = `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;"><h2 style="color:#0052CC;">Welcome to NVC360!</h2><p>Hi ${input.firstName},</p><p>You've been added as a <strong>Field Technician</strong>.</p><div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;"><p style="margin:4px 0;"><strong>Email:</strong> ${input.email}</p><p style="margin:4px 0;"><strong>Temporary Password:</strong> <code>${tempPassword}</code></p></div><a href="${loginUrl}" style="display:inline-block;background:#0052CC;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Log In Now</a></div>`;
+              await sendEmail(input.email, "You've been added to NVC360", html, creds);
+            }
+          } catch (err) {
+            console.error("[Tech] Failed to send welcome email:", err);
+          }
+        }
+        return { id: techId, tenantUserId, tempPassword: tempPassword ?? undefined };
+      }),
 
     update: protectedProcedure
       .input(

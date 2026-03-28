@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, email, role, isActive, LEFT(passwordHash, 20) as hashPrefix FROM tenantUsers WHERE email = 'dan@nvc360.com' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, email, role, isActive, LEFT(passwordHash, 20) as hashPrefix FROM tenantUsers WHERE email = 'dan@nvc360.com' LIMIT 5;",
+  "rows": [
+    {
+      "id": "30001",
+      "email": "dan@nvc360.com",
+      "role": "admin",
+      "isActive": "1",
+      "hashPrefix": "$2b$12$wdegWN7uGqEhH"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\trole\tisActive\thashPrefix\n30001\tdan@nvc360.com\tadmin\t1\t$2b$12$wdegWN7uGqEhH\n",
+  "stderr": "",
+  "execution_time_ms": 513
+}

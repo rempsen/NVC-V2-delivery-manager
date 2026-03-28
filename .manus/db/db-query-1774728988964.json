@@ -1,0 +1,29 @@
+{
+  "query": "SELECT id, companyName, slug FROM tenants LIMIT 10; SELECT id, email, role, tenantId, passwordHash FROM tenantUsers LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, companyName, slug FROM tenants LIMIT 10; SELECT id, email, role, tenantId, passwordHash FROM tenantUsers LIMIT 10;",
+  "rows": [
+    {
+      "id": "3",
+      "companyName": "NVC360 Platform",
+      "slug": "nvc360"
+    },
+    {
+      "id": "30002",
+      "companyName": "NVC Test Company",
+      "slug": "nvc-test"
+    }
+  ],
+  "messages": [
+    "id\temail\trole\ttenantId\tpasswordHash",
+    "1\tdispatch@acmehvac.com\tdispatcher\t1\t$2a$12$placeholder",
+    "2\ttech@acmehvac.com\ttechnician\t1\t$2a$12$placeholder",
+    "3\tadmin@plumbpro.com\tmanager\t2\t$2a$12$placeholder",
+    "4\tadmin@nvc360.com\tadmin\t3\t$2b$12$i4JQnACHd3vwa.8loOY4ouZxwH22EkEE60XQpQyDyxZ7g/KDvRl2e",
+    "30001\tdan@nvc360.com\tadmin\t3\t$2b$12$RSxW6p3lDPZJ9PT1gbX5D.mKspU9gzqFmkX3swAak46JAANoLdrya",
+    "60001\tdispatch@nvctest.com\tdispatcher\t30002\t$2b$12$ICUJ07CqygCHm795vIA.Y.1QoZM6b3QwIAq5uAE1vv2A1CgD6jq7e",
+    "60002\ttech@nvctest.com\ttechnician\t30002\t$2b$12$vPKshMHkTiBhQQ2ar9n4KuHlMXB.fRl54fNjFAEP2TDuW6PYUMG72"
+  ],
+  "stdout": "id\tcompanyName\tslug\n3\tNVC360 Platform\tnvc360\n30002\tNVC Test Company\tnvc-test\nid\temail\trole\ttenantId\tpasswordHash\n1\tdispatch@acmehvac.com\tdispatcher\t1\t$2a$12$placeholder\n2\ttech@acmehvac.com\ttechnician\t1\t$2a$12$placeholder\n3\tadmin@plumbpro.com\tmanager\t2\t$2a$12$placeholder\n4\tadmin@nvc360.com\tadmin\t3\t$2b$12$i4JQnACHd3vwa.8loOY4ouZxwH22EkEE60XQpQyDyxZ7g/KDvRl2e\n30001\tdan@nvc360.com\tadmin\t3\t$2b$12$RSxW6p3lDPZJ9PT1gbX5D.mKspU9gzqFmkX3swAak46JAANoLdrya\n60001\tdispatch@nvctest.com\tdispatcher\t30002\t$2b$12$ICUJ07CqygCHm795vIA.Y.1QoZM6b3QwIAq5uAE1vv2A1CgD6jq7e\n60002\ttech@nvctest.com\ttechnician\t30002\t$2b$12$vPKshMHkTiBhQQ2ar9n4KuHlMXB.fRl54fNjFAEP2TDuW6PYUMG72\n",
+  "stderr": "",
+  "execution_time_ms": 482
+}
