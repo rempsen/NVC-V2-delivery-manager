@@ -1444,3 +1444,16 @@
 - [x] Add client-side form validation to Create Work Order screen (required fields, email, phone)
 - [x] Add client-side form validation to Create Customer screen (required fields, email, phone)
 - [x] Add client-side form validation to Create Technician screen (required fields, email, phone, hourly/overtime rate)
+
+## Google OAuth Implementation — Mar 29, 2026
+
+- [x] DB migration: add googleId column to tenantUsers schema
+- [x] Run pnpm db:push to apply migration (applied via webdev_execute_sql)
+- [x] Add getTenantUserByGoogleId() to server/db.ts
+- [x] Add updateTenantUserGoogleId() to server/db.ts
+- [x] Add auth.googleLogin tRPC procedure to server/routers.ts
+- [x] Replace handleGoogleSignIn bypass with real PKCE flow in app/login.tsx
+- [x] Add expo-crypto import and googleLoginMutation to login.tsx
+- [x] Guard Google button when GOOGLE_OAUTH_CLIENT_ID is not set (shows alert if not configured)
+- [x] Add GOOGLE_OAUTH_CLIENT_ID secret (requested via webdev_request_secrets)
+- [x] TypeScript: 0 errors after all changes

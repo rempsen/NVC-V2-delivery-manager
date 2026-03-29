@@ -180,6 +180,160 @@ export const appRouter = router({
       }),
 
     /**
+     * Google Sign-In — exchanges a PKCE authorization code for a NVC360 session.
+     * The mobile app performs the OAuth dance and sends the raw code + verifier here.
+     * The server exchanges the code with Google, verifies the id_token, looks up the
+     * matching tenantUser by googleId (stable) then email (first sign-in), and issues
+     * a signed NVC360 session JWT via the same path as emailLogin.
+     */
+    googleLogin: publicProcedure
+      .input(z.object({
+        code: z.string().min(1),
+        codeVerifier: z.string().min(1),
+        redirectUri: z.string().url(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID ?? "";
+        if (!clientId) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Google Sign-In is not configured on this server. Please contact your administrator.",
+          });
+        }
+
+        // ── Step A: Exchange authorization code for Google tokens ────────────
+        const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            code: input.code,
+            client_id: clientId,
+            redirect_uri: input.redirectUri,
+            grant_type: "authorization_code",
+            code_verifier: input.codeVerifier,
+          }),
+        });
+        if (!tokenRes.ok) {
+          const errText = await tokenRes.text();
+          console.error("[googleLogin] Token exchange failed:", errText);
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Google authentication failed. Please try again." });
+        }
+        const tokenData = await tokenRes.json() as { id_token?: string; access_token?: string; error?: string };
+        if (tokenData.error) {
+          console.error("[googleLogin] Token error:", tokenData.error);
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Google authentication failed. Please try again." });
+        }
+        const idToken = tokenData.id_token;
+        if (!idToken) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Google did not return an identity token." });
+        }
+
+        // ── Step B: Verify id_token via Google tokeninfo endpoint ────────────
+        const infoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+        if (!infoRes.ok) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Could not verify Google identity token." });
+        }
+        const info = await infoRes.json() as {
+          sub: string;
+          email: string;
+          name?: string;
+          picture?: string;
+          aud: string;
+          email_verified?: string;
+        };
+
+        // Verify the token was issued for this app (audience check)
+        if (info.aud !== clientId) {
+          console.error("[googleLogin] Audience mismatch:", info.aud, "!=", clientId);
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Google token audience mismatch." });
+        }
+        if (info.email_verified !== "true") {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Google account email is not verified. Please verify your Google account and try again." });
+        }
+
+        const googleSub = info.sub;
+        const googleEmail = info.email.toLowerCase().trim();
+
+        // ── Step C: Find the matching tenantUser ─────────────────────────────
+        // Look up by googleId first (stable across email changes),
+        // then fall back to email for first-time Google sign-in.
+        let tenantUser = await db.getTenantUserByGoogleId(googleSub);
+        if (!tenantUser) {
+          tenantUser = await db.getTenantUserByEmailAnyTenant(googleEmail);
+        }
+        if (!tenantUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "No NVC360 account found for this Google address. Please sign in with your email and password, or ask your administrator to invite you.",
+          });
+        }
+        if (!tenantUser.isActive) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Your account has been deactivated. Please contact your administrator." });
+        }
+
+        // ── Step D: Persist googleId on first sign-in ────────────────────────
+        if (!tenantUser.googleId) {
+          await db.updateTenantUserGoogleId(tenantUser.id, googleSub);
+        }
+
+        // ── Step E: Issue NVC360 session (same path as emailLogin) ───────────
+        const tenant = tenantUser.tenantId ? await db.getTenantById(tenantUser.tenantId) : null;
+        const openId = `tu-${tenantUser.id}`;
+        await db.upsertUser({
+          openId,
+          name: tenantUser.name,
+          email: googleEmail,
+          loginMethod: "google",
+          tenantId: tenantUser.tenantId ?? undefined,
+          lastSignedIn: new Date(),
+        });
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: tenantUser.name,
+          expiresInMs: 365 * 24 * 60 * 60 * 1000,
+        });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+
+        let technicianId: number | null = null;
+        if (tenantUser.role === "technician" && tenantUser.id) {
+          const techRecord = await db.getTechnicianByTenantUserId(tenantUser.id);
+          technicianId = techRecord?.id ?? null;
+        }
+        let effectiveRole: string = tenantUser.role as string;
+        if (tenant?.isNvcPlatform) {
+          if (tenantUser.role === "admin") effectiveRole = "super_admin";
+          else if (tenantUser.role === "manager") effectiveRole = "nvc_manager";
+          else if (tenantUser.role === "dispatcher") effectiveRole = "nvc_support";
+        }
+        // Persist effective role to users table so server-side auth checks work
+        await db.upsertUser({
+          openId,
+          name: tenantUser.name,
+          email: googleEmail,
+          loginMethod: "google",
+          tenantId: tenantUser.tenantId ?? undefined,
+          lastSignedIn: new Date(),
+          role: ["super_admin", "nvc_manager", "merchant_manager", "agent", "user", "admin"].includes(effectiveRole) ? effectiveRole as any : "agent",
+        });
+
+        return {
+          success: true,
+          token: sessionToken,
+          user: {
+            id: openId,
+            name: tenantUser.name,
+            email: googleEmail,
+            role: effectiveRole === "super_admin" ? "nvc_super_admin" : effectiveRole,
+            tenantId: tenantUser.tenantId ?? null,
+            tenantName: tenant?.companyName ?? null,
+            tenantColor: (tenant?.branding as any)?.primaryColor ?? "#E85D04",
+            tenantLogo: (tenant?.branding as any)?.logoUrl ?? null,
+            technicianId,
+          },
+        } as const;
+      }),
+
+    /**
      * Forgot Password — sends a reset link to the employee's email.
      * Works for tenantUsers (dispatchers/technicians). Uses in-memory token store (1 hour TTL).
      */

@@ -1,0 +1,79 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "auditLogs"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "calendarItems"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "checklistItems"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "consentRecords"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "customers"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "fileAttachments"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "integrationConfigs"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "locationHistory"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "merchantSettings"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "messages"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "notifications"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "pricingRules"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "taskAuditLog"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "taskChecklists"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "tasks"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "technicianSkills"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "technicians"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "tenantUsers"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "tenants"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "userMerchantAccess"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "users"
+    },
+    {
+      "Tables_in_Ve29H94aZcWFrpYwT4447v": "workflowTemplates"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_Ve29H94aZcWFrpYwT4447v\n__drizzle_migrations\nauditLogs\ncalendarItems\nchecklistItems\nconsentRecords\ncustomers\nfileAttachments\nintegrationConfigs\nlocationHistory\nmerchantSettings\nmessages\nnotifications\npricingRules\ntaskAuditLog\ntaskChecklists\ntasks\ntechnicianSkills\ntechnicians\ntenantUsers\ntenants\nuserMerchantAccess\nusers\nworkflowTemplates\n",
+  "stderr": "",
+  "execution_time_ms": 463
+}

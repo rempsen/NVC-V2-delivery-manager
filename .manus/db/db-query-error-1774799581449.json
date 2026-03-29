@@ -1,0 +1,14 @@
+{
+  "query": "SELECT u.id, u.email, u.name FROM users u LIMIT 5; SELECT t.id, t.name, t.slug FROM tenants t LIMIT 5; SELECT tu.userId, tu.tenantId, tu.role FROM tenantUsers tu LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT u.id, u.email, u.name FROM users u LIMIT 5; SELECT t.id, t.name, t.slug FROM tenants t LIMIT 5; SELECT tu.userId, tu.tenantId, tu.role FROM tenantUsers tu LIMIT 5;",
+  "returncode": 1,
+  "logs": [
+    "id\temail\tname",
+    "1\tadmin@nvc360.com\tDan Rosenblat",
+    "270001\tadmin@nvc360.com\tDan Rosenblat",
+    "270002\tdispatch@nvctest.com\tTest Dispatcher",
+    "270003\ttech@nvctest.com\tTest Technician",
+    "270004\tdan@nvc360.com\tDan Rosenblat",
+    "ERROR 1054 (42S22) at line 1: Unknown column 't.name' in 'field list'"
+  ]
+}

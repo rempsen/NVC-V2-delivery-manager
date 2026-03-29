@@ -92,6 +92,8 @@ export const tenantUsers = mysqlTable("tenantUsers", {
   phone: varchar("phone", { length: 32 }),
   /** Hashed password for direct login */
   passwordHash: varchar("passwordHash", { length: 255 }),
+  /** Google OAuth subject identifier (sub) — set on first Google sign-in, stable even if email changes */
+  googleId: varchar("googleId", { length: 255 }),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

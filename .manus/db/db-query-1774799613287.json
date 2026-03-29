@@ -1,0 +1,73 @@
+{
+  "query": "SELECT tu.id, tu.email, tu.name, tu.role, tu.isActive, tu.tenantId, t.companyName FROM tenantUsers tu JOIN tenants t ON t.id = tu.tenantId WHERE tu.passwordHash IS NOT NULL LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT tu.id, tu.email, tu.name, tu.role, tu.isActive, tu.tenantId, t.companyName FROM tenantUsers tu JOIN tenants t ON t.id = tu.tenantId WHERE tu.passwordHash IS NOT NULL LIMIT 10;",
+  "rows": [
+    {
+      "id": "4",
+      "email": "admin@nvc360.com",
+      "name": "Dan Rosenblat",
+      "role": "admin",
+      "isActive": "1",
+      "tenantId": "3",
+      "companyName": "NVC360 Platform"
+    },
+    {
+      "id": "30001",
+      "email": "dan@nvc360.com",
+      "name": "Dan Rosenblat",
+      "role": "admin",
+      "isActive": "1",
+      "tenantId": "3",
+      "companyName": "NVC360 Platform"
+    },
+    {
+      "id": "60001",
+      "email": "dispatch@nvctest.com",
+      "name": "Test Dispatcher",
+      "role": "dispatcher",
+      "isActive": "1",
+      "tenantId": "30002",
+      "companyName": "NVC Test Company"
+    },
+    {
+      "id": "60002",
+      "email": "tech@nvctest.com",
+      "name": "Test Technician",
+      "role": "technician",
+      "isActive": "1",
+      "tenantId": "30002",
+      "companyName": "NVC Test Company"
+    },
+    {
+      "id": "90001",
+      "email": "john.smith.tech@nvc360.com",
+      "name": "John Smith",
+      "role": "technician",
+      "isActive": "1",
+      "tenantId": "3",
+      "companyName": "NVC360 Platform"
+    },
+    {
+      "id": "150001",
+      "email": "e2e-owner-1774735066995@testhvac.com",
+      "name": "E2E Owner",
+      "role": "manager",
+      "isActive": "1",
+      "tenantId": "120002",
+      "companyName": "E2E HVAC Test Co"
+    },
+    {
+      "id": "150002",
+      "email": "e2e-tech-1774735068163@test.com",
+      "name": "E2E Tech1774735068163",
+      "role": "technician",
+      "isActive": "1",
+      "tenantId": "30002",
+      "companyName": "NVC Test Company"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\tname\trole\tisActive\ttenantId\tcompanyName\n4\tadmin@nvc360.com\tDan Rosenblat\tadmin\t1\t3\tNVC360 Platform\n30001\tdan@nvc360.com\tDan Rosenblat\tadmin\t1\t3\tNVC360 Platform\n60001\tdispatch@nvctest.com\tTest Dispatcher\tdispatcher\t1\t30002\tNVC Test Company\n60002\ttech@nvctest.com\tTest Technician\ttechnician\t1\t30002\tNVC Test Company\n90001\tjohn.smith.tech@nvc360.com\tJohn Smith\ttechnician\t1\t3\tNVC360 Platform\n150001\te2e-owner-1774735066995@testhvac.com\tE2E Owner\tmanager\t1\t120002\tE2E HVAC Test Co\n150002\te2e-tech-1774735068163@test.com\tE2E Tech1774735068163\ttechnician\t1\t30002\tNVC Test Company\n",
+  "stderr": "",
+  "execution_time_ms": 356
+}

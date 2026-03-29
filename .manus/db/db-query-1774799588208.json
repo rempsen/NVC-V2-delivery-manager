@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, email, name FROM users LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2JxPWVMXcgLmzJd.root --database Ve29H94aZcWFrpYwT4447v --execute SELECT id, email, name FROM users LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "email": "admin@nvc360.com",
+      "name": "Dan Rosenblat"
+    },
+    {
+      "id": "270001",
+      "email": "admin@nvc360.com",
+      "name": "Dan Rosenblat"
+    },
+    {
+      "id": "270002",
+      "email": "dispatch@nvctest.com",
+      "name": "Test Dispatcher"
+    },
+    {
+      "id": "270003",
+      "email": "tech@nvctest.com",
+      "name": "Test Technician"
+    },
+    {
+      "id": "270004",
+      "email": "dan@nvc360.com",
+      "name": "Dan Rosenblat"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\tname\n1\tadmin@nvc360.com\tDan Rosenblat\n270001\tadmin@nvc360.com\tDan Rosenblat\n270002\tdispatch@nvctest.com\tTest Dispatcher\n270003\ttech@nvctest.com\tTest Technician\n270004\tdan@nvc360.com\tDan Rosenblat\n",
+  "stderr": "",
+  "execution_time_ms": 455
+}

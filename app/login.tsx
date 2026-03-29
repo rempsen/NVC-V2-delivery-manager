@@ -16,16 +16,23 @@ import {
   TextStyle,
 } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as AuthSession from "expo-auth-session";
+import * as Crypto from "expo-crypto";
+import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 import { trpc } from "@/lib/trpc";
 import { getApiBaseUrl } from "@/constants/oauth";
+
+// Warm up the browser for OAuth on Android (no-op on iOS/web)
+WebBrowser.maybeCompleteAuthSession();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,8 +127,10 @@ export default function LoginScreen() {
   const haptic = () => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
 
   const emailLoginMutation = trpc.auth.emailLogin.useMutation();
+  const googleLoginMutation = trpc.auth.googleLogin.useMutation();
   const forgotPasswordMutation = trpc.auth.forgotPassword.useMutation();
   const savePushTokenMutation = trpc.technicians.savePushToken.useMutation();
+  const { data: publicConfig } = trpc.system.getPublicConfig.useQuery();
 
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) { Alert.alert("Missing Email", "Please enter your work email address."); return; }
@@ -179,12 +188,101 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    haptic(); setLoadingProvider("google");
+    haptic();
+    setLoadingProvider("google");
     try {
-      await new Promise((r) => setTimeout(r, 900));
-      await saveAndNavigate({ id: "u-google-001", name: "Google Demo User", email: "demo@gmail.com", role: "dispatcher", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "google" });
-    } catch { Alert.alert("Error", "Google sign-in failed."); }
-    finally { setLoadingProvider(null); }
+      const clientId = publicConfig?.googleOAuthClientId ?? "";
+      if (!clientId) {
+        Alert.alert(
+          "Not Configured",
+          "Google Sign-In is not yet enabled for this environment. Please use your email and password to sign in."
+        );
+        return;
+      }
+
+      // ── Generate PKCE code_verifier and code_challenge ───────────────────
+      const randomBytes = await Crypto.getRandomBytesAsync(32);
+      const codeVerifier = Array.from(randomBytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      const digest = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        codeVerifier,
+        { encoding: Crypto.CryptoEncoding.BASE64 }
+      );
+      // Base64url encode per RFC 7636
+      const codeChallenge = digest.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+
+      // ── Build redirect URI ──────────────────────────────────────────
+      // iOS uses the reverse-DNS scheme from the Google Cloud Console iOS client.
+      // Android and web use the Expo proxy / custom scheme.
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: Platform.OS === "ios"
+          ? `com.googleusercontent.apps.${clientId.split("-")[0]}`
+          : undefined,
+        path: "oauth",
+      });
+
+      // ── Open Google consent screen ──────────────────────────────────
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=code` +
+        `&scope=${encodeURIComponent("openid email profile")}` +
+        `&code_challenge=${codeChallenge}` +
+        `&code_challenge_method=S256` +
+        `&prompt=select_account`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (result.type !== "success" || !result.url) {
+        // User cancelled or dismissed — no error shown
+        return;
+      }
+
+      // ── Extract authorization code from redirect URL ──────────────────
+      const redirectUrl = new URL(result.url);
+      const code = redirectUrl.searchParams.get("code");
+      const oauthError = redirectUrl.searchParams.get("error");
+      if (oauthError || !code) {
+        Alert.alert("Sign-In Cancelled", "Google sign-in was not completed.");
+        return;
+      }
+
+      // ── Exchange code for NVC360 session via server ──────────────────
+      const loginResult = await googleLoginMutation.mutateAsync({
+        code,
+        codeVerifier,
+        redirectUri,
+      });
+
+      // Web only: persist session cookie on the 3000-xxx domain
+      if (Platform.OS === "web" && loginResult.token) {
+        await persistSessionCookie(loginResult.token);
+      }
+
+      const serverUser = loginResult.user;
+      const authUser: AuthUser = {
+        id: serverUser.id,
+        name: serverUser.name,
+        email: serverUser.email,
+        role: serverUser.role as AuthUser["role"],
+        tenantId: serverUser.tenantId,
+        tenantName: serverUser.tenantName,
+        tenantColor: serverUser.tenantColor,
+        tenantLogo: serverUser.tenantLogo,
+        avatarUrl: null,
+        provider: "google",
+      };
+      await saveAndNavigate(authUser, loginResult.token, serverUser.technicianId ?? null);
+
+    } catch (err: any) {
+      const msg = err?.message ?? "Google sign-in failed. Please try again.";
+      Alert.alert("Sign-In Failed", msg);
+    } finally {
+      setLoadingProvider(null);
+    }
   };
 
   const handleAppleSignIn = async () => {

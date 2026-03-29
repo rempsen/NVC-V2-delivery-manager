@@ -183,6 +183,28 @@ export async function getTenantUserByEmailAnyTenant(email: string) {
   return rows[0] ?? null;
 }
 
+/** Find a tenantUser by their Google OAuth subject identifier (sub). Used on repeat Google sign-ins. */
+export async function getTenantUserByGoogleId(googleId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(tenantUsers)
+    .where(eq(tenantUsers.googleId, googleId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Persist a Google subject ID on a tenantUser record. Called on first Google sign-in only. */
+export async function updateTenantUserGoogleId(id: number, googleId: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(tenantUsers)
+    .set({ googleId })
+    .where(eq(tenantUsers.id, id));
+}
+
 export async function createTenantUser(data: InsertTenantUser) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
