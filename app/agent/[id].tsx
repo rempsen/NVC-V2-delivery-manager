@@ -105,18 +105,21 @@ const TABS: { id: TabId; label: string; icon: any }[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function FormField({ label, value, onChangeText, placeholder, multiline, keyboardType, secureTextEntry }: {
+function FormField({ label, value, onChangeText, placeholder, multiline, keyboardType, secureTextEntry, required, error }: {
   label: string; value: string; onChangeText: (v: string) => void;
   placeholder?: string; multiline?: boolean; keyboardType?: any; secureTextEntry?: boolean;
+  required?: boolean; error?: string;
 }) {
   const colors = useColors();
   return (
     <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: colors.muted }] as TextStyle[]}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: colors.muted }] as TextStyle[]}>
+        {label}{required && <Text style={{ color: "#EF4444" }}> *</Text>}
+      </Text>
       <TextInput
         style={[
           styles.fieldInput,
-          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background },
+          { color: colors.foreground, borderColor: error ? "#EF4444" : colors.border, backgroundColor: colors.background },
           multiline && styles.fieldMultiline,
         ] as TextStyle[]}
         value={value}
@@ -131,6 +134,7 @@ function FormField({ label, value, onChangeText, placeholder, multiline, keyboar
         autoCorrect={false}
         returnKeyType={multiline ? "default" : "next"}
       />
+      {!!error && <Text style={{ color: "#EF4444", fontSize: 12, marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }
@@ -249,6 +253,9 @@ export default function AgentDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const clearError = (key: string) =>
+    setFieldErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const utils = trpc.useUtils();
@@ -378,10 +385,31 @@ export default function AgentDetailScreen() {
   };
 
   const handleSave = useCallback(() => {
-    if (!profile.firstName.trim() || !profile.lastName.trim()) {
-      Alert.alert("Required Fields", "First name and last name are required.");
+    const errors: Record<string, string> = {};
+    if (!profile.firstName.trim()) errors.firstName = "First name is required.";
+    if (!profile.lastName.trim()) errors.lastName = "Last name is required.";
+    if (!profile.phone?.trim()) {
+      errors.phone = "Phone number is required.";
+    } else if (!/^[+]?[\d\s\-().]{7,20}$/.test(profile.phone.trim())) {
+      errors.phone = "Enter a valid phone number.";
+    }
+    if (!profile.email?.trim()) {
+      errors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email.trim())) {
+      errors.email = "Enter a valid email address.";
+    }
+    if (profile.hourlyRate?.trim() && isNaN(parseFloat(profile.hourlyRate.trim()))) {
+      errors.hourlyRate = "Enter a valid hourly rate (e.g. 25.00).";
+    }
+    if (profile.overtimeRate?.trim() && isNaN(parseFloat(profile.overtimeRate.trim()))) {
+      errors.overtimeRate = "Enter a valid overtime rate (e.g. 37.50).";
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
+    setFieldErrors({});
     setSaving(true);
     if (isNew) {
       createMutation.mutate({
@@ -560,9 +588,11 @@ export default function AgentDetailScreen() {
     <>
       <SectionCard title="Personal Information" icon="person.fill" iconColor="#3B82F6">
         <View style={styles.nameRow}>
-          <View style={styles.nameField}><FormField label="First Name" value={profile.firstName} onChangeText={(v) => update("firstName", v)} /></View>
-          <View style={styles.nameField}><FormField label="Last Name" value={profile.lastName} onChangeText={(v) => update("lastName", v)} /></View>
+          <View style={styles.nameField}><FormField label="First Name" value={profile.firstName} onChangeText={(v) => { update("firstName", v); clearError("firstName"); }} required error={fieldErrors.firstName} /></View>
+          <View style={styles.nameField}><FormField label="Last Name" value={profile.lastName} onChangeText={(v) => { update("lastName", v); clearError("lastName"); }} required error={fieldErrors.lastName} /></View>
         </View>
+        <FormField label="Email Address" value={profile.email} onChangeText={(v) => { update("email", v); clearError("email"); }} keyboardType="email-address" required error={fieldErrors.email} />
+        <FormField label="Phone Number" value={profile.phone} onChangeText={(v) => { update("phone", v); clearError("phone"); }} keyboardType="phone-pad" required error={fieldErrors.phone} />
         <FormField label="Date of Birth" value={profile.dateOfBirth} onChangeText={(v) => update("dateOfBirth", v)} placeholder="YYYY-MM-DD" />
         <FormField label="Home Address" value={profile.homeAddress} onChangeText={(v) => update("homeAddress", v)} />
         <View style={styles.nameRow}>
@@ -603,10 +633,10 @@ export default function AgentDetailScreen() {
         </View>
         <View style={styles.nameRow}>
           <View style={styles.nameField}>
-            <FormField label="Hourly Rate ($)" value={profile.hourlyRate} onChangeText={(v) => update("hourlyRate", v)} keyboardType="decimal-pad" />
+            <FormField label="Hourly Rate ($)" value={profile.hourlyRate} onChangeText={(v) => { update("hourlyRate", v); clearError("hourlyRate"); }} keyboardType="decimal-pad" error={fieldErrors.hourlyRate} />
           </View>
           <View style={styles.nameField}>
-            <FormField label="Overtime Rate ($)" value={profile.overtimeRate} onChangeText={(v) => update("overtimeRate", v)} keyboardType="decimal-pad" />
+            <FormField label="Overtime Rate ($)" value={profile.overtimeRate} onChangeText={(v) => { update("overtimeRate", v); clearError("overtimeRate"); }} keyboardType="decimal-pad" error={fieldErrors.overtimeRate} />
           </View>
         </View>
       </SectionCard>

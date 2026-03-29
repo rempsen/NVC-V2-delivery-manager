@@ -51,10 +51,10 @@ const COMMON_TAGS = [
 // ─── Form Field ───────────────────────────────────────────────────────────────
 
 function FormField({
-  label, value, onChangeText, placeholder, multiline, keyboardType, required,
+  label, value, onChangeText, placeholder, multiline, keyboardType, required, error,
 }: {
   label: string; value: string; onChangeText: (v: string) => void;
-  placeholder?: string; multiline?: boolean; keyboardType?: any; required?: boolean;
+  placeholder?: string; multiline?: boolean; keyboardType?: any; required?: boolean; error?: string;
 }) {
   const colors = useColors();
   return (
@@ -65,7 +65,7 @@ function FormField({
       <TextInput
         style={[
           styles.fieldInput,
-          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background },
+          { color: colors.foreground, borderColor: error ? "#EF4444" : colors.border, backgroundColor: colors.background },
           multiline && styles.fieldMultiline,
         ] as TextStyle[]}
         value={value}
@@ -79,6 +79,7 @@ function FormField({
         autoCorrect={false}
         returnKeyType={multiline ? "default" : "next"}
       />
+      {!!error && <Text style={{ color: "#EF4444", fontSize: 12, marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }
@@ -164,6 +165,9 @@ export default function CustomerDetailScreen() {
 
   const [sameAddress, setSameAddress] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const clearError = (key: string) =>
+    setFieldErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const utils = trpc.useUtils();
@@ -208,10 +212,22 @@ export default function CustomerDetailScreen() {
   };
 
   const handleSave = useCallback(() => {
-    if (!form.company.trim()) {
-      Alert.alert("Required", "Company name is required.");
+    const errors: Record<string, string> = {};
+    if (!form.company.trim()) errors.company = "Company name is required.";
+    if (!form.phone?.trim()) {
+      errors.phone = "Phone number is required.";
+    } else if (!/^[+]?[\d\s\-().]{7,20}$/.test(form.phone.trim())) {
+      errors.phone = "Enter a valid phone number.";
+    }
+    if (form.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errors.email = "Enter a valid email address.";
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
+    setFieldErrors({});
     setSaving(true);
     const payload = {
       tenantId: tenantId ?? 0,
@@ -311,10 +327,10 @@ export default function CustomerDetailScreen() {
 
         {/* ── Company Info ── */}
         <SectionCard title="Company Information" icon="building.2.fill" iconColor="#3B82F6">
-          <FormField label="Company Name" value={form.company} onChangeText={(v) => update("company", v)} required />
+          <FormField label="Company Name" value={form.company} onChangeText={(v) => { update("company", v); clearError("company"); }} required error={fieldErrors.company} />
           <FormField label="Primary Contact" value={form.contactName} onChangeText={(v) => update("contactName", v)} required />
-          <FormField label="Email Address" value={form.email} onChangeText={(v) => update("email", v)} keyboardType="email-address" />
-          <FormField label="Phone Number" value={form.phone} onChangeText={(v) => update("phone", v)} keyboardType="phone-pad" />
+          <FormField label="Email Address" value={form.email} onChangeText={(v) => { update("email", v); clearError("email"); }} keyboardType="email-address" error={fieldErrors.email} />
+          <FormField label="Phone Number" value={form.phone} onChangeText={(v) => { update("phone", v); clearError("phone"); }} keyboardType="phone-pad" required error={fieldErrors.phone} />
 
           {/* Industry Picker */}
           <View style={styles.field}>

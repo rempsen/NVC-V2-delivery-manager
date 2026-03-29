@@ -43,6 +43,7 @@ function FormField({
   placeholder,
   multiline,
   required,
+  error,
 }: {
   label: string;
   value: string;
@@ -50,6 +51,7 @@ function FormField({
   placeholder?: string;
   multiline?: boolean;
   required?: boolean;
+  error?: string;
 }) {
   const colors = useColors();
   return (
@@ -70,13 +72,14 @@ function FormField({
           {
             color: colors.foreground,
             backgroundColor: colors.background,
-            borderColor: colors.border,
+            borderColor: error ? "#EF4444" : colors.border,
             minHeight: multiline ? 80 : 44,
             textAlignVertical: multiline ? "top" : "center",
           },
         ]}
         returnKeyType={multiline ? undefined : "next"}
       />
+      {!!error && <Text style={{ color: "#EF4444", fontSize: 12, marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }
@@ -572,6 +575,12 @@ export default function CreateTaskScreen() {
   const [datePickerMode, setDatePickerMode] = useState<"date" | "time">("date");
   const [tempDate, setTempDate] = useState(new Date());
 
+  // Field-level validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const clearError = (key: string) =>
+    setFieldErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
+
   // Gemini SMS Draft
   const [smsDraft, setSmsDraft] = useState<string | null>(null);
   const [smsVariants, setSmsVariants] = useState<string[]>([]);
@@ -627,10 +636,25 @@ export default function CreateTaskScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!customerName.trim()) { Alert.alert("Required", "Please enter the customer name."); return; }
-    if (!customerPhone.trim()) { Alert.alert("Required", "Please enter the customer phone number."); return; }
+    // ── Client-side validation ──────────────────────────────────────────────
+    const errors: Record<string, string> = {};
+    if (!customerName.trim()) errors.customerName = "Customer name is required.";
+    if (!customerPhone.trim()) {
+      errors.customerPhone = "Phone number is required.";
+    } else if (!/^[+]?[\d\s\-().]{7,20}$/.test(customerPhone.trim())) {
+      errors.customerPhone = "Enter a valid phone number.";
+    }
+    if (customerEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+      errors.customerEmail = "Enter a valid email address.";
+    }
     const address = deliveryAddress.trim() || pickupAddress.trim();
-    if (!address) { Alert.alert("Required", "Please enter a service address."); return; }
+    if (!address) errors.deliveryAddress = "A service address is required.";
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    setFieldErrors({});
 
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
@@ -735,15 +759,15 @@ export default function CreateTaskScreen() {
           {/* ─── Customer Info ─── */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Customer Information</Text>
-            <FormField label="Full Name" value={customerName} onChangeText={setCustomerName} placeholder="Jane Smith" required />
-            <FormField label="Phone Number" value={customerPhone} onChangeText={setCustomerPhone} placeholder="+1 (204) 555-0000" required />
-            <FormField label="Email (optional)" value={customerEmail} onChangeText={setCustomerEmail} placeholder="jane@email.com" />
+            <FormField label="Full Name" value={customerName} onChangeText={(v) => { setCustomerName(v); clearError("customerName"); }} placeholder="Jane Smith" required error={fieldErrors.customerName} />
+            <FormField label="Phone Number" value={customerPhone} onChangeText={(v) => { setCustomerPhone(v); clearError("customerPhone"); }} placeholder="+1 (204) 555-0000" required error={fieldErrors.customerPhone} />
+            <FormField label="Email (optional)" value={customerEmail} onChangeText={(v) => { setCustomerEmail(v); clearError("customerEmail"); }} placeholder="jane@email.com" error={fieldErrors.customerEmail} />
           </View>
 
           {/* ─── Service Address (always shown) ─── */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Service Location</Text>
-            <FormField label="Service Address" value={deliveryAddress} onChangeText={setDeliveryAddress} placeholder="456 Customer Ave, Winnipeg" required />
+            <FormField label="Service Address" value={deliveryAddress} onChangeText={(v) => { setDeliveryAddress(v); clearError("deliveryAddress"); }} placeholder="456 Customer Ave, Winnipeg" required error={fieldErrors.deliveryAddress} />
             <FormField label="Pickup Address (optional)" value={pickupAddress} onChangeText={setPickupAddress} placeholder="123 Warehouse Blvd" />
             <FormField label="Order / Reference #" value={orderId} onChangeText={setOrderId} placeholder="NVC-2026-XXX" />
           </View>

@@ -1434,3 +1434,13 @@
 - [ ] Add ErrorBoundary wrapper to all top-level screens
 - [ ] Add client-side form validation to Create Work Order, Create Customer, Create Technician
 - [ ] Wire push notification registration on login (already done in login.tsx — verify)
+
+## Phase 2 Adjustments — Mar 29, 2026
+
+- [x] Add ErrorBoundary wrapper to app/_layout.tsx (root-level catch-all)
+- [x] Add ErrorBoundary wrapper to all tab screens (dashboard, tasks, technicians, customers, settings)
+- [x] Add ErrorBoundary wrapper to modal/stack screens (task detail, agent detail, dispatcher, create-work-order, create-customer, create-technician)
+- [x] Wire push notification token registration to DB on login (technicians.savePushToken after successful auth — already wired, verified)
+- [x] Add client-side form validation to Create Work Order screen (required fields, email, phone)
+- [x] Add client-side form validation to Create Customer screen (required fields, email, phone)
+- [x] Add client-side form validation to Create Technician screen (required fields, email, phone, hourly/overtime rate)
