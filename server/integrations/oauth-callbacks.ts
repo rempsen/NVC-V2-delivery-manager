@@ -34,9 +34,21 @@ const SUCCESS_HTML = (name: string) => `
     <button class="close-btn" onclick="window.close()">Close Window</button>
   </div>
   <script>
-    // Notify the opener window if available
-    if (window.opener) {
-      window.opener.postMessage({ type: 'oauth_success', provider: '${name.toLowerCase()}' }, '*');
+    // Notify the opener window — restrict to known NVC360 origins only
+    const ALLOWED = [
+      /^https:\/\/[a-z0-9-]+-[a-z0-9]+\.manus\.computer$/,
+      /^https:\/\/[a-z0-9-]+\.manus\.space$/,
+      /^http:\/\/localhost(:\d+)?$/,
+    ];
+    const targetOrigin = document.referrer
+      ? new URL(document.referrer).origin
+      : null;
+    const isSafe = targetOrigin && ALLOWED.some((re) => re.test(targetOrigin));
+    if (window.opener && isSafe) {
+      window.opener.postMessage({ type: 'oauth_success', provider: '${name.toLowerCase()}' }, targetOrigin);
+      setTimeout(() => window.close(), 1500);
+    } else if (window.opener) {
+      // Origin unknown or untrusted — still close the popup, but don't postMessage
       setTimeout(() => window.close(), 1500);
     }
   </script>

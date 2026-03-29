@@ -13,6 +13,7 @@ import type { Metrics } from "react-native-safe-area-context";
 
 // Debug logging with timestamps
 const DEBUG = true;
+
 const log = (msg: string) => {
   if (!DEBUG) return;
   const ts = new Date().toISOString();
@@ -72,6 +73,32 @@ function getParentOrigin(): string {
   return window.location.origin;
 }
 
+function isAllowedOrigin(origin: string): boolean {
+  // Validate that the message origin is from an allowed parent
+  try {
+    const originUrl = new URL(origin);
+
+    // Allow manus.computer and all subdomains
+    if (originUrl.hostname === "manus.computer" || originUrl.hostname.endsWith(".manus.computer")) {
+      return true;
+    }
+
+    // Allow manus.space deployed apps
+    if (originUrl.hostname.endsWith(".manus.space")) {
+      return true;
+    }
+
+    // Allow localhost for development
+    if (originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1") {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function sendToParent(type: MessageType, payload: Record<string, unknown> = {}): void {
   if (!isWeb() || !isInIframe()) return;
 
@@ -95,27 +122,6 @@ function isValidInsets(payload: Record<string, unknown>): payload is SafeAreaIns
     typeof payload.left === "number" &&
     typeof payload.right === "number"
   );
-}
-
-function isAllowedOrigin(origin: string): boolean {
-  // Validate that the message origin is from an allowed parent
-  try {
-    const originUrl = new URL(origin);
-
-    // Allow manus.computer and all subdomains
-    if (originUrl.hostname === "manus.computer" || originUrl.hostname.endsWith(".manus.computer")) {
-      return true;
-    }
-
-    // Allow localhost for development
-    if (originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1") {
-      return true;
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
 }
 
 function handleMessage(event: MessageEvent<unknown>): void {

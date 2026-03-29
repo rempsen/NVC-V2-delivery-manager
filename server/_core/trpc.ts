@@ -153,6 +153,56 @@ export const superAdminProcedure = t.procedure.use(
  */
 export const adminProcedure = merchantManagerProcedure;
 
+// ─── AI Rate Limiter ─────────────────────────────────────────────────────────
+
+/** In-memory sliding-window rate limiter: max 10 AI calls per tenant per minute */
+const aiRateLimitMap = new Map<string, number[]>();
+const AI_RATE_LIMIT_MAX = 10;
+const AI_RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkAiRateLimit(tenantId: number | null | undefined, userId: string): void {
+  const key = tenantId != null ? `t:${tenantId}` : `u:${userId}`;
+  const now = Date.now();
+  const windowStart = now - AI_RATE_LIMIT_WINDOW_MS;
+  const calls = (aiRateLimitMap.get(key) ?? []).filter((ts) => ts > windowStart);
+  if (calls.length >= AI_RATE_LIMIT_MAX) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `AI rate limit exceeded: max ${AI_RATE_LIMIT_MAX} requests per minute. Please wait before retrying.`,
+    });
+  }
+  calls.push(now);
+  aiRateLimitMap.set(key, calls);
+}
+
+/**
+ * Requires authentication AND enforces AI rate limiting (10 req/min per tenant).
+ * Use for all AI/LLM endpoints to prevent abuse and runaway costs.
+ */
+export const aiRateLimitedProcedure = t.procedure.use(
+  t.middleware(async (opts) => {
+    const { ctx, next, getRawInput } = opts;
+
+    if (!ctx.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    }
+
+    // Extract tenantId from input if present for per-tenant limiting
+    const rawInput = await getRawInput();
+    const inputTenantId =
+      rawInput && typeof rawInput === "object" && "tenantId" in rawInput
+        ? Number((rawInput as Record<string, unknown>).tenantId)
+        : null;
+
+    checkAiRateLimit(
+      inputTenantId ?? (typeof ctx.user.tenantId === "number" ? ctx.user.tenantId : null),
+      String(ctx.user.id),
+    );
+
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }),
+);
+
 // ─── Tenant-Scoped Procedure ──────────────────────────────────────────────────
 
 /**

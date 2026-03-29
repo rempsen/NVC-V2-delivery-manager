@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TextInput, Pressable, StyleSheet,
   Alert, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -150,20 +150,47 @@ export default function CompanyProfileScreen() {
   const { tenantId } = useTenant();
   const updateOwnMutation = trpc.tenants.updateOwn.useMutation();
   const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
-  const [companyName, setCompanyName] = useState("NVC360");
-  const [tagline, setTagline] = useState("Field Service Management Platform");
-  const [phone, setPhone] = useState("+1 (204) 555-0100");
-  const [email, setEmail] = useState("admin@nvc360.com");
-  const [website, setWebsite] = useState("https://www.nvc360.com");
-  const [address, setAddress] = useState("123 Main Street");
-  const [city, setCity] = useState("Winnipeg");
-  const [province, setProvince] = useState("MB");
-  const [postalCode, setPostalCode] = useState("R3C 0A1");
+  const [companyName, setCompanyName] = useState("");
+  const [tagline, setTagline] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [country, setCountry] = useState("Canada");
   const [timezone, setTimezone] = useState("America/Winnipeg");
   const [industry, setIndustry] = useState("Field Service");
   const [taxId, setTaxId] = useState("");
+
+  // Load live tenant data from server
+  const { data: tenantData, isLoading: tenantLoading } = trpc.tenants.getOwn.useQuery(
+    { tenantId: tenantId! },
+    { enabled: !!tenantId },
+  );
+
+  // Hydrate form fields once tenant data arrives
+  useEffect(() => {
+    if (!tenantData || hydrated) return;
+    const b = (tenantData.branding as any) ?? {};
+    setCompanyName(tenantData.companyName ?? "");
+    setTagline(b.tagline ?? "");
+    setPhone(b.phone ?? "");
+    setEmail(tenantData.emailDomain ?? "");
+    setWebsite(b.website ?? "");
+    setAddress(b.address ?? "");
+    setCity(b.city ?? "");
+    setProvince(b.province ?? "");
+    setPostalCode(b.postalCode ?? "");
+    setCountry(b.country ?? "Canada");
+    setTimezone(b.timezone ?? "America/Winnipeg");
+    setIndustry(b.industry ?? "Field Service");
+    setTaxId(b.taxId ?? "");
+    setHydrated(true);
+  }, [tenantData, hydrated]);
 
   const handleSave = async () => {
     if (!companyName.trim()) {
@@ -198,6 +225,18 @@ export default function CompanyProfileScreen() {
       setSaving(false);
     }
   };
+
+  if (tenantLoading) {
+    return (
+      <ScreenContainer edges={["left", "right"]}>
+        <NVCHeader title="Company Profile" showBack />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color={NVC_BLUE} />
+          <Text style={{ color: colors.muted, marginTop: 12, fontSize: 14 }}>Loading profile...</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer edges={["left", "right"]}>

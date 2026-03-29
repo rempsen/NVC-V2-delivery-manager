@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, merchantManagerProcedure, nvcAdminProcedure, tenantScopedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, merchantManagerProcedure, nvcAdminProcedure, tenantScopedProcedure, router, aiRateLimitedProcedure } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import { adminRouter } from "./adminRouter";
@@ -184,16 +184,20 @@ export const appRouter = router({
      * Works for tenantUsers (dispatchers/technicians). Uses in-memory token store (1 hour TTL).
      */
     forgotPassword: publicProcedure
-      .input(z.object({ email: z.string().email(), tenantId: z.number().default(1) }))
+      .input(z.object({ email: z.string().email(), tenantId: z.number().optional() }))
       .mutation(async ({ input }) => {
         cleanExpiredTokens();
-        const user = await db.getTenantUserByEmail(input.email, input.tenantId);
+        // Look up user across all tenants if tenantId not provided
+        const user = input.tenantId
+          ? await db.getTenantUserByEmail(input.email, input.tenantId)
+          : await db.getTenantUserByEmailAnyTenant(input.email);
         // Always return success to prevent email enumeration
         if (!user) return { success: true };
+        const resolvedTenantId = user.tenantId;
         const token = nodeCrypto.randomBytes(32).toString("hex");
         resetTokens.set(token, {
           email: input.email,
-          tenantId: input.tenantId,
+          tenantId: resolvedTenantId,
           expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
         });
         // Send email if SMTP is configured
@@ -376,6 +380,36 @@ export const appRouter = router({
         const { id, ...data } = input;
         return db.updateTenant(id, data as any);
       }),
+    /** Merchant-facing: returns the caller's own tenant record */
+    getOwn: protectedProcedure
+      .input(z.object({ tenantId: z.number() }))
+      .query(({ input, ctx }) => {
+        if (ctx.user?.tenantId !== input.tenantId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+        return db.getTenantById(input.tenantId);
+      }),
+
+    /** Merchant-facing: test SMTP connection with provided credentials */
+    testSmtp: protectedProcedure
+      .input(z.object({
+        tenantId: z.number(),
+        host: z.string(),
+        port: z.number(),
+        secure: z.boolean(),
+        user: z.string(),
+        password: z.string(),
+        fromEmail: z.string().email(),
+        testRecipient: z.string().email(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user?.tenantId !== input.tenantId) throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
+        const { sendTestEmail } = await import("./email.js");
+        await sendTestEmail(
+          input.testRecipient,
+          { host: input.host, port: input.port, user: input.user, password: input.password, fromEmail: input.fromEmail, fromName: "NVC360" },
+        );
+        return { ok: true };
+      }),
+
     /** Merchant-facing: authenticated users can update their own tenant's settings */
     updateOwn: protectedProcedure
       .input(
@@ -1669,7 +1703,7 @@ export const appRouter = router({
 
   // ─── AI / Gemini Insights ────────────────────────────────────────────────
   ai: router({
-    operationalBriefing: protectedProcedure
+    operationalBriefing: aiRateLimitedProcedure
       .input(z.object({ tenantId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         checkAiRateLimit(ctx.user?.id ?? "anon");
@@ -1700,7 +1734,7 @@ export const appRouter = router({
         return gemini.generateOperationalBriefing(taskSummaries, techSummaries);
       }),
 
-    draftSms: protectedProcedure
+    draftSms: aiRateLimitedProcedure
       .input(
         z.object({
           eventType: z.enum(["job_created", "job_assigned", "technician_en_route", "technician_arrived", "job_completed", "job_rescheduled", "custom"]),
@@ -1719,7 +1753,7 @@ export const appRouter = router({
           return gemini.draftSmsMessage(input);
         }),
 
-    assessDelayRisk: protectedProcedure
+    assessDelayRisk: aiRateLimitedProcedure
       .input(z.object({ taskId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         checkAiRateLimit(ctx.user?.id ?? "anon");
@@ -1847,5 +1881,98 @@ export const appRouter = router({
 
   // ── NVC Super Admin (nvc_manager / super_admin roles only) ────────────────
   admin: adminRouter,
+
+  // ─── User Profile (self-service) ─────────────────────────────────────────
+  users: router({
+    /** Get the caller's own tenant user profile */
+    getProfile: protectedProcedure
+      .input(z.object({ tenantUserId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { tenantUsers: tuTable } = await import("../drizzle/schema.js");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const rows = await drizzleDb
+          .select({
+            id: tuTable.id,
+            name: tuTable.name,
+            email: tuTable.email,
+            phone: tuTable.phone,
+            role: tuTable.role,
+            tenantId: tuTable.tenantId,
+          })
+          .from(tuTable)
+          .where(eq(tuTable.id, input.tenantUserId))
+          .limit(1);
+        const row = rows[0];
+        if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        // Ensure caller can only fetch their own profile (or NVC staff can fetch any)
+        const isNvcStaff = ["super_admin", "nvc_super_admin", "nvc_manager"].includes(ctx.user?.role ?? "");
+        if (!isNvcStaff && row.tenantId !== ctx.user?.tenantId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+        return row;
+      }),
+
+    /** Update the caller's own name, phone, and job title */
+    updateProfile: protectedProcedure
+      .input(z.object({
+        tenantUserId: z.number(),
+        name: z.string().min(1).max(255).optional(),
+        phone: z.string().max(32).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { tenantUsers: tuTable } = await import("../drizzle/schema.js");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        // Verify ownership
+        const rows = await drizzleDb.select({ tenantId: tuTable.tenantId }).from(tuTable).where(eq(tuTable.id, input.tenantUserId)).limit(1);
+        const row = rows[0];
+        if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        const isNvcStaff = ["super_admin", "nvc_super_admin", "nvc_manager"].includes(ctx.user?.role ?? "");
+        if (!isNvcStaff && row.tenantId !== ctx.user?.tenantId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+        const updateData: Record<string, unknown> = {};
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.phone !== undefined) updateData.phone = input.phone;
+        if (Object.keys(updateData).length > 0) {
+          await drizzleDb.update(tuTable).set(updateData as any).where(eq(tuTable.id, input.tenantUserId));
+        }
+        return { success: true };
+      }),
+
+    /** Change the caller's own password — requires current password verification */
+    changePassword: protectedProcedure
+      .input(z.object({
+        tenantUserId: z.number(),
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(8),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { tenantUsers: tuTable } = await import("../drizzle/schema.js");
+        const { eq } = await import("drizzle-orm");
+        const drizzleDb = await db.getDb();
+        if (!drizzleDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const rows = await drizzleDb
+          .select({ id: tuTable.id, tenantId: tuTable.tenantId, passwordHash: tuTable.passwordHash })
+          .from(tuTable)
+          .where(eq(tuTable.id, input.tenantUserId))
+          .limit(1);
+        const row = rows[0];
+        if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        const isNvcStaff = ["super_admin", "nvc_super_admin", "nvc_manager"].includes(ctx.user?.role ?? "");
+        if (!isNvcStaff && row.tenantId !== ctx.user?.tenantId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+        if (!row.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "No password set on this account" });
+        const valid = await bcrypt.compare(input.currentPassword, row.passwordHash);
+        if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect" });
+        const newHash = await bcrypt.hash(input.newPassword, 12);
+        await drizzleDb.update(tuTable).set({ passwordHash: newHash } as any).where(eq(tuTable.id, input.tenantUserId));
+        return { success: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;

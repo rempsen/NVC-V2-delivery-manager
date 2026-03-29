@@ -41,8 +41,8 @@ export interface AuthUser {
   avatarUrl: string | null; provider: "email" | "google" | "apple";
 }
 
-
 // ─── Push Notification Token Registration ────────────────────────────────────
+
 
 /**
  * Request permission and get the Expo push token for this device.
@@ -127,7 +127,7 @@ export default function LoginScreen() {
     if (!forgotEmail.trim()) { Alert.alert("Missing Email", "Please enter your work email address."); return; }
     haptic();
     try {
-      await forgotPasswordMutation.mutateAsync({ email: forgotEmail.toLowerCase().trim(), tenantId: 1 });
+      await forgotPasswordMutation.mutateAsync({ email: forgotEmail.toLowerCase().trim() });
       setForgotSent(true);
     } catch (err: any) {
       Alert.alert("Error", err?.message ?? "Could not send reset email. Please try again.");
@@ -140,7 +140,9 @@ export default function LoginScreen() {
       try { localStorage.setItem("nvc360_user", JSON.stringify(user)); } catch { /* ignore */ }
     } else {
       await SecureStore.setItemAsync("nvc360_user", JSON.stringify(user));
-      await SecureStore.setItemAsync("nvc360_token", sessionToken ?? `mock_jwt_${user.id}_${Date.now()}`);
+      if (sessionToken) {
+        await SecureStore.setItemAsync("nvc360_token", sessionToken);
+      }
       // Store technicianId for field technicians so agent screens can use it
       if (technicianId) {
         await SecureStore.setItemAsync("nvc360_technician_id", String(technicianId));

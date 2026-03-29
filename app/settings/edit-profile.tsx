@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TextInput, Pressable, StyleSheet,
   Alert, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -11,11 +11,8 @@ import { BottomNavBar } from "@/components/bottom-nav-bar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { NVC_BLUE } from "@/constants/brand";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const STORAGE_KEY = "nvc360_user_profile";
-
-const ROLES = ["NVC360 Admin", "Dispatcher", "Technician", "Manager", "Office Staff"];
+import { trpc } from "@/lib/trpc";
+import { useTenant } from "@/hooks/use-tenant";
 
 function SettingsField({
   label,
@@ -25,6 +22,7 @@ function SettingsField({
   keyboardType,
   secureTextEntry,
   hint,
+  editable = true,
 }: {
   label: string;
   value: string;
@@ -33,13 +31,17 @@ function SettingsField({
   keyboardType?: any;
   secureTextEntry?: boolean;
   hint?: string;
+  editable?: boolean;
 }) {
   const colors = useColors();
   const [showPass, setShowPass] = useState(false);
   return (
     <View style={styles.fieldGroup}>
       <Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text>
-      <View style={[styles.inputWrap, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View style={[
+        styles.inputWrap,
+        { backgroundColor: editable ? colors.background : colors.surface, borderColor: colors.border },
+      ]}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -49,7 +51,8 @@ function SettingsField({
           secureTextEntry={secureTextEntry && !showPass}
           autoCapitalize={secureTextEntry ? "none" : "words"}
           autoCorrect={false}
-          style={[styles.input, { color: colors.foreground }]}
+          editable={editable}
+          style={[styles.input, { color: editable ? colors.foreground : colors.muted }]}
           returnKeyType="next"
         />
         {secureTextEntry && (
@@ -66,21 +69,37 @@ function SettingsField({
 export default function EditProfileScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { userId: tenantUserId, loading: tenantLoading } = useTenant();
+
+  const profileQuery = trpc.users.getProfile.useQuery(
+    { tenantUserId: tenantUserId! },
+    { enabled: !!tenantUserId },
+  );
+  const updateProfileMutation = trpc.users.updateProfile.useMutation();
+  const changePasswordMutation = trpc.users.changePassword.useMutation();
+
   const [saving, setSaving] = useState(false);
 
-  const [firstName, setFirstName] = useState("Dan");
-  const [lastName, setLastName] = useState("Rosenblat");
-  const [email, setEmail] = useState("dan@nvc360.com");
-  const [phone, setPhone] = useState("+1 (204) 555-0100");
-  const [role, setRole] = useState("NVC360 Admin");
-  const [title, setTitle] = useState("Dispatcher");
+  // Profile fields — pre-populated from server
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // Password change fields
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Hydrate form when profile loads
+  useEffect(() => {
+    if (profileQuery.data) {
+      setName(profileQuery.data.name ?? "");
+      setPhone(profileQuery.data.phone ?? "");
+    }
+  }, [profileQuery.data]);
+
   const handleSave = async () => {
-    if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert("Required", "First and last name are required.");
+    if (!name.trim()) {
+      Alert.alert("Required", "Name is required.");
       return;
     }
     if (newPassword && newPassword !== confirmPassword) {
@@ -94,18 +113,59 @@ export default function EditProfileScreen() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSaving(true);
     try {
-      const profile = { firstName, lastName, email, phone, role, title };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      // Update profile fields
+      await updateProfileMutation.mutateAsync({
+        tenantUserId: tenantUserId!,
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+      });
+
+      // Change password if requested
+      if (newPassword && currentPassword) {
+        await changePasswordMutation.mutateAsync({
+          tenantUserId: tenantUserId!,
+          currentPassword,
+          newPassword,
+        });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Saved", "Your profile has been updated.", [
         { text: "OK", onPress: () => router.back() },
       ]);
-    } catch {
-      Alert.alert("Error", "Failed to save. Please try again.");
+    } catch (err: any) {
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", err?.message ?? "Failed to save. Please try again.");
     } finally {
       setSaving(false);
     }
   };
+
+  const profile = profileQuery.data;
+  const profileLoading = tenantLoading || profileQuery.isLoading;
+
+  // Derive initials for avatar
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+
+  if (profileLoading) {
+    return (
+      <ScreenContainer edges={["left", "right"]}>
+        <NVCHeader title="Edit Profile" showBack />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color={NVC_BLUE} />
+          <Text style={{ color: colors.muted, marginTop: 12, fontSize: 14 }}>Loading profile...</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer edges={["left", "right"]}>
@@ -119,60 +179,47 @@ export default function EditProfileScreen() {
           {/* Avatar */}
           <View style={styles.avatarSection}>
             <View style={[styles.avatar, { backgroundColor: NVC_BLUE }]}>
-              <Text style={styles.avatarInitial}>
-                {(firstName[0] ?? "") + (lastName[0] ?? "")}
-              </Text>
+              <Text style={styles.avatarInitial}>{initials || "?"}</Text>
             </View>
-            <Pressable
-              onPress={() => Alert.alert("Change Photo", "Photo upload will be available in the production build.")}
-              style={[styles.changePhotoBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
-            >
-              <IconSymbol name="camera.fill" size={14} color={NVC_BLUE} />
-              <Text style={[styles.changePhotoText, { color: NVC_BLUE }]}>Change Photo</Text>
-            </Pressable>
           </View>
 
           {/* Personal Info */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Personal Information</Text>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <SettingsField label="First Name" value={firstName} onChangeText={setFirstName} placeholder="First" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <SettingsField label="Last Name" value={lastName} onChangeText={setLastName} placeholder="Last" />
-              </View>
-            </View>
-            <SettingsField label="Email Address" value={email} onChangeText={setEmail} placeholder="you@company.com" keyboardType="email-address" />
-            <SettingsField label="Phone Number" value={phone} onChangeText={setPhone} placeholder="+1 (204) 555-0000" keyboardType="phone-pad" />
+            <SettingsField
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+            />
+            <SettingsField
+              label="Email Address"
+              value={profile?.email ?? ""}
+              onChangeText={() => {}}
+              placeholder="you@company.com"
+              keyboardType="email-address"
+              editable={false}
+              hint="Email cannot be changed here. Contact your admin."
+            />
+            <SettingsField
+              label="Phone Number"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+1 (204) 555-0000"
+              keyboardType="phone-pad"
+            />
           </View>
 
-          {/* Role */}
+          {/* Role (read-only) */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Role & Title</Text>
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.muted }]}>ROLE</Text>
-              <View style={styles.roleChips}>
-                {ROLES.map((r) => (
-                  <Pressable
-                    key={r}
-                    onPress={() => setRole(r)}
-                    style={[
-                      styles.roleChip,
-                      {
-                        backgroundColor: role === r ? NVC_BLUE : colors.background,
-                        borderColor: role === r ? NVC_BLUE : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.roleChipText, { color: role === r ? "#fff" : colors.foreground }]}>
-                      {r}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            <SettingsField label="Job Title" value={title} onChangeText={setTitle} placeholder="e.g. Dispatcher, Manager" />
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>Role</Text>
+            <SettingsField
+              label="Role"
+              value={profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : ""}
+              onChangeText={() => {}}
+              editable={false}
+              hint="Role is managed by your administrator."
+            />
           </View>
 
           {/* Password */}
@@ -239,11 +286,6 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   avatarInitial: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#fff" },
-  changePhotoBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
-  },
-  changePhotoText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 4 },
   cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 4 },
   cardSub: { fontSize: 12, lineHeight: 16, marginBottom: 4 },
@@ -256,10 +298,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, paddingVertical: 10 },
   eyeBtn: { padding: 6 },
   hint: { fontSize: 11, lineHeight: 15 },
-  row: { flexDirection: "row", gap: 10 },
-  roleChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  roleChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  roleChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   saveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 4,

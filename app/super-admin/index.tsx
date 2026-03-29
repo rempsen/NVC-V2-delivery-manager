@@ -38,9 +38,9 @@ interface ClientCompany {
   subdomain: string;
 }
 
-// ─── Mock Clients ─────────────────────────────────────────────────────────────
-
-const MOCK_CLIENTS: ClientCompany[] = [
+// MOCK_CLIENTS removed — screen is fully live via trpc.tenants.listWithStats
+// (kept type definitions above for ClientCard/CreateClientModal usage)
+const _REMOVED_MOCK_CLIENTS = [
   {
     id: 1,
     name: "Arctic HVAC Services",

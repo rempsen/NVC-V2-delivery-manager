@@ -79,6 +79,7 @@ export default function EmailSmtpScreen() {
   const router = useRouter();
   const { tenantId } = useTenant();
   const updateOwnMutation = trpc.tenants.updateOwn.useMutation();
+  const testSmtpMutation = trpc.tenants.testSmtp.useMutation();
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
@@ -113,11 +114,27 @@ export default function EmailSmtpScreen() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTesting(true);
     setTestResult(null);
-    // Simulate test (real implementation would call server endpoint)
-    await new Promise((r) => setTimeout(r, 2000));
-    setTesting(false);
-    setTestResult("success");
-    Alert.alert("Test Sent", `A test email was sent to ${testRecipient}. Check your inbox.`);
+    try {
+      await testSmtpMutation.mutateAsync({
+        tenantId: tenantId!,
+        host,
+        port: parseInt(port, 10),
+        secure: useTls,
+        user: username,
+        password,
+        fromEmail,
+        testRecipient,
+      });
+      setTestResult("success");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Test Sent ✓", `A test email was sent to ${testRecipient}. Check your inbox.`);
+    } catch (err: any) {
+      setTestResult("error");
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Test Failed", err?.message ?? "Could not connect to SMTP server. Check your credentials.");
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleSave = async () => {

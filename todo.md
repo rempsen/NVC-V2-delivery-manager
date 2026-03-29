@@ -1371,3 +1371,66 @@
 - [x] Wipe E2E test data: tenants 90003-90005, customers 120001-120003, technicians/tasks 30001-30003
 - [x] Wire Forgot Password flow — send reset email via server built-in email capability
 - [x] Add technician profile photo upload to Edit Technician screen (S3 storage)
+
+## SMTP & Photo Picker Sprint — Mar 28, 2026
+
+- [ ] Connect SMTP credentials via environment secrets for live transactional emails
+- [ ] Add camera + library action sheet to technician profile photo picker
+
+## Production Hardening Sprint — Mar 29, 2026
+
+### Phase 0 — Security Hardening
+- [ ] Apply correct procedure guards (tenantProcedure, adminProcedure) to all router endpoints
+- [ ] Implement tenant-scoping middleware that auto-injects tenantId from session context
+- [ ] Remove all mock/hardcoded credentials from client-side code
+- [ ] Add origin validation to PostMessage handlers in WebView/iframe components
+- [ ] Add rate limiting to AI/LLM endpoints (max requests per minute per tenant)
+
+### Phase 1 — Wire Remaining Screens
+- [ ] Wire customers.tsx to live tRPC queries (replace MOCK_* constants)
+- [ ] Wire dispatcher/index.tsx to live tRPC queries (replace MOCK_* constants)
+- [ ] Wire settings.tsx to live tRPC queries (replace MOCK_* constants)
+- [ ] Add error boundaries to all screens
+- [ ] Add loading and error state UI to every screen
+
+### Phase 2 — Mobile Hardening
+- [ ] Implement offline-first data layer with TanStack Query persist (AsyncStorage)
+- [ ] Wire push notification registration (Expo push token → DB)
+- [ ] Integrate real map SDK (Google Maps with live API key)
+- [ ] Add client-side form validation to all create/edit forms
+
+### Phase 3 — Production Readiness
+- [ ] Add foreign key constraints to DB schema
+- [ ] Implement audit logging in routers (all write operations)
+- [ ] Add Sentry error monitoring (client + server)
+- [ ] Set up staging environment configuration
+- [ ] Add integration tests for auth flows
+
+## Security & Code Quality Audit — Mar 29, 2026 (GitHub commit 3d98327)
+
+- [x] Enforce tenant isolation on 40+ routes (tenantScopedProcedure)
+- [x] Add tenantId to 9 routes missing it (tasks.updateStatus, update, delete, unassign, geoClockIn, geoClockOut, technicians.updateLocation/updateStatus, savePushToken)
+- [x] Fix all client-side callers to pass tenantId (agent-home, agent-task, dashboard, task/[id], login)
+- [x] Remove hardcoded MOCK_USERS, DemoChip, and demo login from login.tsx
+- [x] Harden postMessage origin validation in manus-runtime.ts
+- [x] Change 32 DB functions from silent failure to throwing errors on missing connection
+- [x] Add foreign key constraints to schema (tenantUsers, technicians, tasks, messages, customers)
+- [x] Add audit logging to 7 task mutations (assign, unassign, updateStatus, update, delete, geoClockIn, geoClockOut)
+- [x] Add per-user rate limiting (10 req/min) to AI endpoints
+- [x] New shared components: ErrorBoundary, useResponsiveGrid hook
+- [x] Resolve merge conflict markers in manus-runtime.ts and login.tsx
+
+## Phase 1 — Wire Remaining Screens (Mar 29, 2026)
+
+- [x] Wire company-profile.tsx to load from tenants.getOwn query (loading skeleton, error state)
+- [x] Wire email-smtp.tsx to use real tenants.testSmtp mutation (real SMTP test, error handling)
+- [x] Wire edit-profile.tsx to users.getProfile / users.updateProfile / users.changePassword
+- [x] Add users.getProfile server procedure (self-service, tenant-scoped)
+- [x] Add users.updateProfile server procedure (name, phone)
+- [x] Add users.changePassword server procedure (bcrypt verify + hash)
+
+## Phase 2 — Mobile Hardening (Mar 29, 2026)
+
+- [ ] Add ErrorBoundary wrapper to all top-level screens
+- [ ] Add client-side form validation to Create Work Order, Create Customer, Create Technician
+- [ ] Wire push notification registration on login (already done in login.tsx — verify)

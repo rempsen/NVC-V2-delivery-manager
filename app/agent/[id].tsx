@@ -282,19 +282,8 @@ export default function AgentDetailScreen() {
     onSettled: () => setPhotoUploading(false),
   });
 
-  const handlePickPhoto = useCallback(async () => {
-    if (isNew) { Alert.alert("Save First", "Please create the technician before uploading a photo."); return; }
-    if (Platform.OS !== "web") {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") { Alert.alert("Permission Required", "Please allow photo library access in Settings."); return; }
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"] as any,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.75,
-      base64: true,
-    });
+  // Shared helper: process a picked image and upload it
+  const processAndUploadPhoto = useCallback(async (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
     if (!asset.base64) { Alert.alert("Error", "Could not read image data."); return; }
@@ -306,7 +295,49 @@ export default function AgentDetailScreen() {
       base64: asset.base64,
       mimeType: (asset as any).mimeType ?? "image/jpeg",
     });
-  }, [id, tenantId, isNew, uploadPhotoMutation]);
+  }, [id, tenantId, uploadPhotoMutation]);
+
+  const launchLibrary = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") { Alert.alert("Permission Required", "Please allow photo library access in Settings."); return; }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"] as any,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.75,
+      base64: true,
+    });
+    await processAndUploadPhoto(result);
+  }, [processAndUploadPhoto]);
+
+  const launchCamera = useCallback(async () => {
+    if (Platform.OS === "web") { Alert.alert("Not Available", "Camera is not available on web."); return; }
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") { Alert.alert("Permission Required", "Please allow camera access in Settings."); return; }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.75,
+      base64: true,
+    });
+    await processAndUploadPhoto(result);
+  }, [processAndUploadPhoto]);
+
+  const handlePickPhoto = useCallback(() => {
+    if (isNew) { Alert.alert("Save First", "Please create the technician before uploading a photo."); return; }
+    Alert.alert(
+      "Update Profile Photo",
+      "Choose how to add a photo",
+      [
+        { text: "📷  Take Photo", onPress: launchCamera },
+        { text: "🖼️  Choose from Library", onPress: launchLibrary },
+        { text: "Cancel", style: "cancel" },
+      ],
+      { cancelable: true }
+    );
+  }, [isNew, launchCamera, launchLibrary]);
 
   const deleteMutation = trpc.technicians.delete.useMutation({
     onSuccess: () => {
