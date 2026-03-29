@@ -41,48 +41,6 @@ export interface AuthUser {
   avatarUrl: string | null; provider: "email" | "google" | "apple";
 }
 
-// ─── Mock Users ───────────────────────────────────────────────────────────────
-
-const MOCK_USERS: Record<string, AuthUser> = {
-  // tenantId values match the seeded DB rows: 1=Acme HVAC, 2=PlumbPro, 3=NVC360
-  "admin@nvc360.com": { id: "u-nvc-001", name: "Dan Rosenblat", email: "admin@nvc360.com", role: "nvc_super_admin", tenantId: 3, tenantName: "NVC360", tenantColor: "#E85D04", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "pm@nvc360.com": { id: "u-nvc-002", name: "Sarah Mitchell", email: "pm@nvc360.com", role: "nvc_project_manager", tenantId: 3, tenantName: "NVC360", tenantColor: "#8B5CF6", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "dispatch@acmehvac.com": { id: "u-t1-001", name: "James Chen", email: "dispatch@acmehvac.com", role: "dispatcher", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "tech@acmehvac.com": { id: "u-t1-002", name: "Mike Torres", email: "tech@acmehvac.com", role: "field_technician", tenantId: 1, tenantName: "Acme HVAC Services", tenantColor: "#3B82F6", tenantLogo: null, avatarUrl: null, provider: "email" },
-  "admin@plumbpro.com": { id: "u-t2-001", name: "Lisa Park", email: "admin@plumbpro.com", role: "company_admin", tenantId: 2, tenantName: "PlumbPro Solutions", tenantColor: "#22C55E", tenantLogo: null, avatarUrl: null, provider: "email" },
-};
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  nvc_super_admin: "NVC360 Super Admin", nvc_project_manager: "NVC360 Project Manager",
-  nvc_support: "NVC360 Support", company_admin: "Company Admin",
-  divisional_manager: "Divisional Manager", dispatcher: "Dispatcher",
-  field_technician: "Field Technician", technician: "Technician", office_staff: "Office Staff",
-};
-
-const ROLE_COLORS: Record<UserRole, string> = {
-  nvc_super_admin: "#E85D04", nvc_project_manager: "#8B5CF6", nvc_support: "#3B82F6",
-  company_admin: "#22C55E", divisional_manager: "#06B6D4", dispatcher: "#F59E0B",
-  field_technician: "#6366F1", technician: "#6366F1", office_staff: "#6B7280",
-};
-
-// ─── Demo Chip ────────────────────────────────────────────────────────────────
-
-function DemoChip({ email, role, onPress }: { email: string; role: UserRole; onPress: () => void }) {
-  const roleColor = ROLE_COLORS[role];
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.demoChip, { backgroundColor: roleColor + "12", borderColor: roleColor + "35", opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
-      onPress={onPress}
-    >
-      <View style={[styles.demoChipDot, { backgroundColor: roleColor }] as ViewStyle[]} />
-      <View style={styles.demoChipInfo}>
-        <Text style={[styles.demoChipRole, { color: roleColor }] as TextStyle[]}>{ROLE_LABELS[role]}</Text>
-        <Text style={styles.demoChipEmail}>{email}</Text>
-      </View>
-      <IconSymbol name="arrow.right.circle.fill" size={16} color={roleColor} />
-    </Pressable>
-  );
-}
 
 // ─── Push Notification Token Registration ────────────────────────────────────
 
@@ -154,7 +112,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
-  const [showDemo, setShowDemo] = useState(false);
   // Forgot Password modal state
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -193,7 +150,7 @@ export default function LoginScreen() {
       const pushToken = await getExpoPushToken();
       if (pushToken && technicianId) {
         try {
-          await savePushTokenMutation.mutateAsync({ technicianId, pushToken });
+          await savePushTokenMutation.mutateAsync({ technicianId, pushToken, tenantId: user.tenantId ?? 0 });
           if (__DEV__) console.log("[push] Token registered for technician", technicianId);
         } catch (e) {
           console.warn("[push] Failed to save push token:", e);
@@ -271,31 +228,6 @@ export default function LoginScreen() {
     } finally { setLoading(false); }
   };
 
-  const handleDemoLogin = async (demoEmail: string) => {
-    haptic(); setLoading(true);
-    try {
-      const result = await emailLoginMutation.mutateAsync({ email: demoEmail, password: "demo123" });
-      if (Platform.OS === "web" && result.token) {
-        await persistSessionCookie(result.token);
-      }
-      const serverUser = result.user;
-      const authUser: AuthUser = {
-        id: serverUser.id,
-        name: serverUser.name,
-        email: serverUser.email,
-        role: serverUser.role as AuthUser["role"],
-        tenantId: serverUser.tenantId,
-        tenantName: serverUser.tenantName,
-        tenantColor: serverUser.tenantColor,
-        tenantLogo: serverUser.tenantLogo,
-        avatarUrl: null,
-        provider: "email",
-      };
-      await saveAndNavigate(authUser, result.token, serverUser.technicianId ?? null);
-    } catch (err: any) {
-      Alert.alert("Login Failed", err?.message ?? "Could not log in with demo account.");
-    } finally { setLoading(false); }
-  };
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
@@ -494,10 +426,8 @@ const styles = StyleSheet.create<{
   appleBtnText: TextStyle; divider: ViewStyle; dividerLine: ViewStyle;
   dividerText: TextStyle; form: ViewStyle; inputWrapper: ViewStyle;
   input: TextStyle; forgotBtn: ViewStyle; forgotText: TextStyle;
-  loginBtn: ViewStyle; loginBtnText: TextStyle; demoToggle: ViewStyle;
-  demoToggleText: TextStyle; demoSection: ViewStyle; demoSectionTitle: TextStyle;
-  demoChip: ViewStyle; demoChipDot: ViewStyle; demoChipInfo: ViewStyle;
-  demoChipRole: TextStyle; demoChipEmail: TextStyle; footer: ViewStyle;
+  loginBtn: ViewStyle; loginBtnText: TextStyle;
+  footer: ViewStyle;
   footerText: TextStyle; footerLink: TextStyle; footerVersion: TextStyle;
   modalOverlay: ViewStyle; modalCard: ViewStyle; modalTitle: TextStyle;
   modalBody: TextStyle; modalSentWrap: ViewStyle; modalSentIcon: ViewStyle;
@@ -529,15 +459,6 @@ const styles = StyleSheet.create<{
   forgotText: { fontSize: 13, fontFamily: "Inter_500Medium", color: NVC_BLUE },
   loginBtn: { backgroundColor: NVC_BLUE, height: 52, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 4, shadowColor: NVC_BLUE, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   loginBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
-  demoToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12 },
-  demoToggleText: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#94A3B8" },
-  demoSection: { gap: 8, marginBottom: 16 },
-  demoSectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#94A3B8", letterSpacing: 0.8, textAlign: "center", marginBottom: 4, textTransform: "uppercase" },
-  demoChip: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 11, gap: 10 },
-  demoChipDot: { width: 8, height: 8, borderRadius: 4 },
-  demoChipInfo: { flex: 1 },
-  demoChipRole: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  demoChipEmail: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#64748B", marginTop: 1 },
   footer: { alignItems: "center", gap: 6, marginTop: 8 },
   footerText: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#94A3B8", textAlign: "center", lineHeight: 18 },
   footerLink: { fontFamily: "Inter_500Medium", color: NVC_BLUE },

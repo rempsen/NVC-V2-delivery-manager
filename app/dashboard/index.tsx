@@ -1338,7 +1338,7 @@ function DashboardSection({ tasks, technicians, customers, tenantId, onSelectTec
                                       padding: 3,
                                     }] as ViewStyle[])}
                                     onPress={() => {
-                                      unassignMutation.mutate({ taskId: job.id });
+                                      unassignMutation.mutate({ taskId: job.id, tenantId });
                                       showToast(`${job.orderRef ?? `#${job.id}`} unassigned`);
                                     }}
                                   >

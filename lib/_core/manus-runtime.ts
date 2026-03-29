@@ -46,16 +46,43 @@ function isWeb(): boolean {
   return Platform.OS === "web";
 }
 
+function getParentOrigin(): string {
+  // Detect parent origin from document.referrer or fall back to known domain pattern
+  if (document.referrer) {
+    try {
+      const referrerUrl = new URL(document.referrer);
+      return referrerUrl.origin;
+    } catch {
+      // If referrer is invalid, fall back to detection
+    }
+  }
+
+  // Fall back to detecting from window location if in iframe on same domain family
+  try {
+    const currentUrl = new URL(window.location.href);
+    // If we're on a manus.computer subdomain, parent should also be on manus.computer
+    if (currentUrl.hostname.endsWith("manus.computer")) {
+      return "https://manus.computer";
+    }
+  } catch {
+    // ignore
+  }
+
+  // Default fallback - require explicit origin validation in production
+  return window.location.origin;
+}
+
 function sendToParent(type: MessageType, payload: Record<string, unknown> = {}): void {
-  // NOTE: Validate parent origin if we need to transfer sensitive data
   if (!isWeb() || !isInIframe()) return;
 
   const message: SpacePreviewerMessage = {
     type: "SpacePreviewerChannel",
     payload: { type, from: "content", to: "container", payload },
   };
-  window.parent.postMessage(message, "*");
-  log(`Sent to parent: ${type}`);
+
+  const parentOrigin = getParentOrigin();
+  window.parent.postMessage(message, parentOrigin);
+  log(`Sent to parent (origin: ${parentOrigin}): ${type}`);
 }
 
 let initialized = false;
@@ -70,8 +97,34 @@ function isValidInsets(payload: Record<string, unknown>): payload is SafeAreaIns
   );
 }
 
+function isAllowedOrigin(origin: string): boolean {
+  // Validate that the message origin is from an allowed parent
+  try {
+    const originUrl = new URL(origin);
+
+    // Allow manus.computer and all subdomains
+    if (originUrl.hostname === "manus.computer" || originUrl.hostname.endsWith(".manus.computer")) {
+      return true;
+    }
+
+    // Allow localhost for development
+    if (originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1") {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function handleMessage(event: MessageEvent<unknown>): void {
-  // NOTE: Validate event.origin if we need to transfer sensitive data
+  // Validate event.origin before processing
+  if (!isAllowedOrigin(event.origin)) {
+    log(`Rejected message from untrusted origin: ${event.origin}`);
+    return;
+  }
+
   const data = event.data as SpacePreviewerMessage | undefined;
   if (!data || data.type !== "SpacePreviewerChannel") return;
 

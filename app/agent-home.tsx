@@ -212,7 +212,7 @@ export default function AgentHomeScreen() {
         const tokenData = await Notifications.getExpoPushTokenAsync();
         const techId = technicianId.current;
         if (techId && tokenData.data) {
-          savePushTokenMutation.mutate({ technicianId: techId, pushToken: tokenData.data });
+          savePushTokenMutation.mutate({ technicianId: techId, pushToken: tokenData.data, tenantId: tenantId ?? 0 });
         }
       } catch (e) {
         // Silently ignore — push tokens require physical device

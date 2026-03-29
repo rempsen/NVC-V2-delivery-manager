@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   varchar,
+  foreignKey,
 } from "drizzle-orm/mysql-core";
 
 // ─── Core Auth ────────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ export type InsertTenant = typeof tenants.$inferInsert;
 
 export const tenantUsers = mysqlTable("tenantUsers", {
   id: int("id").autoincrement().primaryKey(),
-  tenantId: int("tenantId").notNull(),
+  tenantId: int("tenantId").notNull().references(() => tenants.id),
   /** Link to core users table if using OAuth */
   userId: int("userId"),
   role: mysqlEnum("role", ["dispatcher", "technician", "manager", "admin"]).notNull(),
@@ -103,8 +104,8 @@ export type InsertTenantUser = typeof tenantUsers.$inferInsert;
 
 export const technicians = mysqlTable("technicians", {
   id: int("id").autoincrement().primaryKey(),
-  tenantId: int("tenantId").notNull(),
-  tenantUserId: int("tenantUserId").notNull(),
+  tenantId: int("tenantId").notNull().references(() => tenants.id),
+  tenantUserId: int("tenantUserId").notNull().references(() => tenantUsers.id),
   status: mysqlEnum("status", ["online", "busy", "on_break", "offline"]).default("offline").notNull(),
   /** Current GPS position */
   latitude: decimal("latitude", { precision: 10, scale: 7 }),
@@ -192,7 +193,7 @@ export type InsertPricingRule = typeof pricingRules.$inferInsert;
 
 export const tasks = mysqlTable("tasks", {
   id: int("id").autoincrement().primaryKey(),
-  tenantId: int("tenantId").notNull(),
+  tenantId: int("tenantId").notNull().references(() => tenants.id),
   /** Unique public hash for customer tracking link */
   jobHash: varchar("jobHash", { length: 64 }).notNull().unique(),
   status: mysqlEnum("status", [
@@ -207,7 +208,7 @@ export const tasks = mysqlTable("tasks", {
   priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
   templateId: int("templateId"),
   pricingRuleId: int("pricingRuleId"),
-  technicianId: int("technicianId"),
+  technicianId: int("technicianId").references(() => technicians.id),
   /** Customer details */
   customerName: varchar("customerName", { length: 255 }).notNull(),
   customerPhone: varchar("customerPhone", { length: 32 }).notNull(),
@@ -251,8 +252,8 @@ export type InsertTask = typeof tasks.$inferInsert;
 
 export const messages = mysqlTable("messages", {
   id: int("id").autoincrement().primaryKey(),
-  tenantId: int("tenantId").notNull(),
-  taskId: int("taskId").notNull(),
+  tenantId: int("tenantId").notNull().references(() => tenants.id),
+  taskId: int("taskId").notNull().references(() => tasks.id),
   senderType: mysqlEnum("senderType", ["dispatcher", "technician", "system"]).notNull(),
   senderId: int("senderId"),
   senderName: varchar("senderName", { length: 255 }),
@@ -304,7 +305,7 @@ export type TaskAuditLog = typeof taskAuditLog.$inferSelect;
 // ─── Customers (CRM) ──────────────────────────────────────────────────────────
 export const customers = mysqlTable("customers", {
   id: int("id").autoincrement().primaryKey(),
-  tenantId: int("tenantId").notNull(),
+  tenantId: int("tenantId").notNull().references(() => tenants.id),
   company: varchar("company", { length: 255 }).notNull(),
   contactName: varchar("contactName", { length: 255 }),
   email: varchar("email", { length: 320 }),

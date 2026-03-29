@@ -26,6 +26,36 @@ function cleanExpiredTokens() {
   }
 }
 
+// ─── Simple In-Memory Rate Limiter ───────────────────────────────────────────
+/** Per-user sliding-window rate limiter for expensive AI endpoints */
+const aiRateBuckets = new Map<string, number[]>();
+const AI_RATE_LIMIT = 10;       // max requests per window
+const AI_RATE_WINDOW_MS = 60_000; // 1-minute window
+
+function checkAiRateLimit(userId: number | string): void {
+  const key = String(userId);
+  const now = Date.now();
+  const timestamps = (aiRateBuckets.get(key) ?? []).filter((t) => now - t < AI_RATE_WINDOW_MS);
+  if (timestamps.length >= AI_RATE_LIMIT) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "AI rate limit exceeded — please wait a minute before trying again.",
+    });
+  }
+  timestamps.push(now);
+  aiRateBuckets.set(key, timestamps);
+}
+
+// Clean up stale rate-limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, ts] of aiRateBuckets.entries()) {
+    const live = ts.filter((t) => now - t < AI_RATE_WINDOW_MS);
+    if (live.length === 0) aiRateBuckets.delete(key);
+    else aiRateBuckets.set(key, live);
+  }
+}, 5 * 60_000);
+
 // Expo push client (singleton)
 const expoPush = new Expo();
 
@@ -280,11 +310,11 @@ export const appRouter = router({
 
   // ─── Tenant Users (Employees) ────────────────────────────────────────────
   tenantUsers: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getTenantUsersByTenant(input.tenantId)),
 
-    delete: protectedProcedure
+    delete: tenantScopedProcedure
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .mutation(async ({ input }) => {
         const db2 = await import("../drizzle/schema");
@@ -437,11 +467,11 @@ export const appRouter = router({
 
   // ─── Workflow Templates ────────────────────────────────────────────────────
   templates: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getTemplatesByTenant(input.tenantId)),
 
-    create: protectedProcedure
+    create: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -484,11 +514,11 @@ export const appRouter = router({
 
   // ─── Pricing Rules ─────────────────────────────────────────────────────────
   pricing: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getPricingRulesByTenant(input.tenantId)),
 
-    create: protectedProcedure
+    create: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -547,7 +577,7 @@ export const appRouter = router({
 
   // ─── Tasks / Work Orders ───────────────────────────────────────────────────
   tasks: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), status: z.string().optional() }))
       .query(({ input }) => db.getTasksByTenant(input.tenantId, input.status)),
 
@@ -560,7 +590,7 @@ export const appRouter = router({
       .input(z.object({ jobHash: z.string() }))
       .query(({ input }) => db.getTaskByHash(input.jobHash)),
 
-    create: protectedProcedure
+    create: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -625,19 +655,25 @@ export const appRouter = router({
         return task;
       }),
 
-    updateStatus: protectedProcedure
+    updateStatus: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
+          tenantId: z.number(),
           status: z.enum(["unassigned", "assigned", "en_route", "on_site", "completed", "failed", "cancelled"]),
         }),
       )
-      .mutation(({ input }) => db.updateTaskStatusRecord(input.id, input.status)),
+      .mutation(async ({ ctx, input }) => {
+          const result = await db.updateTaskStatusRecord(input.id, input.status);
+          db.logTaskAction(input.tenantId, input.id, `status_changed_to_${input.status}`, ctx.user?.id, "dispatcher").catch(() => {});
+          return result;
+        }),
 
-    update: protectedProcedure
+    update: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
+          tenantId: z.number(),
           technicianId: z.number().optional(),
           description: z.string().optional(),
           priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
@@ -645,23 +681,30 @@ export const appRouter = router({
           scheduledAt: z.string().optional(),
         }),
       )
-      .mutation(({ input }) => {
-        const { id, ...data } = input;
-        return db.updateTaskRecord(id, data as any);
+      .mutation(async ({ ctx, input }) => {
+        const { id, tenantId, ...data } = input;
+        const result = await db.updateTaskRecord(id, data as any);
+        db.logTaskAction(tenantId, id, "task_updated", ctx.user?.id, "dispatcher", null, data).catch(() => {});
+        return result;
       }),
 
-    delete: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(({ input }) => db.updateTaskRecord(input.id, { status: "cancelled" } as any)),
+    delete: tenantScopedProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+          const result = await db.updateTaskRecord(input.id, { status: "cancelled" } as any);
+          db.logTaskAction(input.tenantId, input.id, "task_deleted_cancelled", ctx.user?.id, "dispatcher").catch(() => {});
+          return result;
+        }),
 
     /** Unassign: clear technicianId and revert status to unassigned */
-    unassign: protectedProcedure
-      .input(z.object({ taskId: z.number() }))
-      .mutation(async ({ input }) => {
+    unassign: tenantScopedProcedure
+      .input(z.object({ taskId: z.number(), tenantId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
         await db.updateTaskRecord(input.taskId, {
           technicianId: null,
           status: "unassigned",
         } as any);
+        db.logTaskAction(input.tenantId, input.taskId, "task_unassigned", ctx.user?.id, "dispatcher").catch(() => {});
         return { success: true, taskId: input.taskId };
       }),
 
@@ -674,7 +717,7 @@ export const appRouter = router({
           tenantId: z.number(),
         }),
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         // 1. Fetch task and technician in parallel
         const [task, tech] = await Promise.all([
           db.getTaskById_NVC(input.taskId),
@@ -720,16 +763,25 @@ export const appRouter = router({
           sentAt: new Date(),
         } as any);
 
+        db.logTaskAction(input.tenantId, input.taskId, "task_assigned", ctx.user?.id, "dispatcher", null, { technicianId: input.technicianId }).catch(() => {});
         return { success: true, taskId: input.taskId, technicianId: input.technicianId };
       }),
 
-    geoClockIn: protectedProcedure
-      .input(z.object({ taskId: z.number() }))
-      .mutation(({ input }) => db.geoClockIn(input.taskId)),
+    geoClockIn: tenantScopedProcedure
+      .input(z.object({ taskId: z.number(), tenantId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+          const result = await db.geoClockIn(input.taskId);
+          db.logTaskAction(input.tenantId, input.taskId, "geo_clock_in", ctx.user?.id, "technician").catch(() => {});
+          return result;
+        }),
 
-    geoClockOut: protectedProcedure
-      .input(z.object({ taskId: z.number() }))
-      .mutation(({ input }) => db.geoClockOut(input.taskId)),
+    geoClockOut: tenantScopedProcedure
+      .input(z.object({ taskId: z.number(), tenantId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+          const result = await db.geoClockOut(input.taskId);
+          db.logTaskAction(input.tenantId, input.taskId, "geo_clock_out", ctx.user?.id, "technician").catch(() => {});
+          return result;
+        }),
 
     /** Agent swipes to start — set status=en_route, record startedAt, optionally send SMS */
     // ── Twilio SMS helpers are imported lazily to avoid import errors when not configured
@@ -891,7 +943,7 @@ export const appRouter = router({
       }),
 
     /** 7-day task stats for dashboard spark charts */
-    weeklyStats: protectedProcedure
+    weeklyStats: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(async ({ input }) => {
         const allTasks = await db.getTasksByTenant(input.tenantId);
@@ -964,7 +1016,7 @@ export const appRouter = router({
 
   // ─── Technicians ───────────────────────────────────────────────────────────
   technicians: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getTechniciansByTenant(input.tenantId)),
 
@@ -972,7 +1024,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .query(({ input }) => db.getTechnicianById(input.id)),
 
-    create: protectedProcedure
+    create: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -1043,7 +1095,7 @@ export const appRouter = router({
         return { id: techId, tenantUserId, tempPassword: tempPassword ?? undefined };
       }),
 
-    update: protectedProcedure
+    update: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1072,7 +1124,7 @@ export const appRouter = router({
      * Upload a profile photo for a technician.
      * Accepts base64-encoded image data, uploads to S3, updates photoUrl in DB.
      */
-    uploadPhoto: protectedProcedure
+    uploadPhoto: tenantScopedProcedure
       .input(z.object({
         id: z.number(),
         tenantId: z.number(),
@@ -1089,15 +1141,15 @@ export const appRouter = router({
         return { photoUrl: url };
       }),
 
-    delete: protectedProcedure
+    delete: tenantScopedProcedure
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .mutation(({ input }) => db.deleteTechnician(input.id, input.tenantId)),
 
-    updateLocation: protectedProcedure
+    updateLocation: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
-          tenantId: z.number().optional(),
+          tenantId: z.number(),
           latitude: z.string(),
           longitude: z.string(),
           speed: z.number().optional(),
@@ -1117,11 +1169,11 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    updateStatus: protectedProcedure
+    updateStatus: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
-          tenantId: z.number().optional(),
+          tenantId: z.number(),
           status: z.enum(["online", "busy", "on_break", "offline"]),
         }),
       )
@@ -1180,8 +1232,8 @@ export const appRouter = router({
      * Register or update the Expo push token for a technician.
      * Called on login from mobile devices so job-assignment notifications reach the device.
      */
-    savePushToken: protectedProcedure
-      .input(z.object({ technicianId: z.number(), pushToken: z.string() }))
+    savePushToken: tenantScopedProcedure
+      .input(z.object({ tenantId: z.number(), technicianId: z.number(), pushToken: z.string() }))
       .mutation(async ({ input }) => {
         const { technicians: techTable } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
@@ -1197,15 +1249,15 @@ export const appRouter = router({
 
   // ─── Customers (CRM) ───────────────────────────────────────────────────────
   customers: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getCustomersByTenant(input.tenantId)),
 
-    getById: protectedProcedure
+    getById: tenantScopedProcedure
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .query(({ input }) => db.getCustomerById(input.id, input.tenantId)),
 
-    create: protectedProcedure
+    create: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -1236,7 +1288,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.createCustomer(input as any) as any),
 
-    update: protectedProcedure
+    update: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1271,18 +1323,18 @@ export const appRouter = router({
         return db.updateCustomer(id, tenantId, data as any);
       }),
 
-    delete: protectedProcedure
+    delete: tenantScopedProcedure
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .mutation(({ input }) => db.deleteCustomer(input.id, input.tenantId)),
   }),
 
   // ─── Calendar Items ────────────────────────────────────────────────────────
   calendar: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), dateFrom: z.string().optional(), dateTo: z.string().optional() }))
       .query(({ input }) => db.getCalendarItemsByTenant(input.tenantId, input.dateFrom, input.dateTo)),
 
-    create: protectedProcedure
+    create: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -1299,7 +1351,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => db.createCalendarItem(input as any) as any),
 
-    update: protectedProcedure
+    update: tenantScopedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1318,26 +1370,23 @@ export const appRouter = router({
         return db.updateCalendarItem(id, tenantId, data as any);
       }),
 
-    delete: protectedProcedure
+    delete: tenantScopedProcedure
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .mutation(({ input }) => db.deleteCalendarItem(input.id, input.tenantId)),
   }),
 
   // ─── Integrations ──────────────────────────────────────────────────────────
   integrations: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(({ input }) => db.getIntegrationsByTenant(input.tenantId)),
 
-    upsert: protectedProcedure
+    upsert: tenantScopedProcedure
       .input(
         z.object({
           tenantId: z.number(),
           integrationKey: z.string(),
           isConnected: z.boolean().optional(),
-          accessToken: z.string().optional(),
-          refreshToken: z.string().optional(),
-          tokenExpiresAt: z.string().optional(),
           config: z.record(z.string(), z.unknown()).optional(),
         }),
       )
@@ -1346,12 +1395,12 @@ export const appRouter = router({
         return db.upsertIntegration(tenantId, integrationKey, data as any);
       }),
 
-    disconnect: protectedProcedure
+    disconnect: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), integrationKey: z.string() }))
       .mutation(({ input }) => db.disconnectIntegration(input.tenantId, input.integrationKey)),
 
     // Get OAuth authorization URL for a given integration
-    getAuthUrl: protectedProcedure
+    getAuthUrl: tenantScopedProcedure
       .input(z.object({
         tenantId: z.number(),
         integrationKey: z.enum(["quickbooks", "xero", "companycam", "microsoft", "google_calendar"]),
@@ -1379,7 +1428,7 @@ export const appRouter = router({
       }),
 
     // Get connection status for a specific integration
-    getStatus: protectedProcedure
+    getStatus: tenantScopedProcedure
       .input(z.object({
         tenantId: z.number(),
         integrationKey: z.enum(["quickbooks", "xero", "companycam", "microsoft", "google_calendar", "apple_contacts"]),
@@ -1408,7 +1457,7 @@ export const appRouter = router({
       }),
 
     // Connect Apple Contacts (app-specific password flow)
-    connectAppleContacts: protectedProcedure
+    connectAppleContacts: tenantScopedProcedure
       .input(z.object({
         tenantId: z.number(),
         appleId: z.string().email(),
@@ -1423,7 +1472,7 @@ export const appRouter = router({
       }),
 
     // Import vCard file content
-    importVCard: protectedProcedure
+    importVCard: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), vcardContent: z.string() }))
       .mutation(async ({ input }) => {
         const ac = await import("./integrations/apple-contacts");
@@ -1431,7 +1480,7 @@ export const appRouter = router({
       }),
 
     // Export customers as vCard
-    exportVCard: protectedProcedure
+    exportVCard: tenantScopedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(async ({ input }) => {
         const ac = await import("./integrations/apple-contacts");
@@ -1440,7 +1489,7 @@ export const appRouter = router({
       }),
 
     // QuickBooks: create invoice from work order
-    qbCreateInvoice: protectedProcedure
+    qbCreateInvoice: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), taskId: z.number() }))
       .mutation(async ({ input }) => {
         const task = await db.getTaskById_NVC(input.taskId);
@@ -1458,7 +1507,7 @@ export const appRouter = router({
       }),
 
     // Xero: create invoice from work order
-    xeroCreateInvoice: protectedProcedure
+    xeroCreateInvoice: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), taskId: z.number() }))
       .mutation(async ({ input }) => {
         const task = await db.getTaskById_NVC(input.taskId);
@@ -1476,7 +1525,7 @@ export const appRouter = router({
       }),
 
     // CompanyCam: sync work order to project
-    ccSyncProject: protectedProcedure
+    ccSyncProject: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), taskId: z.number() }))
       .mutation(async ({ input }) => {
         const task = await db.getTaskById_NVC(input.taskId);
@@ -1491,7 +1540,7 @@ export const appRouter = router({
       }),
 
     // Calendar sync (Microsoft or Google) for a work order
-    syncToCalendar: protectedProcedure
+    syncToCalendar: tenantScopedProcedure
       .input(z.object({
         tenantId: z.number(),
         taskId: z.number(),
@@ -1520,7 +1569,7 @@ export const appRouter = router({
 
   // ─── Notifications ─────────────────────────────────────────────────────────
   notifications: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), userId: z.number(), limit: z.number().default(50) }))
       .query(({ input }) => db.getNotificationsForUser(input.tenantId, input.userId, input.limit)),
 
@@ -1528,17 +1577,17 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), userId: z.number() }))
       .mutation(({ input }) => db.markNotificationRead(input.id, input.userId)),
 
-    markAllRead: protectedProcedure
+    markAllRead: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), userId: z.number() }))
       .mutation(({ input }) => db.markAllNotificationsRead(input.tenantId, input.userId)),
 
     /** Last 20 job_assigned notifications for the dispatcher history panel */
-    dispatchHistory: protectedProcedure
+    dispatchHistory: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), limit: z.number().default(20) }))
       .query(({ input }) => db.getDispatchHistory(input.tenantId, input.limit)),
 
     /** Send a test SMS to validate Twilio credentials */
-    sendTestSms: protectedProcedure
+    sendTestSms: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), phone: z.string() }))
       .mutation(async ({ input }) => {
         const { resolveTwilioCredentials, sendSmsIfConfigured } = await import("./twilio.js");
@@ -1549,7 +1598,7 @@ export const appRouter = router({
         return { success: true };
       }),
     /** Send a test email to validate SMTP credentials */
-    sendTestEmail: protectedProcedure
+    sendTestEmail: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), email: z.string().email() }))
       .mutation(async ({ input }) => {
         const { resolveSmtpCredentials, sendTestEmail } = await import("./email.js");
@@ -1563,18 +1612,18 @@ export const appRouter = router({
 
   // ─── File Attachments ──────────────────────────────────────────────────────
   attachments: router({
-    list: protectedProcedure
+    list: tenantScopedProcedure
       .input(z.object({ tenantId: z.number(), entityType: z.string(), entityId: z.number() }))
       .query(({ input }) => db.getAttachmentsByEntity(input.tenantId, input.entityType, input.entityId)),
 
-    delete: protectedProcedure
+    delete: tenantScopedProcedure
       .input(z.object({ id: z.number(), tenantId: z.number() }))
       .mutation(({ input }) => db.deleteFileAttachment(input.id, input.tenantId)),
   }),
 
   // ─── Consent (PIPEDA) ──────────────────────────────────────────────────────
   consent: router({
-    record: publicProcedure
+    record: protectedProcedure
       .input(
         z.object({
           tenantId: z.number(),
@@ -1622,7 +1671,8 @@ export const appRouter = router({
   ai: router({
     operationalBriefing: protectedProcedure
       .input(z.object({ tenantId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        checkAiRateLimit(ctx.user?.id ?? "anon");
         const [tasks, technicians] = await Promise.all([
           db.getTasksByTenant(input.tenantId),
           db.getTechniciansByTenant(input.tenantId),
@@ -1664,11 +1714,15 @@ export const appRouter = router({
           customContext: z.string().optional(),
         }),
       )
-      .mutation(({ input }) => gemini.draftSmsMessage(input)),
+      .mutation(({ ctx, input }) => {
+          checkAiRateLimit(ctx.user?.id ?? "anon");
+          return gemini.draftSmsMessage(input);
+        }),
 
     assessDelayRisk: protectedProcedure
       .input(z.object({ taskId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        checkAiRateLimit(ctx.user?.id ?? "anon");
         const task = await db.getTaskById_NVC(input.taskId);
         if (!task) throw new Error("Task not found");
         const tech = (task as any).assignedTechnicianId

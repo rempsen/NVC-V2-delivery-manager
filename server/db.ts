@@ -121,20 +121,20 @@ export async function getUserByOpenId(openId: string) {
 
 export async function getAllTenants() {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db.select().from(tenants).orderBy(desc(tenants.createdAt));
 }
 
 export async function getTenantById(id: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
 export async function getTenantBySlug(slug: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
   return rows[0] ?? null;
 }
@@ -156,13 +156,13 @@ export async function updateTenant(id: number, data: Partial<InsertTenant>) {
 
 export async function getTenantUsersByTenant(tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db.select().from(tenantUsers).where(eq(tenantUsers.tenantId, tenantId));
 }
 
 export async function getTenantUserByEmail(email: string, tenantId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db
     .select()
     .from(tenantUsers)
@@ -174,7 +174,7 @@ export async function getTenantUserByEmail(email: string, tenantId: number) {
 /** Find a tenantUser by email across all tenants — used for login when tenant slug is not provided */
 export async function getTenantUserByEmailAnyTenant(email: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db
     .select()
     .from(tenantUsers)
@@ -194,7 +194,7 @@ export async function createTenantUser(data: InsertTenantUser) {
 
 export async function getTechniciansByTenant(tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select({ tech: technicians, user: tenantUsers })
     .from(technicians)
@@ -204,14 +204,14 @@ export async function getTechniciansByTenant(tenantId: number) {
 
 export async function getTechnicianByTenantUserId(tenantUserId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db.select().from(technicians).where(eq(technicians.tenantUserId, tenantUserId)).limit(1);
   return rows[0] ?? null;
 }
 
 export async function getTechnicianById(id: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db.select().from(technicians).where(eq(technicians.id, id)).limit(1);
   return rows[0] ?? null;
 }
@@ -242,7 +242,7 @@ export async function updateTechnicianStatus(
 
 export async function getTemplatesByTenant(tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select()
     .from(workflowTemplates)
@@ -272,7 +272,7 @@ export async function deleteTemplate(id: number) {
 
 export async function getPricingRulesByTenant(tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db.select().from(pricingRules).where(eq(pricingRules.tenantId, tenantId));
 }
 
@@ -293,7 +293,7 @@ export async function updatePricingRule(id: number, data: Partial<InsertPricingR
 
 export async function getTasksByTenant(tenantId: number, status?: string) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   const conditions = [eq(tasks.tenantId, tenantId)];
   if (status) conditions.push(eq(tasks.status, status as any));
   return db
@@ -305,14 +305,14 @@ export async function getTasksByTenant(tenantId: number, status?: string) {
 
 export async function getTaskById_NVC(id: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
 export async function getTaskByHash(jobHash: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db.select().from(tasks).where(eq(tasks.jobHash, jobHash)).limit(1);
   const task = rows[0] ?? null;
   if (!task) return null;
@@ -434,7 +434,7 @@ export async function geoClockOut(taskId: number) {
 
 export async function getMessagesByTask(taskId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db.select().from(messages).where(eq(messages.taskId, taskId)).orderBy(messages.createdAt);
 }
 
@@ -447,7 +447,7 @@ export async function sendMessage(data: InsertMessage) {
 
 export async function markMessagesRead(taskId: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) throw new Error("Database connection unavailable");
   await db.update(messages).set({ readAt: new Date() }).where(and(eq(messages.taskId, taskId), isNull(messages.readAt)));
 }
 
@@ -461,7 +461,7 @@ export async function recordLocation(data: InsertLocationHistory) {
 
 export async function getLocationHistoryForTask(taskId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db.select().from(locationHistory).where(eq(locationHistory.taskId, taskId)).orderBy(locationHistory.recordedAt);
 }
 
@@ -477,7 +477,7 @@ export async function logTaskAction(
   newValue?: unknown,
 ) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) throw new Error("Database connection unavailable");
   await db.insert(taskAuditLog).values({ tenantId, taskId, actorId, actorType, action, previousValue, newValue });
 }
 
@@ -520,7 +520,7 @@ export function calculatePrice(
 
 export async function getCustomersByTenant(tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select()
     .from(customers)
@@ -530,7 +530,7 @@ export async function getCustomersByTenant(tenantId: number) {
 
 export async function getCustomerById(id: number, tenantId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db
     .select()
     .from(customers)
@@ -565,7 +565,7 @@ export async function deleteCustomer(id: number, tenantId: number) {
 
 export async function getCalendarItemsByTenant(tenantId: number, dateFrom?: string, dateTo?: string) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   const conditions = [eq(calendarItems.tenantId, tenantId)];
   return db
     .select()
@@ -600,7 +600,7 @@ export async function deleteCalendarItem(id: number, tenantId: number) {
 
 export async function getIntegrationsByTenant(tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db.select().from(integrationConfigs).where(eq(integrationConfigs.tenantId, tenantId));
 }
 
@@ -635,7 +635,7 @@ export async function disconnectIntegration(tenantId: number, integrationKey: st
 
 export async function getAttachmentsByEntity(tenantId: number, entityType: string, entityId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select()
     .from(fileAttachments)
@@ -666,7 +666,7 @@ export async function deleteFileAttachment(id: number, tenantId: number) {
 
 export async function getNotificationsForUser(tenantId: number, userId: number, limit = 50) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select()
     .from(notifications)
@@ -678,7 +678,7 @@ export async function getNotificationsForUser(tenantId: number, userId: number, 
 /** Fetch last N dispatch (job_assigned) notifications for a tenant — used by the history panel */
 export async function getDispatchHistory(tenantId: number, limit = 20) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select()
     .from(notifications)
@@ -695,7 +695,7 @@ export async function createNotification(data: InsertNotification) {
 
 export async function markNotificationRead(id: number, userId: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) throw new Error("Database connection unavailable");
   await db
     .update(notifications)
     .set({ readAt: new Date() })
@@ -704,7 +704,7 @@ export async function markNotificationRead(id: number, userId: number) {
 
 export async function markAllNotificationsRead(tenantId: number, userId: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) throw new Error("Database connection unavailable");
   await db
     .update(notifications)
     .set({ readAt: new Date() })
@@ -721,7 +721,7 @@ export async function recordConsent(data: InsertConsentRecord) {
 
 export async function getConsentByUser(userId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db
     .select()
     .from(consentRecords)
@@ -735,7 +735,7 @@ export async function getConsentByUser(userId: number) {
 
 export async function getTenantUserForLogin(email: string, tenantId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const rows = await db
     .select()
     .from(tenantUsers)
@@ -746,7 +746,7 @@ export async function getTenantUserForLogin(email: string, tenantId: number) {
 
 export async function updateTenantUserLastLogin(id: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) throw new Error("Database connection unavailable");
   await db.update(tenantUsers).set({ updatedAt: new Date() }).where(eq(tenantUsers.id, id));
 }
 
@@ -778,7 +778,7 @@ export async function deleteTechnician(id: number, tenantId: number) {
 
 export async function getChecklistsByTask(taskId: number, tenantId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database connection unavailable");
   return db
     .select()
     .from(taskChecklists)
@@ -787,7 +787,7 @@ export async function getChecklistsByTask(taskId: number, tenantId: number) {
 
 export async function getChecklistWithItems(checklistId: number, tenantId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) throw new Error("Database connection unavailable");
   const [checklist] = await db
     .select()
     .from(taskChecklists)
@@ -912,7 +912,7 @@ export async function getAuditLogs(opts: {
   offset?: number;
 }) {
   const db = await getDb();
-  if (!db) return { rows: [], total: 0 };
+  if (!db) throw new Error("Database connection unavailable");
   const conditions = [];
   if (opts.tenantId != null) conditions.push(eq(auditLogs.tenantId, opts.tenantId));
   if (opts.actorId) conditions.push(eq(auditLogs.actorId, opts.actorId));
@@ -931,7 +931,7 @@ export async function getAuditLogs(opts: {
 
 export async function getTenantStats(tenantId: number) {
   const db = await getDb();
-  if (!db) return { activeJobs: 0, totalUsers: 0, totalTechnicians: 0 };
+  if (!db) throw new Error("Database connection unavailable");
   const [activeJobRows, userRows, techRows] = await Promise.all([
     db.select({ id: tasks.id }).from(tasks)
       .where(and(

@@ -135,7 +135,7 @@ export default function TaskDetailScreen() {
         text: "Confirm",
         onPress: async () => {
           if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          await updateStatusMutation.mutateAsync({ id: task.id, status: nextStatus });
+          await updateStatusMutation.mutateAsync({ id: task.id, status: nextStatus, tenantId: tenantId ?? 0 });
         },
       },
     ]);
@@ -150,7 +150,7 @@ export default function TaskDetailScreen() {
         style: "destructive",
         onPress: async () => {
           if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          await cancelMutation.mutateAsync({ id: task.id, status: "cancelled" });
+          await cancelMutation.mutateAsync({ id: task.id, status: "cancelled", tenantId: tenantId ?? 0 });
         },
       },
     ]);
@@ -159,12 +159,12 @@ export default function TaskDetailScreen() {
   const handleAssignConfirm = useCallback(async () => {
     if (!task || !selectedTechId) return;
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await assignMutation.mutateAsync({ id: task.id, technicianId: selectedTechId });
+    await assignMutation.mutateAsync({ id: task.id, technicianId: selectedTechId, tenantId: tenantId ?? 0 });
     // Also advance status to "assigned" if currently unassigned
     if (currentStatus === "unassigned") {
-      await updateStatusMutation.mutateAsync({ id: task.id, status: "assigned" });
+      await updateStatusMutation.mutateAsync({ id: task.id, status: "assigned", tenantId: tenantId ?? 0 });
     }
-  }, [task, selectedTechId, assignMutation, updateStatusMutation, currentStatus]);
+  }, [task, selectedTechId, assignMutation, updateStatusMutation, currentStatus, tenantId]);
 
   const handleCall = (phone: string) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
