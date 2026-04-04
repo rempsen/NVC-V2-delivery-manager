@@ -280,36 +280,16 @@ export default function TasksScreen() {
   return (
     <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 } as ViewStyle]}>
-        <View style={styles.headerLeft}>
-          <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
-          <View>
-            <Text style={styles.headerLabel}>NVC360 2.0</Text>
-            <Text style={styles.headerTitle}>Work Orders</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 8 } as ViewStyle]}>
+        {/* Row 1: Logo + Title + New Order button */}
+        <View style={styles.headerRow1}>
+          <View style={styles.headerLeft}>
+            <Image source={NVC_LOGO_DARK as any} style={styles.headerLogo as any} resizeMode="contain" />
+            <View>
+              <Text style={styles.headerLabel}>NVC360 2.0</Text>
+              <Text style={styles.headerTitle}>Work Orders</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.headerCount}>{allTasks.length} total</Text>
-          {exportLoading ? (
-            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-          ) : (
-            <>
-              <Pressable
-                style={({ pressed }) => [styles.exportBtn, pressed && { opacity: 0.75 }] as ViewStyle[]}
-                onPress={() => handleExport("csv")}
-              >
-                <IconSymbol name="square.and.arrow.down" size={13} color="#fff" />
-                <Text style={styles.exportBtnText}>CSV</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.exportBtn, { backgroundColor: "#DC2626" }, pressed && { opacity: 0.75 }] as ViewStyle[]}
-                onPress={() => handleExport("pdf")}
-              >
-                <IconSymbol name="doc.fill" size={13} color="#fff" />
-                <Text style={styles.exportBtnText}>PDF</Text>
-              </Pressable>
-            </>
-          )}
           <Pressable
             style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }] as ViewStyle[]}
             onPress={() => router.push("/create-task")}
@@ -317,6 +297,31 @@ export default function TasksScreen() {
             <IconSymbol name="plus" size={14} color="#fff" />
             <Text style={styles.addBtnText}>New Order</Text>
           </Pressable>
+        </View>
+
+        {/* Row 2: Count + Export buttons */}
+        <View style={styles.headerRow2}>
+          <Text style={styles.headerCount}>{allTasks.length} total</Text>
+          {exportLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.exportBtn, pressed && { opacity: 0.75 }] as ViewStyle[]}
+                onPress={() => handleExport("csv")}
+              >
+                <IconSymbol name="square.and.arrow.down" size={13} color="#fff" />
+                <Text style={styles.exportBtnText}>Export CSV</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.exportBtn, { backgroundColor: "#DC2626" }, pressed && { opacity: 0.75 }] as ViewStyle[]}
+                onPress={() => handleExport("pdf")}
+              >
+                <IconSymbol name="doc.fill" size={13} color="#fff" />
+                <Text style={styles.exportBtnText}>Export PDF</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
 
@@ -448,19 +453,25 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   // Header
   header: {
-    flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingBottom: 14, backgroundColor: NVC_BLUE,
+    flexDirection: "column",
+    paddingHorizontal: 16, paddingBottom: 10, backgroundColor: NVC_BLUE,
+  },
+  headerRow1: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  headerRow2: {
+    flexDirection: "row", alignItems: "center", gap: 8,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  headerLogo: { width: 34, height: 34, borderRadius: 9 },
+  headerLogo: { width: 32, height: 32, borderRadius: 8 },
   headerLabel: { fontSize: 10, color: "rgba(255,255,255,0.6)", fontFamily: "Inter_600SemiBold", letterSpacing: 1, textTransform: "uppercase" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 2, letterSpacing: -0.3 },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 2, letterSpacing: -0.3 },
   headerCount: { fontSize: 12, color: "rgba(255,255,255,0.7)", fontFamily: "Inter_500Medium" },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: NVC_ORANGE, paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 10, minHeight: 40,
+    backgroundColor: NVC_ORANGE, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 10, minHeight: 36,
     shadowColor: NVC_ORANGE, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35, shadowRadius: 6, elevation: 4,
   },

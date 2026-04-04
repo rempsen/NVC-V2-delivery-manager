@@ -396,25 +396,40 @@ export default function CustomersScreen() {
   return (
     <ScreenContainer edges={["left", "right", "bottom"]} containerClassName="bg-[#EFF2F7]">
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }] as ViewStyle[]}>
-        <View style={styles.headerLeft}>
-          <Image source={NVC_LOGO_DARK as any} style={styles.logo as any} resizeMode="contain" />
-          <View>
-            <Text style={styles.headerLabel}>NVC360 2.0</Text>
-            <Text style={styles.headerTitle}>Clients</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }] as ViewStyle[]}>
+        {/* Row 1: Logo + Title + Add button */}
+        <View style={styles.headerRow1}>
+          <View style={styles.headerLeft}>
+            <Image source={NVC_LOGO_DARK as any} style={styles.logo as any} resizeMode="contain" />
+            <View>
+              <Text style={styles.headerLabel}>NVC360 2.0</Text>
+              <Text style={styles.headerTitle}>Clients</Text>
+            </View>
           </View>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/customer/new" as any);
+            }}
+          >
+            <IconSymbol name="plus" size={15} color="#fff" />
+            <Text style={styles.addBtnText}>Add Client</Text>
+          </Pressable>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+
+        {/* Row 2: List/Grid toggle + CSV export */}
+        <View style={styles.headerRow2}>
           {/* List / Card toggle */}
           <View style={{ flexDirection: "row", borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" }}>
             <Pressable
-              style={({ pressed }) => [{ width: 32, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "list" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              style={({ pressed }) => [{ width: 34, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "list" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
               onPress={() => setViewMode("list")}
             >
               <IconSymbol name="list.bullet" size={14} color="#fff" />
             </Pressable>
             <Pressable
-              style={({ pressed }) => [{ width: 32, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "card" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
+              style={({ pressed }) => [{ width: 34, height: 30, alignItems: "center", justifyContent: "center", backgroundColor: viewMode === "card" ? "rgba(255,255,255,0.25)" : "transparent", opacity: pressed ? 0.7 : 1 }] as ViewStyle[]}
               onPress={() => setViewMode("card")}
             >
               <IconSymbol name="square.grid.3x3.fill" size={14} color="#fff" />
@@ -428,19 +443,9 @@ export default function CustomersScreen() {
               onPress={handleExportCsv}
             >
               <IconSymbol name="square.and.arrow.down" size={13} color="#fff" />
-              <Text style={styles.exportBtnText}>CSV</Text>
+              <Text style={styles.exportBtnText}>Export CSV</Text>
             </Pressable>
           )}
-          <Pressable
-            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.8 : 1 }] as ViewStyle[]}
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/customer/new" as any);
-            }}
-          >
-            <IconSymbol name="plus" size={16} color="#fff" />
-            <Text style={styles.addBtnText}>Add Client</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -715,7 +720,8 @@ const SURFACE = "#FFFFFF";
 
 const styles = StyleSheet.create<{
   // Header
-  header: ViewStyle; headerLeft: ViewStyle; logo: ViewStyle;
+  header: ViewStyle; headerRow1: ViewStyle; headerRow2: ViewStyle;
+  headerLeft: ViewStyle; logo: ViewStyle;
   headerLabel: TextStyle; headerTitle: TextStyle;
   addBtn: ViewStyle; addBtnText: TextStyle;
   // Stats
@@ -755,8 +761,15 @@ const styles = StyleSheet.create<{
 }>({
   // Header
   header: {
-    flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingBottom: 12, backgroundColor: NVC_BLUE,
+    flexDirection: "column",
+    paddingHorizontal: 16, paddingBottom: 10, backgroundColor: NVC_BLUE,
+  },
+  headerRow1: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  headerRow2: {
+    flexDirection: "row", alignItems: "center", gap: 8,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   logo: { width: 32, height: 32, borderRadius: 7 },
@@ -764,10 +777,10 @@ const styles = StyleSheet.create<{
   headerTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 1 },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: NVC_ORANGE, paddingHorizontal: 16, paddingVertical: 9,
-    borderRadius: 12, minHeight: 38,
+    backgroundColor: NVC_ORANGE, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 10, minHeight: 36,
   },
-  addBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  addBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   // Stats — compact square tiles
   statsStrip: { flexDirection: "row", paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
