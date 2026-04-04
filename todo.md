@@ -1465,3 +1465,12 @@
 - [x] Fix Bug 2: Token key mismatch — auth.ts now reads 'nvc360_token' (written by login.tsx) first, falls back to 'app_session_token'
 - [x] Fix Bug 3: Empty API base URL on native — getApiBaseUrl() now derives API URL from expo-constants hostUri on iOS/Android
 - [x] TypeScript: 0 errors confirmed by live watcher after all fixes
+
+## Screen Layout Audit & Fix — Apr 4, 2026
+
+- [x] Fix Dashboard (tabs/index.tsx): default leftPanelOpen to false on mobile — map is now full-screen hero on first load
+- [x] Fix Dashboard (dispatcher/index.tsx): map height increased to 65% of screen height on mobile (was 55% capped at 520px)
+- [x] Fix Technicians screen: default viewMode to 'card' on mobile (was 'list' which rendered a split layout wider than the phone screen)
+- [x] Fix Technicians screen: default leftOpen to false on mobile
+- [x] Fix Technicians screen: compact horizontal filter chips already correct (minHeight 32px, paddingVertical 7px)
+- [x] Add compact 180px NativeMapView map strip to card view header on mobile (shows all technician pins with LIVE badge)

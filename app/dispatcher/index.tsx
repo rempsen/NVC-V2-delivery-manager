@@ -603,8 +603,11 @@ export default function DispatcherDashboard() {
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const onlineTechs = technicians.filter((t) => t.status === "online" || t.status === "busy").length;
 
-  // Map height: dominant — 55% of screen height, min 300, max 520
-  const mapHeight = Math.min(Math.max(Math.round(SCREEN_HEIGHT * 0.55), 300), 520);
+  // Map height: on mobile use 65% of screen height (no cap) for maximum map visibility
+  // On web, cap at 520px to keep the dashboard layout balanced
+  const mapHeight = Platform.OS === "web"
+    ? Math.min(Math.max(Math.round(SCREEN_HEIGHT * 0.55), 300), 520)
+    : Math.max(Math.round(SCREEN_HEIGHT * 0.65), 340);
 
   return (
     <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#EFF2F7]">

@@ -819,7 +819,9 @@ export default function DashboardScreen() {
   const { tenantId } = useTenant();
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
-  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  // On mobile, start with panel closed so the full-bleed map is visible immediately
+  // On web, keep the panel open by default for the side-by-side dispatcher layout
+  const [leftPanelOpen, setLeftPanelOpen] = useState(IS_WEB);
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
 

@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GoogleMapView } from "@/components/google-map-view";
+import { NativeMapView } from "@/components/native-map-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { NVC_BLUE, NVC_ORANGE, NVC_LOGO_DARK, WIDGET_SURFACE_LIGHT } from "@/constants/brand";
 import {
@@ -268,8 +269,10 @@ export default function AgentsScreen() {
     />
   ), [cardWidth, router, handleCall, handleMessage]);
 
-  const [viewMode, setViewMode] = useState<"list" | "card">("list");
-  const [leftOpen, setLeftOpen] = useState(true);
+  // On mobile, default to card grid (not list/map split) — the split layout is wider than the phone screen
+  const [viewMode, setViewMode] = useState<"list" | "card">(Platform.OS === "web" ? "list" : "card");
+  // On mobile, start with the left panel closed so the map is visible
+  const [leftOpen, setLeftOpen] = useState(Platform.OS === "web");
   const [selectedTechId, setSelectedTechId] = useState<number | null>(null);
   const selectedTech = selectedTechId ? allTechs.find((t) => t.id === selectedTechId) ?? null : null;
   const mapTechs = allTechs
@@ -331,6 +334,22 @@ export default function AgentsScreen() {
           }
           ListHeaderComponent={
             <View style={{ marginBottom: 8 }}>
+              {/* Compact map strip — shows all technician locations at a glance */}
+              {Platform.OS !== "web" && (
+                <View style={{ height: 180, borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
+                  <NativeMapView
+                    technicians={mapTechs}
+                    tasks={[]}
+                    height={180}
+                    center={{ lat: 49.8951, lng: -97.1384 }}
+                    zoom={11}
+                  />
+                  <View style={{ position: "absolute", bottom: 8, left: 8, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E" }} />
+                    <Text style={{ fontSize: 10, color: "#fff", fontFamily: "Inter_600SemiBold" }}>LIVE · {mapTechs.length} online</Text>
+                  </View>
+                </View>
+              )}
               <View style={[styles.searchBar, searchFocused && styles.searchBarFocused, { marginBottom: 8 }] as ViewStyle[]}>
                 <IconSymbol name="magnifyingglass" size={14} color="#9CA3AF" />
                 <TextInput
