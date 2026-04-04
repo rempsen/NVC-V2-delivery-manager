@@ -29,9 +29,12 @@ export const API_BASE_URL = env.apiBaseUrl;
  * Get the API base URL, deriving from current hostname if not set.
  * Metro runs on 8081, API server runs on 3000.
  * URL pattern: https://PORT-sandboxid.region.domain
+ *
+ * On native (iOS/Android), the Metro bundler URL is embedded in the Expo manifest
+ * at __DEV__ time. We derive the API URL from it by replacing port 8081 with 3000.
  */
 export function getApiBaseUrl(): string {
-  // If API_BASE_URL is set, use it
+  // If API_BASE_URL is explicitly set, use it (highest priority)
   if (API_BASE_URL) {
     return API_BASE_URL.replace(/\/$/, "");
   }
@@ -46,7 +49,38 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  // Fallback to empty (will use relative URL)
+  // On native (iOS/Android), derive from the Expo manifest debugger host
+  // The manifest contains the Metro bundler URL; replace port 8081 with 3000
+  if (ReactNative.Platform.OS !== "web") {
+    try {
+      // expo-constants provides the manifest with the dev server URL
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Constants = require("expo-constants").default;
+      const expoConfig = Constants.expoConfig ?? Constants.manifest;
+      // In Expo Go / dev builds, hostUri is set to the Metro bundler address
+      const hostUri: string | undefined =
+        expoConfig?.hostUri ??
+        Constants.manifest2?.launchAsset?.url ??
+        Constants.manifest?.bundleUrl;
+      if (hostUri) {
+        // hostUri format: "192.168.x.x:8081" or "hostname:8081"
+        // For Manus sandbox: "8081-sandboxid.region.manus.computer"
+        const cleanHost = hostUri.replace(/\/.*$/, ""); // strip path
+        const apiHost = cleanHost
+          .replace(/:8081$/, ":3000")           // local IP: 192.168.x.x:8081 -> :3000
+          .replace(/^8081-/, "3000-");           // Manus sandbox: 8081-xxx -> 3000-xxx
+        if (apiHost !== cleanHost) {
+          // Use https for Manus sandbox hostnames, http for local IPs
+          const protocol = apiHost.includes("manus.computer") ? "https" : "http";
+          return `${protocol}://${apiHost}`;
+        }
+      }
+    } catch {
+      // expo-constants not available — fall through to empty string
+    }
+  }
+
+  // Fallback to empty (will use relative URL — works on web only)
   return "";
 }
 

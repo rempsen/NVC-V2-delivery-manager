@@ -17,7 +17,9 @@ import {
 } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
-import * as Crypto from "expo-crypto";
+// expo-crypto barrel eagerly loads ExpoCryptoAES (not available in Expo Go)
+// Use Web Crypto API instead — available in React Native 0.71+ natively
+// import * as Crypto from "expo-crypto"; // REMOVED — causes Expo Go crash
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
@@ -201,17 +203,20 @@ export default function LoginScreen() {
       }
 
       // ── Generate PKCE code_verifier and code_challenge ───────────────────
-      const randomBytes = await Crypto.getRandomBytesAsync(32);
-      const codeVerifier = Array.from(randomBytes)
+      // Using Web Crypto API (available in React Native 0.71+ / Hermes) instead of
+      // expo-crypto to avoid the ExpoCryptoAES native module (not in Expo Go)
+      const randomArray = new Uint8Array(32);
+      globalThis.crypto.getRandomValues(randomArray);
+      const codeVerifier = Array.from(randomArray)
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
-      const digest = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        codeVerifier,
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
+      const encoder = new TextEncoder();
+      const data = encoder.encode(codeVerifier);
+      const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", data);
+      const hashArray = new Uint8Array(hashBuffer);
       // Base64url encode per RFC 7636
-      const codeChallenge = digest.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+      const base64 = btoa(String.fromCharCode(...hashArray));
+      const codeChallenge = base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 
       // ── Build redirect URI ──────────────────────────────────────────
       // iOS uses the reverse-DNS scheme from the Google Cloud Console iOS client.

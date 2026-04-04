@@ -1,6 +1,10 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { SESSION_TOKEN_KEY, USER_INFO_KEY } from "@/constants/oauth";
+import { USER_INFO_KEY } from "@/constants/oauth";
+
+// NVC360 uses its own token key — must match what login.tsx writes
+const NVC360_TOKEN_KEY = "nvc360_token";
+const NVC360_USER_KEY = "nvc360_user";
 
 export type User = {
   id: number;
@@ -21,7 +25,12 @@ export async function getSessionToken(): Promise<string | null> {
 
     // Use SecureStore for native
     console.log("[Auth] Getting session token...");
-    const token = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
+    // Read from both keys: prefer nvc360_token (written by login.tsx)
+    // Fall back to app_session_token for Manus SDK OAuth flow compatibility
+    let token = await SecureStore.getItemAsync(NVC360_TOKEN_KEY);
+    if (!token) {
+      token = await SecureStore.getItemAsync("app_session_token");
+    }
     console.log(
       "[Auth] Session token retrieved from SecureStore:",
       token ? `present (${token.substring(0, 20)}...)` : "missing",
@@ -43,7 +52,7 @@ export async function setSessionToken(token: string): Promise<void> {
 
     // Use SecureStore for native
     console.log("[Auth] Setting session token...", token.substring(0, 20) + "...");
-    await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
+    await SecureStore.setItemAsync(NVC360_TOKEN_KEY, token);
     console.log("[Auth] Session token stored in SecureStore successfully");
   } catch (error) {
     console.error("[Auth] Failed to set session token:", error);
@@ -61,7 +70,9 @@ export async function removeSessionToken(): Promise<void> {
 
     // Use SecureStore for native
     console.log("[Auth] Removing session token...");
-    await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(NVC360_TOKEN_KEY);
+    // Also clear the fallback key if present
+    try { await SecureStore.deleteItemAsync("app_session_token"); } catch { /* ignore */ }
     console.log("[Auth] Session token removed from SecureStore successfully");
   } catch (error) {
     console.error("[Auth] Failed to remove session token:", error);

@@ -1457,3 +1457,11 @@
 - [x] Guard Google button when GOOGLE_OAUTH_CLIENT_ID is not set (shows alert if not configured)
 - [x] Add GOOGLE_OAUTH_CLIENT_ID secret (requested via webdev_request_secrets)
 - [x] TypeScript: 0 errors after all changes
+
+## iOS Mobile Fix — Apr 4, 2026
+
+- [x] Diagnose iOS app not working on mobile (build errors, Metro logs, auth issues)
+- [x] Fix Bug 1: ExpoCryptoAES crash — replaced expo-crypto barrel import with Web Crypto API (globalThis.crypto) in login.tsx PKCE flow
+- [x] Fix Bug 2: Token key mismatch — auth.ts now reads 'nvc360_token' (written by login.tsx) first, falls back to 'app_session_token'
+- [x] Fix Bug 3: Empty API base URL on native — getApiBaseUrl() now derives API URL from expo-constants hostUri on iOS/Android
+- [x] TypeScript: 0 errors confirmed by live watcher after all fixes
