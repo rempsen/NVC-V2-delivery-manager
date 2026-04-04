@@ -385,6 +385,10 @@ export default function AgentDetailScreen() {
   };
 
   const handleSave = useCallback(() => {
+    if (!tenantId) {
+      Alert.alert("Not Ready", "Your account is still loading. Please wait a moment and try again.");
+      return;
+    }
     const errors: Record<string, string> = {};
     if (!profile.firstName.trim()) errors.firstName = "First name is required.";
     if (!profile.lastName.trim()) errors.lastName = "Last name is required.";
